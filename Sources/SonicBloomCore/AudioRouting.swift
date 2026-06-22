@@ -83,7 +83,11 @@ public struct AudioRouteState: Codable, Equatable, Sendable {
     }
 
     public var recoverySummary: String {
-        recoveryMessage ?? "No recovery needed"
+        if installHealth == .degraded, recoveryAttempts >= 3 {
+            let message = recoveryMessage ?? "Audio route degraded."
+            return "Needs attention: \(message) (\(recoveryAttempts) attempts)"
+        }
+        return recoveryMessage ?? "No recovery needed"
     }
 
     public init(

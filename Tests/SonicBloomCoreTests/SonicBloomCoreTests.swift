@@ -710,6 +710,17 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertEqual(degraded.recoverySummary, "Route degraded: SonicBloom Output unavailable.")
     }
 
+    func testRouteStateEscalatesRepeatedDegradedRecovery() {
+        let degraded = AudioRouteState.default
+            .recordingDegradedRecovery("Route degraded: SonicBloom Output unavailable.")
+            .recordingDegradedRecovery("Route degraded: SonicBloom Output unavailable.")
+            .recordingDegradedRecovery("Route degraded: SonicBloom Output unavailable.")
+
+        XCTAssertEqual(degraded.recoveryAttempts, 3)
+        XCTAssertTrue(degraded.recoverySummary.contains("Needs attention"))
+        XCTAssertTrue(degraded.recoverySummary.contains("3 attempts"))
+    }
+
     func testOlderRouteStateJSONDefaultsRecoveryFields() throws {
         let data = #"{"virtualDeviceName":"SonicBloom Output","sampleRate":48000,"channels":2,"bufferSize":64,"installHealth":"installed","statusMessage":"Ready"}"#.data(using: .utf8)!
 
