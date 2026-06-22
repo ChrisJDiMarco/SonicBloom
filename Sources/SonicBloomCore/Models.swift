@@ -665,6 +665,22 @@ public enum PresetCatalog {
     ]
 }
 
+public enum DeviceProfileAdvisor {
+    public static func preset(for outputName: String?) -> DSPPreset? {
+        guard let name = outputName?.lowercased(), !name.isEmpty else { return nil }
+        if contains(name, ["airpods"]) { return .airPods }
+        if contains(name, ["macbook", "built-in", "internal speakers"]) { return .tinySpeakers }
+        if contains(name, ["tv", "hdmi", "display", "quicktime"]) { return .movies }
+        if contains(name, ["headphone", "hd 600", "quietcomfort", "wh-1000", "sony", "bose", "sennheiser"]) { return .headphones }
+        if contains(name, ["speaker", "bluetooth", "jbl", "sonos"]) { return .cleanLoud }
+        return nil
+    }
+
+    private static func contains(_ value: String, _ needles: [String]) -> Bool {
+        needles.contains { value.contains($0) }
+    }
+}
+
 public struct HeadphoneProfile: Codable, Equatable, Identifiable, Sendable {
     public var id: String
     public var manufacturer: String

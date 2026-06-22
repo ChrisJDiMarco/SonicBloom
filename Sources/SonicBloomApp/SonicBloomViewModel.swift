@@ -100,7 +100,7 @@ final class SonicBloomViewModel: ObservableObject {
         settings = Self.load(SonicBloomSettings.self, from: defaults, key: DefaultsKey.settings) ?? .default
         routeState = routeManager.currentState()
         activeProfileOutputName = routeState.selectedPhysicalOutputName
-        selectedPreset = profile.preset(for: routeState.selectedPhysicalOutputName) ?? favoritePreset()
+        selectedPreset = presetForOutput(routeState.selectedPhysicalOutputName)
         bridge.meterHandler = { [weak self] meter in
             Task { @MainActor in
                 self?.handleMeter(meter)
@@ -377,8 +377,8 @@ final class SonicBloomViewModel: ObservableObject {
 
     var deviceProfileSummary: String {
         guard let outputName = routeState.selectedPhysicalOutputName, !outputName.isEmpty else { return "No output" }
-        let saved = profile.preset(for: outputName) != nil ? "Saved" : "Using"
-        return "\(saved): \(selectedPreset.name)"
+        let source = profile.preset(for: outputName) != nil ? "Saved" : (DeviceProfileAdvisor.preset(for: outputName) != nil ? "Suggested" : "Using")
+        return "\(source): \(selectedPreset.name)"
     }
 
     var trustDiagnostics: [TrustDiagnostic] {
@@ -454,7 +454,7 @@ final class SonicBloomViewModel: ObservableObject {
         guard outputName != activeProfileOutputName else { return }
         activeProfileOutputName = outputName
         isApplyingDevicePreset = true
-        selectedPreset = profile.preset(for: outputName) ?? favoritePreset()
+        selectedPreset = presetForOutput(outputName)
         isApplyingDevicePreset = false
     }
 
@@ -466,6 +466,10 @@ final class SonicBloomViewModel: ObservableObject {
 
     private func favoritePreset() -> DSPPreset {
         presets.first(where: { $0.name == profile.favoritePresetName }) ?? .cleanLoud
+    }
+
+    private func presetForOutput(_ outputName: String?) -> DSPPreset {
+        profile.preset(for: outputName) ?? DeviceProfileAdvisor.preset(for: outputName) ?? favoritePreset()
     }
 
     private func startAppActivationObserver() {

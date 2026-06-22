@@ -497,6 +497,14 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertNil(profile.preset(for: ""))
     }
 
+    func testDeviceProfileAdvisorSuggestsOutputSpecificPresets() {
+        XCTAssertEqual(DeviceProfileAdvisor.preset(for: "MacBook Pro Speakers")?.name, DSPPreset.tinySpeakers.name)
+        XCTAssertEqual(DeviceProfileAdvisor.preset(for: "Chris AirPods Pro")?.name, DSPPreset.airPods.name)
+        XCTAssertEqual(DeviceProfileAdvisor.preset(for: "Sennheiser HD 600")?.name, DSPPreset.headphones.name)
+        XCTAssertEqual(DeviceProfileAdvisor.preset(for: "LG TV")?.name, DSPPreset.movies.name)
+        XCTAssertNil(DeviceProfileAdvisor.preset(for: nil))
+    }
+
     func testProfileStoresPerAppAudioRules() {
         var profile = SonicBloomProfile.default
         let rule = AppAudioRule(
