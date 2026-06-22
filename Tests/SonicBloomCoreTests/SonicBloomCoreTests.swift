@@ -641,8 +641,8 @@ final class SonicBloomCoreTests: XCTestCase {
 
         XCTAssertEqual(quiet.waveformIntensity, 0)
         XCTAssertEqual(loud.waveformIntensity, 1)
-        XCTAssertEqual(SonicBloomSettings.default.syncMode, .music)
-        XCTAssertFalse(SonicBloomSettings.default.smartPresetMatching)
+        XCTAssertEqual(SonicBloomSettings.default.syncMode, .auto)
+        XCTAssertTrue(SonicBloomSettings.default.smartPresetMatching)
 
         let data = try JSONEncoder().encode(SonicBloomSettings.default)
         XCTAssertEqual(try JSONDecoder().decode(SonicBloomSettings.self, from: data), .default)
@@ -660,9 +660,11 @@ final class SonicBloomCoreTests: XCTestCase {
 
     func testSyncModeOptimizesSpatialLatencyCost() {
         let cinematic = DSPPreset.movies
+        let auto = cinematic.optimized(for: .auto)
         let video = cinematic.optimized(for: .video)
         let gaming = cinematic.optimized(for: .gaming)
 
+        XCTAssertEqual(auto, video)
         XCTAssertLessThanOrEqual(video.ambienceAmount, 0.08)
         XCTAssertLessThanOrEqual(video.hrtfAmount, 0.24)
         XCTAssertLessThanOrEqual(video.spatialAmount, cinematic.spatialAmount)
@@ -673,12 +675,36 @@ final class SonicBloomCoreTests: XCTestCase {
     }
 
     func testSyncModeChoosesHardwareBufferFrameSize() {
+        XCTAssertEqual(AudioSyncMode.auto.preferredBufferFrameSize, 64)
         XCTAssertEqual(AudioSyncMode.music.preferredBufferFrameSize, 128)
         XCTAssertEqual(AudioSyncMode.video.preferredBufferFrameSize, 64)
         XCTAssertEqual(AudioSyncMode.gaming.preferredBufferFrameSize, 32)
+        XCTAssertEqual(AudioSyncMode.auto.maxQueuedOutputFrames(observedCallbackFrames: 64), 512)
         XCTAssertEqual(AudioSyncMode.music.maxQueuedOutputFrames(observedCallbackFrames: 128), 512)
         XCTAssertEqual(AudioSyncMode.video.maxQueuedOutputFrames(observedCallbackFrames: 64), 512)
         XCTAssertEqual(AudioSyncMode.gaming.maxQueuedOutputFrames(observedCallbackFrames: 1024), 1024)
+    }
+
+    func testAutoSyncModeResolvesFromAppAndContent() {
+        let profile = SonicBloomProfile.default
+
+        XCTAssertEqual(profile.effectiveSyncMode(for: "com.spotify.client", default: .auto, contentProfile: .speech), .music)
+        XCTAssertEqual(profile.effectiveSyncMode(for: "com.google.Chrome", default: .auto, contentProfile: .music), .video)
+        XCTAssertEqual(profile.effectiveSyncMode(for: "com.valvesoftware.steam", default: .auto, contentProfile: .music), .gaming)
+        XCTAssertEqual(profile.effectiveSyncMode(for: nil, default: .auto, contentProfile: .music), .music)
+        XCTAssertEqual(profile.effectiveSyncMode(for: nil, default: .auto, contentProfile: .speech), .video)
+        XCTAssertEqual(profile.effectiveSyncMode(for: nil, default: .auto, contentProfile: .quiet), .video)
+    }
+
+    func testAppRuleSyncModeStillOverridesAutoSyncMode() {
+        var profile = SonicBloomProfile.default
+        profile.upsert(AppAudioRule(
+            bundleIdentifier: "com.google.Chrome",
+            displayName: "Chrome",
+            syncMode: .gaming
+        ))
+
+        XCTAssertEqual(profile.effectiveSyncMode(for: "com.google.Chrome", default: .auto, contentProfile: .music), .gaming)
     }
 
     func testSmartPresetAdvisorClassifiesAndStabilizesContent() {

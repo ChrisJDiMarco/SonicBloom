@@ -56,6 +56,7 @@ public enum ListeningMode: String, Codable, CaseIterable, Identifiable, Sendable
 }
 
 public enum AudioSyncMode: String, Codable, CaseIterable, Identifiable, Sendable {
+    case auto = "Auto"
     case music = "Music"
     case video = "Video"
     case gaming = "Gaming"
@@ -64,6 +65,7 @@ public enum AudioSyncMode: String, Codable, CaseIterable, Identifiable, Sendable
 
     public var preferredBufferFrameSize: UInt32 {
         switch self {
+        case .auto: 64
         case .music: 128
         case .video: 64
         case .gaming: 32
@@ -319,6 +321,18 @@ public struct SonicBloomProfile: Codable, Equatable, Sendable {
         appRule(for: bundleIdentifier)?.syncMode ?? syncMode
     }
 
+    public func effectiveSyncMode(
+        for bundleIdentifier: String?,
+        default syncMode: AudioSyncMode,
+        contentProfile: SmartContentProfile
+    ) -> AudioSyncMode {
+        SmartSyncAdvisor.syncMode(
+            for: appRule(for: bundleIdentifier)?.syncMode ?? syncMode,
+            bundleIdentifier: bundleIdentifier,
+            contentProfile: contentProfile
+        )
+    }
+
     public mutating func upsert(_ rule: AppAudioRule) {
         guard !rule.bundleIdentifier.isEmpty else { return }
         appRules[rule.bundleIdentifier] = rule
@@ -360,9 +374,9 @@ public struct SonicBloomSettings: Codable, Equatable, Sendable {
         reduceMotion: Bool = false,
         waveformIntensity: Double = 0.72,
         showAdvancedControls: Bool = true,
-        syncMode: AudioSyncMode = .music,
+        syncMode: AudioSyncMode = .auto,
         loudnessMatchedCompare: Bool = true,
-        smartPresetMatching: Bool = false
+        smartPresetMatching: Bool = true
     ) {
         self.autoEnhanceOnLaunch = autoEnhanceOnLaunch
         self.reduceMotion = reduceMotion
@@ -536,6 +550,8 @@ public struct DSPPreset: Codable, Equatable, Identifiable, Sendable {
 public extension DSPPreset {
     func optimized(for syncMode: AudioSyncMode) -> DSPPreset {
         switch syncMode {
+        case .auto:
+            return optimized(for: .video)
         case .music:
             return self
         case .video:

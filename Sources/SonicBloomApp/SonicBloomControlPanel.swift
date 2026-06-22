@@ -779,6 +779,7 @@ private struct SyncModePicker: View {
 
     private var modeHint: String {
         switch selection {
+        case .auto: "smart"
         case .music: "full sound"
         case .video: "A/V sync"
         case .gaming: "lowest latency"

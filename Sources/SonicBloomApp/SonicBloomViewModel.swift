@@ -55,7 +55,7 @@ final class SonicBloomViewModel: ObservableObject {
             save(profile, forKey: DefaultsKey.profile)
             refreshAppMixerRules()
             activeAppRule = profile.appRule(for: foregroundAppBundleIdentifier)
-            if oldValue.effectiveSyncMode(for: foregroundAppBundleIdentifier, default: settings.syncMode) != processingSyncMode {
+            if oldValue.effectiveSyncMode(for: foregroundAppBundleIdentifier, default: settings.syncMode, contentProfile: smartContentProfile) != processingSyncMode {
                 routeState.bufferSize = Int(processingSyncMode.preferredBufferFrameSize)
                 if isBridgeRunning, !isTransitioning {
                     startBridge()
@@ -408,13 +408,17 @@ final class SonicBloomViewModel: ObservableObject {
         profile.effectivePreset(
             basePreset: selectedPreset,
             for: foregroundAppBundleIdentifier,
-            syncMode: settings.syncMode,
             catalog: presets
         )
+        .optimized(for: processingSyncMode)
     }
 
     private var processingSyncMode: AudioSyncMode {
-        profile.effectiveSyncMode(for: foregroundAppBundleIdentifier, default: settings.syncMode)
+        profile.effectiveSyncMode(
+            for: foregroundAppBundleIdentifier,
+            default: settings.syncMode,
+            contentProfile: smartContentProfile
+        )
     }
 
     private func updateBridgePreset() {
@@ -423,7 +427,15 @@ final class SonicBloomViewModel: ObservableObject {
 
     private func handleMeter(_ meter: DSPMeter) {
         meterModel.meter = meter
+        let oldSyncMode = processingSyncMode
         smartContentProfile = SmartPresetAdvisor.profile(for: meter)
+        if oldSyncMode != processingSyncMode {
+            routeState.bufferSize = Int(processingSyncMode.preferredBufferFrameSize)
+            if isBridgeRunning, !isTransitioning {
+                startBridge()
+                return
+            }
+        }
         guard settings.smartPresetMatching,
               isBridgeRunning,
               !isBypassed,

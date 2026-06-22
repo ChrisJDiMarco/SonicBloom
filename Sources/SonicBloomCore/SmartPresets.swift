@@ -34,6 +34,31 @@ public enum SmartPresetAdvisor {
     }
 }
 
+public enum SmartSyncAdvisor {
+    public static func syncMode(
+        for requestedMode: AudioSyncMode,
+        bundleIdentifier: String?,
+        contentProfile: SmartContentProfile
+    ) -> AudioSyncMode {
+        guard requestedMode == .auto else { return requestedMode }
+        let bundle = bundleIdentifier?.lowercased() ?? ""
+        if contains(bundle, ["steam", "epicgames", "roblox", "minecraft", "unity"]) { return .gaming }
+        if contains(bundle, ["spotify", "music", "itunes", "tidal", "qobuz", "pandora"]) { return .music }
+        if contains(bundle, ["chrome", "safari", "firefox", "arc", "youtube", "tv", "quicktime", "vlc", "iina", "zoom", "teams", "discord", "facetime"]) { return .video }
+
+        switch contentProfile {
+        case .music:
+            return .music
+        case .speech, .movie, .quiet:
+            return .video
+        }
+    }
+
+    private static func contains(_ value: String, _ needles: [String]) -> Bool {
+        needles.contains { value.contains($0) }
+    }
+}
+
 public struct SmartPresetStabilizer: Sendable {
     private let requiredMatches: Int
     private let cooldownObservations: Int
