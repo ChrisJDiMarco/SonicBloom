@@ -175,6 +175,21 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertGreaterThan(highRetention, lowRetention * 1.18)
     }
 
+    func testNightModeProtectsPresenceFromTrebleBursts() {
+        let frames = sineMix(lowFrequency: 1_000, lowAmplitude: 0.08, highFrequency: 6_000, highAmplitude: 0.52, count: 4_096)
+        let dryPreset = DSPPreset.manual.with(limiterCeilingDB: -0.1)
+        let nightPreset = dryPreset.with(nightModeAmount: 1, limiterCeilingDB: -0.1)
+
+        let dry = SonicBloomProcessor(sampleRate: 48_000).process(frames, preset: dryPreset, bypass: false).frames
+        let night = SonicBloomProcessor(sampleRate: 48_000).process(frames, preset: nightPreset, bypass: false).frames
+
+        let midRetention = toneMagnitude(night, frequency: 1_000) / max(toneMagnitude(dry, frequency: 1_000), 0.000_001)
+        let trebleRetention = toneMagnitude(night, frequency: 6_000) / max(toneMagnitude(dry, frequency: 6_000), 0.000_001)
+
+        XCTAssertLessThan(trebleRetention, 0.88)
+        XCTAssertGreaterThan(midRetention, trebleRetention * 1.25)
+    }
+
     func testBassBloomAddsPsychoacousticHarmonicWeight() {
         let frames = sineMix(lowFrequency: 55, lowAmplitude: 0.28, highFrequency: 0, highAmplitude: 0, count: 4_096)
         let dryPreset = DSPPreset.manual.with(limiterCeilingDB: -0.1)

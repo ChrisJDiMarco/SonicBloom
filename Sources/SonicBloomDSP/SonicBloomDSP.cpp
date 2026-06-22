@@ -183,6 +183,9 @@ struct SonicBloomDSPHandle {
     float nightEnvelope = 0.0f;
     float nightLowL = 0.0f;
     float nightLowR = 0.0f;
+    float nightMidLowL = 0.0f;
+    float nightMidLowR = 0.0f;
+    float nightMidEnvelope = 0.0f;
     float nightHighEnvelope = 0.0f;
     float limiterGain = 1.0f;
     size_t lookaheadIndex = 0;
@@ -231,6 +234,9 @@ struct SonicBloomDSPHandle {
         nightEnvelope = 0.0f;
         nightLowL = 0.0f;
         nightLowR = 0.0f;
+        nightMidLowL = 0.0f;
+        nightMidLowR = 0.0f;
+        nightMidEnvelope = 0.0f;
         nightHighEnvelope = 0.0f;
         limiterGain = 1.0f;
         lookaheadIndex = 0;
@@ -422,6 +428,7 @@ SonicBloomDSPMeter SonicBloomDSPProcess(
     const float harshAttack = onePoleAlpha(130.0f, handle->sampleRate);
     const float harshRelease = onePoleAlpha(18.0f, handle->sampleRate);
     const float nightSplitAlpha = onePoleAlpha(220.0f, handle->sampleRate);
+    const float nightPresenceSplitAlpha = onePoleAlpha(2600.0f, handle->sampleRate);
     const float nightAttack = onePoleAlpha(90.0f, handle->sampleRate);
     const float nightRelease = onePoleAlpha(8.0f, handle->sampleRate);
     const float limiterLookaheadMS = clamp(config->limiterLookaheadMS, 0.2f, 10.0f);
@@ -589,21 +596,29 @@ SonicBloomDSPMeter SonicBloomDSPProcess(
         if (nightModeAmount > 0.0f) {
             handle->nightLowL += nightSplitAlpha * (left - handle->nightLowL);
             handle->nightLowR += nightSplitAlpha * (right - handle->nightLowR);
+            handle->nightMidLowL += nightPresenceSplitAlpha * (left - handle->nightMidLowL);
+            handle->nightMidLowR += nightPresenceSplitAlpha * (right - handle->nightMidLowR);
             const float lowL = handle->nightLowL;
             const float lowR = handle->nightLowR;
-            const float highL = left - lowL;
-            const float highR = right - lowR;
+            const float midL = handle->nightMidLowL - lowL;
+            const float midR = handle->nightMidLowR - lowR;
+            const float highL = left - handle->nightMidLowL;
+            const float highR = right - handle->nightMidLowR;
             const float lowPeak = std::max(std::fabs(lowL), std::fabs(lowR));
+            const float midPeak = std::max(std::fabs(midL), std::fabs(midR));
             const float highPeak = std::max(std::fabs(highL), std::fabs(highR));
             const float lowAlpha = lowPeak > handle->nightEnvelope ? nightAttack : nightRelease;
+            const float midAlpha = midPeak > handle->nightMidEnvelope ? nightAttack : nightRelease;
             const float highAlpha = highPeak > handle->nightHighEnvelope ? nightAttack : nightRelease;
             handle->nightEnvelope += lowAlpha * (lowPeak - handle->nightEnvelope);
+            handle->nightMidEnvelope += midAlpha * (midPeak - handle->nightMidEnvelope);
             handle->nightHighEnvelope += highAlpha * (highPeak - handle->nightHighEnvelope);
 
             const float lowGain = lerp(1.0f, dynamicsGain(handle->nightEnvelope, 0.16f, 5.5f, 0.48f), nightModeAmount);
-            const float highGain = lerp(1.0f, dynamicsGain(handle->nightHighEnvelope, 0.32f, 2.4f, 0.10f), nightModeAmount);
-            left = lowL * lowGain + highL * highGain;
-            right = lowR * lowGain + highR * highGain;
+            const float midGain = lerp(1.0f, dynamicsGain(handle->nightMidEnvelope, 0.22f, 2.2f, 0.30f), nightModeAmount);
+            const float highGain = lerp(1.0f, dynamicsGain(handle->nightHighEnvelope, 0.20f, 7.0f, 0.02f), nightModeAmount);
+            left = lowL * lowGain + midL * midGain + highL * highGain;
+            right = lowR * lowGain + midR * midGain + highR * highGain;
         }
 
         left *= outputGain;
