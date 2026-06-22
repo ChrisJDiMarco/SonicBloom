@@ -54,7 +54,7 @@ final class SonicBloomViewModel: ObservableObject {
         didSet {
             save(profile, forKey: DefaultsKey.profile)
             refreshAppMixerRules()
-            activeAppRule = profile.appRule(for: foregroundAppBundleIdentifier)
+            activeAppRule = profile.effectiveAppRule(for: foregroundAppBundleIdentifier)
             if oldValue.effectiveSyncMode(for: foregroundAppBundleIdentifier, default: settings.syncMode, contentProfile: smartContentProfile) != processingSyncMode {
                 routeState.bufferSize = Int(processingSyncMode.preferredBufferFrameSize)
                 if isBridgeRunning, !isTransitioning {
@@ -490,7 +490,7 @@ final class SonicBloomViewModel: ObservableObject {
               bundleIdentifier != Bundle.main.bundleIdentifier else { return }
         let oldSyncMode = processingSyncMode
         foregroundAppBundleIdentifier = bundleIdentifier
-        activeAppRule = profile.appRule(for: bundleIdentifier)
+        activeAppRule = profile.effectiveAppRule(for: bundleIdentifier)
         if oldSyncMode != processingSyncMode {
             routeState.bufferSize = Int(processingSyncMode.preferredBufferFrameSize)
             if isBridgeRunning, !isTransitioning {
@@ -507,14 +507,14 @@ final class SonicBloomViewModel: ObservableObject {
             guard let bundleIdentifier = app.bundleIdentifier,
                   bundleIdentifier != Bundle.main.bundleIdentifier else { continue }
             let displayName = app.localizedName ?? bundleIdentifier
-            let saved = profile.appRule(for: bundleIdentifier)
+            let rule = profile.appRule(for: bundleIdentifier) ?? AppAudioRuleAdvisor.rule(for: bundleIdentifier, displayName: displayName)
             rules[bundleIdentifier] = AppAudioRule(
                 bundleIdentifier: bundleIdentifier,
                 displayName: displayName,
-                gainDB: saved?.gainDB ?? 0,
-                isMuted: saved?.isMuted ?? false,
-                presetName: saved?.presetName,
-                syncMode: saved?.syncMode
+                gainDB: rule?.gainDB ?? 0,
+                isMuted: rule?.isMuted ?? false,
+                presetName: rule?.presetName,
+                syncMode: rule?.syncMode
             )
         }
         return rules.values.sorted {

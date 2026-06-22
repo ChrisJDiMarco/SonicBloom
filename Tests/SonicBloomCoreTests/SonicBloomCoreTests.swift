@@ -537,6 +537,38 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertEqual(rule.presetName, DSPPreset.deepBass.name)
     }
 
+    func testAppAudioRuleAdvisorSuggestsCommonAppPersonalities() {
+        let spotify = AppAudioRuleAdvisor.rule(for: "com.spotify.client", displayName: "Spotify")
+        let chrome = AppAudioRuleAdvisor.rule(for: "com.google.Chrome", displayName: "Chrome")
+        let zoom = AppAudioRuleAdvisor.rule(for: "us.zoom.xos", displayName: "Zoom")
+        let steam = AppAudioRuleAdvisor.rule(for: "com.valvesoftware.steam", displayName: "Steam")
+
+        XCTAssertEqual(spotify?.presetName, DSPPreset.cleanLoud.name)
+        XCTAssertEqual(spotify?.syncMode, .music)
+        XCTAssertEqual(chrome?.presetName, DSPPreset.cleanLoud.name)
+        XCTAssertEqual(chrome?.syncMode, .video)
+        XCTAssertEqual(zoom?.presetName, DSPPreset.spokenVoice.name)
+        XCTAssertEqual(zoom?.syncMode, .video)
+        XCTAssertEqual(steam?.syncMode, .gaming)
+        XCTAssertNil(AppAudioRuleAdvisor.rule(for: "com.example.notes", displayName: "Notes"))
+    }
+
+    func testProfileEffectiveAppRuleUsesSuggestionsUntilSavedRuleExists() {
+        var profile = SonicBloomProfile.default
+
+        XCTAssertEqual(profile.effectiveAppRule(for: "us.zoom.xos")?.presetName, DSPPreset.spokenVoice.name)
+
+        profile.upsert(AppAudioRule(
+            bundleIdentifier: "us.zoom.xos",
+            displayName: "Zoom",
+            presetName: nil,
+            syncMode: .music
+        ))
+
+        XCTAssertNil(profile.effectiveAppRule(for: "us.zoom.xos")?.presetName)
+        XCTAssertEqual(profile.effectiveSyncMode(for: "us.zoom.xos", default: .auto, contentProfile: .speech), .music)
+    }
+
     func testProfileResolvesEffectivePerAppPreset() {
         var profile = SonicBloomProfile.default
         profile.upsert(AppAudioRule(

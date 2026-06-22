@@ -253,6 +253,33 @@ public struct AppAudioRule: Codable, Equatable, Identifiable, Sendable {
     }
 }
 
+public enum AppAudioRuleAdvisor {
+    public static func rule(for bundleIdentifier: String?, displayName: String) -> AppAudioRule? {
+        guard let bundleIdentifier, !bundleIdentifier.isEmpty else { return nil }
+        let bundle = bundleIdentifier.lowercased()
+        if contains(bundle, ["steam", "epicgames", "roblox", "minecraft", "unity"]) {
+            return AppAudioRule(bundleIdentifier: bundleIdentifier, displayName: displayName, presetName: DSPPreset.headphones.name, syncMode: .gaming)
+        }
+        if contains(bundle, ["spotify", "music", "itunes", "tidal", "qobuz", "pandora"]) {
+            return AppAudioRule(bundleIdentifier: bundleIdentifier, displayName: displayName, presetName: DSPPreset.cleanLoud.name, syncMode: .music)
+        }
+        if contains(bundle, ["zoom", "teams", "discord", "facetime"]) {
+            return AppAudioRule(bundleIdentifier: bundleIdentifier, displayName: displayName, presetName: DSPPreset.spokenVoice.name, syncMode: .video)
+        }
+        if contains(bundle, ["chrome", "safari", "firefox", "arc", "youtube", "tv", "quicktime", "vlc", "iina"]) {
+            return AppAudioRule(bundleIdentifier: bundleIdentifier, displayName: displayName, presetName: DSPPreset.cleanLoud.name, syncMode: .video)
+        }
+        if contains(bundle, ["systemuiserver"]) {
+            return AppAudioRule(bundleIdentifier: bundleIdentifier, displayName: displayName, gainDB: -6, presetName: DSPPreset.flat.name, syncMode: .video)
+        }
+        return nil
+    }
+
+    private static func contains(_ value: String, _ needles: [String]) -> Bool {
+        needles.contains { value.contains($0) }
+    }
+}
+
 public struct SonicBloomProfile: Codable, Equatable, Sendable {
     public var displayName: String
     public var listeningMode: ListeningMode
@@ -294,12 +321,16 @@ public struct SonicBloomProfile: Codable, Equatable, Sendable {
         return appRules[bundleIdentifier]
     }
 
+    public func effectiveAppRule(for bundleIdentifier: String?) -> AppAudioRule? {
+        appRule(for: bundleIdentifier) ?? AppAudioRuleAdvisor.rule(for: bundleIdentifier, displayName: bundleIdentifier ?? "")
+    }
+
     public func effectivePreset(
         basePreset: DSPPreset,
         for bundleIdentifier: String?,
         catalog: [DSPPreset] = PresetCatalog.builtIns
     ) -> DSPPreset {
-        guard let rule = appRule(for: bundleIdentifier) else { return basePreset }
+        guard let rule = effectiveAppRule(for: bundleIdentifier) else { return basePreset }
         let preset = rule.presetName.flatMap { name in
             catalog.first { $0.name == name }
         } ?? basePreset
@@ -318,7 +349,7 @@ public struct SonicBloomProfile: Codable, Equatable, Sendable {
     }
 
     public func effectiveSyncMode(for bundleIdentifier: String?, default syncMode: AudioSyncMode) -> AudioSyncMode {
-        appRule(for: bundleIdentifier)?.syncMode ?? syncMode
+        effectiveAppRule(for: bundleIdentifier)?.syncMode ?? syncMode
     }
 
     public func effectiveSyncMode(
@@ -327,7 +358,7 @@ public struct SonicBloomProfile: Codable, Equatable, Sendable {
         contentProfile: SmartContentProfile
     ) -> AudioSyncMode {
         SmartSyncAdvisor.syncMode(
-            for: appRule(for: bundleIdentifier)?.syncMode ?? syncMode,
+            for: effectiveAppRule(for: bundleIdentifier)?.syncMode ?? syncMode,
             bundleIdentifier: bundleIdentifier,
             contentProfile: contentProfile
         )
