@@ -251,6 +251,19 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertGreaterThan(lateTail, 0.000_5)
     }
 
+    func testAmbienceDiffusesImpulseInsteadOfSparseEchoes() {
+        let frames = [StereoFrame(left: 0.8, right: 0)] + Array(repeating: StereoFrame(left: 0, right: 0), count: 7_200)
+        let preset = DSPPreset.manual.with(ambienceAmount: 1, limiterCeilingDB: -0.1)
+
+        let result = SonicBloomProcessor(sampleRate: 48_000).process(frames, preset: preset, bypass: false).frames
+        let tail = result[4_800..<7_000]
+        let activeTailSamples = tail.filter { abs($0.left) > 0.000_02 || abs($0.right) > 0.000_02 }.count
+        let rightTail = rms(tail.map(\.right))
+
+        XCTAssertGreaterThan(activeTailSamples, 700)
+        XCTAssertGreaterThan(rightTail, 0.000_1)
+    }
+
     func testHRTFSpatialConvolutionMovesMonoIntoBothChannels() {
         let frames = [StereoFrame(left: 0.8, right: 0)] + Array(repeating: StereoFrame(left: 0, right: 0), count: 256)
         let preset = DSPPreset.manual.with(hrtfAmount: 1, limiterCeilingDB: -0.1)

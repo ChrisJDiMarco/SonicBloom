@@ -203,6 +203,8 @@ struct SonicBloomDSPHandle {
     size_t ambienceIndex = 0;
     std::array<float, ambienceBufferSize> ambienceL = {};
     std::array<float, ambienceBufferSize> ambienceR = {};
+    float ambienceDiffuseL = 0.0f;
+    float ambienceDiffuseR = 0.0f;
     size_t hrtfIndex = 0;
     std::array<float, hrtfTapCount> hrtfHistoryL = {};
     std::array<float, hrtfTapCount> hrtfHistoryR = {};
@@ -254,6 +256,8 @@ struct SonicBloomDSPHandle {
         ambienceIndex = 0;
         ambienceL.fill(0.0f);
         ambienceR.fill(0.0f);
+        ambienceDiffuseL = 0.0f;
+        ambienceDiffuseR = 0.0f;
         hrtfIndex = 0;
         hrtfHistoryL.fill(0.0f);
         hrtfHistoryR.fill(0.0f);
@@ -584,15 +588,19 @@ SonicBloomDSPMeter SonicBloomDSPProcess(
             const size_t readC = (handle->ambienceIndex + ambienceBufferSize - ambienceDelayC) % ambienceBufferSize;
             const float wetL = handle->ambienceR[readA] * 0.42f + handle->ambienceL[readB] * 0.32f + handle->ambienceR[readC] * 0.24f;
             const float wetR = handle->ambienceL[readA] * 0.42f + handle->ambienceR[readB] * 0.32f + handle->ambienceL[readC] * 0.24f;
+            handle->ambienceDiffuseL = handle->ambienceDiffuseL * 0.9992f + (wetL + handle->ambienceDiffuseR * 0.18f) * ambienceAmount * 0.035f;
+            handle->ambienceDiffuseR = handle->ambienceDiffuseR * 0.9992f + (wetR + handle->ambienceDiffuseL * 0.18f) * ambienceAmount * 0.035f;
             const float feedback = ambienceAmount * 0.18f;
-            handle->ambienceL[handle->ambienceIndex] = left + wetL * feedback;
-            handle->ambienceR[handle->ambienceIndex] = right + wetR * feedback;
+            handle->ambienceL[handle->ambienceIndex] = left + wetL * feedback + handle->ambienceDiffuseR * 0.08f;
+            handle->ambienceR[handle->ambienceIndex] = right + wetR * feedback + handle->ambienceDiffuseL * 0.08f;
             handle->ambienceIndex = (handle->ambienceIndex + 1) % ambienceBufferSize;
-            left += wetL * ambienceAmount * 0.24f;
-            right += wetR * ambienceAmount * 0.24f;
+            left += (wetL * 0.22f + handle->ambienceDiffuseL * 0.42f) * ambienceAmount;
+            right += (wetR * 0.22f + handle->ambienceDiffuseR * 0.42f) * ambienceAmount;
         } else {
             handle->ambienceL[handle->ambienceIndex] = left;
             handle->ambienceR[handle->ambienceIndex] = right;
+            handle->ambienceDiffuseL = 0.0f;
+            handle->ambienceDiffuseR = 0.0f;
             handle->ambienceIndex = (handle->ambienceIndex + 1) % ambienceBufferSize;
         }
 
