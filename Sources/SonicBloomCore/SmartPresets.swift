@@ -36,12 +36,15 @@ public enum SmartPresetAdvisor {
 
 public struct SmartPresetStabilizer: Sendable {
     private let requiredMatches: Int
+    private let cooldownObservations: Int
     private var candidate: SmartContentProfile?
     private var count = 0
     private var emitted: SmartContentProfile?
+    private var cooldownRemaining = 0
 
-    public init(requiredMatches: Int = 6) {
+    public init(requiredMatches: Int = 6, cooldownObservations: Int = 10) {
         self.requiredMatches = max(1, requiredMatches)
+        self.cooldownObservations = max(0, cooldownObservations)
     }
 
     public mutating func observe(_ profile: SmartContentProfile) -> DSPPreset? {
@@ -56,13 +59,19 @@ public struct SmartPresetStabilizer: Sendable {
             candidate = profile
             count = 1
         }
+        if cooldownRemaining > 0 {
+            cooldownRemaining -= 1
+            return nil
+        }
         guard count >= requiredMatches, emitted != profile else { return nil }
         emitted = profile
+        cooldownRemaining = cooldownObservations
         return SmartPresetAdvisor.preset(for: profile)
     }
 
     public mutating func reset() {
         candidate = nil
         count = 0
+        cooldownRemaining = 0
     }
 }

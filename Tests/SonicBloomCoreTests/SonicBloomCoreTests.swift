@@ -567,6 +567,17 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertNil(stabilizer.observe(.speech))
     }
 
+    func testSmartPresetStabilizerPreventsRapidPresetFlips() {
+        var stabilizer = SmartPresetStabilizer(requiredMatches: 2, cooldownObservations: 3)
+
+        XCTAssertNil(stabilizer.observe(.movie))
+        XCTAssertEqual(stabilizer.observe(.movie), .movies)
+        XCTAssertNil(stabilizer.observe(.speech))
+        XCTAssertNil(stabilizer.observe(.speech))
+        XCTAssertNil(stabilizer.observe(.speech))
+        XCTAssertEqual(stabilizer.observe(.speech), .spokenVoice)
+    }
+
     private func rms(_ samples: [Float]) -> Float {
         let meanSquare = samples.reduce(Float(0)) { $0 + $1 * $1 } / Float(samples.count)
         return sqrt(meanSquare)
