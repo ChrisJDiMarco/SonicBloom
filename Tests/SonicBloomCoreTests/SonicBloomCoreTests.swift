@@ -199,6 +199,7 @@ final class SonicBloomCoreTests: XCTestCase {
         let bass = SonicBloomProcessor(sampleRate: 48_000).process(frames, preset: bassPreset, bypass: false).frames
 
         XCTAssertGreaterThan(toneMagnitude(bass, frequency: 110), toneMagnitude(dry, frequency: 110) + 0.01)
+        XCTAssertGreaterThan(toneMagnitude(bass, frequency: 165), toneMagnitude(dry, frequency: 165) + 0.006)
     }
 
     func testMeterReportsContentBandEnergy() {

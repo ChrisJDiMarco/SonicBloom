@@ -509,8 +509,14 @@ SonicBloomDSPMeter SonicBloomDSPProcess(
         const float bassSquaredR = handle->bassR * handle->bassR;
         handle->bassPowerL += bassPowerAlpha * (bassSquaredL - handle->bassPowerL);
         handle->bassPowerR += bassPowerAlpha * (bassSquaredR - handle->bassPowerR);
-        left += handle->bassL * bassAmount * 0.32f + (bassSquaredL - handle->bassPowerL) * bassAmount * 0.62f;
-        right += handle->bassR * bassAmount * 0.32f + (bassSquaredR - handle->bassPowerR) * bassAmount * 0.62f;
+        const float bassOddL = -handle->bassL * bassSquaredL;
+        const float bassOddR = -handle->bassR * bassSquaredR;
+        left += handle->bassL * bassAmount * 0.30f
+            + (bassSquaredL - handle->bassPowerL) * bassAmount * 0.58f
+            + bassOddL * bassAmount * 5.5f;
+        right += handle->bassR * bassAmount * 0.30f
+            + (bassSquaredR - handle->bassPowerR) * bassAmount * 0.58f
+            + bassOddR * bassAmount * 5.5f;
 
         handle->crossfeedL += crossfeedAlpha * (left - handle->crossfeedL);
         handle->crossfeedR += crossfeedAlpha * (right - handle->crossfeedR);
