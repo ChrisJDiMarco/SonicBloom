@@ -1,0 +1,4 @@
+.build/
+BuildAssets/
+dist/
+.DS_Store

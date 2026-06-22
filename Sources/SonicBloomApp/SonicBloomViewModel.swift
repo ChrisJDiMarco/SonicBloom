@@ -1,0 +1,371 @@
+import AVFoundation
+import Foundation
+import SonicBloomCore
+
+@MainActor
+final class SonicBloomMeterModel: ObservableObject {
+    @Published var meter = DSPMeter()
+}
+
+struct TrustDiagnostic: Identifiable {
+    var title: String
+    var value: String
+    var tint: TrustTint
+
+    var id: String { title }
+}
+
+enum TrustTint {
+    case green
+    case blue
+    case orange
+}
+
+enum CalibrationSound {
+    case tone
+    case noise
+}
+
+@MainActor
+final class SonicBloomViewModel: ObservableObject {
+    let routeManager = CoreAudioRouteManager()
+    private let bridge = SonicBloomAudioBridge()
+    private let calibrationTonePlayer = CalibrationTonePlayer()
+    private let audioControlQueue = DispatchQueue(label: "com.chrisdimarco.sonicbloom.audio-control")
+    private let defaults: UserDefaults
+    private var cpuSampler = ProcessCPUUsageSampler()
+    private var cpuRefreshTask: Task<Void, Never>?
+    private var smartPresetStabilizer = SmartPresetStabilizer()
+    private var activeProfileOutputName: String?
+    private var isApplyingDevicePreset = false
+    private var isApplyingSmartPreset = false
+    let meterModel = SonicBloomMeterModel()
+    let presets = PresetCatalog.builtIns
+    @Published var selectedPreset: DSPPreset = .cleanLoud {
+        didSet {
+            updateBridgePreset()
+            rememberSelectedPresetForCurrentOutput()
+        }
+    }
+    @Published var profile: SonicBloomProfile {
+        didSet { save(profile, forKey: DefaultsKey.profile) }
+    }
+    @Published var settings: SonicBloomSettings {
+        didSet {
+            save(settings, forKey: DefaultsKey.settings)
+            if !settings.smartPresetMatching {
+                smartPresetStabilizer.reset()
+            }
+            updateBridgePreset()
+        }
+    }
+    @Published var routeState: AudioRouteState
+    @Published var isBypassed = false {
+        didSet { updateBridgePreset() }
+    }
+    @Published var isBridgeRunning = false
+    @Published var isTransitioning = false
+    @Published var lastError: String?
+    @Published private(set) var cpuUsagePercent = 0.0
+    @Published private(set) var smartContentProfile: SmartContentProfile = .quiet
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        profile = Self.load(SonicBloomProfile.self, from: defaults, key: DefaultsKey.profile) ?? .default
+        settings = Self.load(SonicBloomSettings.self, from: defaults, key: DefaultsKey.settings) ?? .default
+        routeState = routeManager.currentState()
+        activeProfileOutputName = routeState.selectedPhysicalOutputName
+        selectedPreset = profile.preset(for: routeState.selectedPhysicalOutputName) ?? favoritePreset()
+        bridge.meterHandler = { [weak self] meter in
+            Task { @MainActor in
+                self?.handleMeter(meter)
+            }
+        }
+        startCPURefresh()
+    }
+
+    deinit {
+        cpuRefreshTask?.cancel()
+    }
+
+    func refreshRoute() {
+        routeState = routeManager.currentState()
+        applyDevicePresetIfNeeded()
+    }
+
+    func toggleBridge() {
+        isBridgeRunning ? stopBridge() : startBridge()
+    }
+
+    var primaryActionTitle: String {
+        if isTransitioning {
+            return isBridgeRunning ? "Turning Off..." : "Turning On..."
+        }
+        if isBridgeRunning {
+            return "Turn Off Enhancement"
+        }
+        return routeState.isProcessingAvailable ? "Enhance Mac Audio" : "Install SonicBloom Output"
+    }
+
+    var primaryActionIcon: String {
+        if isBridgeRunning {
+            return "power.circle.fill"
+        }
+        return routeState.isProcessingAvailable ? "sparkles" : "arrow.down.circle.fill"
+    }
+
+    func runPrimaryAction() {
+        guard !isTransitioning else { return }
+        if routeState.isProcessingAvailable || isBridgeRunning {
+            toggleBridge()
+        } else {
+            installVirtualDevice()
+        }
+    }
+
+    func startBridge() {
+        isTransitioning = true
+        defer { isTransitioning = false }
+        do {
+            isBypassed = false
+            let plannedRoute = routeManager.currentState()
+            guard let inputDeviceID = plannedRoute.bridgeInputDeviceID,
+                  let outputDeviceID = plannedRoute.selectedPhysicalOutputID else {
+                throw AudioRouteError.bridgeUnavailable("SonicBloom Output and a physical stereo output are required before processing can start.")
+            }
+            try bridge.start(
+                inputDeviceID: inputDeviceID,
+                outputDeviceID: outputDeviceID,
+                preset: processingPreset,
+                bypass: isBypassed,
+                loudnessMatchedBypass: settings.loudnessMatchedCompare
+            )
+            let selection = try routeManager.activateBridgeSystemOutput()
+            bridge.applyLowLatencyBufferPreference(
+                inputDeviceID: selection.input.id,
+                outputDeviceID: selection.output.id
+            )
+            bridge.scheduleLowLatencyBufferRetries(
+                inputDeviceID: selection.input.id,
+                outputDeviceID: selection.output.id
+            )
+            routeState = routeManager.currentState()
+            routeState.installHealth = .active
+            routeState.statusMessage = "Processing active: \(selection.input.name) -> \(selection.output.name)"
+            isBridgeRunning = true
+            lastError = nil
+        } catch {
+            bridge.stop()
+            try? routeManager.restorePreviousSystemOutput()
+            isBridgeRunning = false
+            lastError = error.localizedDescription
+            refreshRoute()
+        }
+    }
+
+    func stopBridge() {
+        guard !isTransitioning else { return }
+        isTransitioning = true
+        isBridgeRunning = false
+        isBypassed = false
+        meterModel.meter = DSPMeter()
+        routeState.statusMessage = "Turning enhancement off..."
+
+        audioControlQueue.async { [bridge, routeManager] in
+            bridge.stop()
+            try? routeManager.restorePreviousSystemOutput()
+            DispatchQueue.main.async { [weak self] in
+                self?.refreshRoute()
+                self?.isTransitioning = false
+            }
+        }
+    }
+
+    func stopBridgeImmediately() {
+        bridge.stop()
+        try? routeManager.restorePreviousSystemOutput()
+        isBridgeRunning = false
+        isBypassed = false
+        isTransitioning = false
+        meterModel.meter = DSPMeter()
+        refreshRoute()
+    }
+
+    func installVirtualDevice() {
+        do {
+            try routeManager.installVirtualOutputDevice()
+            refreshRoute()
+            routeState.statusMessage = "Installed SonicBloom Output. Waiting for Core Audio..."
+            Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                refreshRoute()
+            }
+            lastError = nil
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
+    func startIfAutoEnhanceEnabled() {
+        guard settings.autoEnhanceOnLaunch, !isBridgeRunning, !isTransitioning else { return }
+        refreshRoute()
+        guard routeState.isProcessingAvailable else { return }
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 750_000_000)
+            if settings.autoEnhanceOnLaunch, !isBridgeRunning, !isTransitioning {
+                startBridge()
+            }
+        }
+    }
+
+    func selectPreset(_ preset: DSPPreset) {
+        selectedPreset = preset
+        try? routeManager.handle(.setPreset(preset))
+    }
+
+    func useCurrentOutputAsPreferred() {
+        refreshRoute()
+        profile.preferredOutputName = routeState.selectedPhysicalOutputName
+        rememberSelectedPresetForCurrentOutput()
+    }
+
+    func applyCalibration(_ tuning: CalibrationTuning) {
+        let tuned = tuning.applying(to: selectedPreset)
+        selectedPreset = tuned
+        profile.favoritePresetName = tuned.name
+        profile.remember(tuned, for: routeState.selectedPhysicalOutputName)
+    }
+
+    func playCalibrationSound(_ sound: CalibrationSound) {
+        calibrationTonePlayer.play(sound)
+    }
+
+    var deviceProfileSummary: String {
+        guard let outputName = routeState.selectedPhysicalOutputName, !outputName.isEmpty else { return "No output" }
+        let saved = profile.preset(for: outputName) != nil ? "Saved" : "Using"
+        return "\(saved): \(selectedPreset.name)"
+    }
+
+    var trustDiagnostics: [TrustDiagnostic] {
+        [
+            TrustDiagnostic(title: "Driver", value: routeState.installHealth.rawValue, tint: routeState.isProcessingAvailable ? .green : .orange),
+            TrustDiagnostic(title: "Output", value: routeState.selectedPhysicalOutputName ?? "No output", tint: routeState.selectedPhysicalOutputName == nil ? .orange : .blue),
+            TrustDiagnostic(title: "Latency", value: String(format: "%.1f ms", routeState.estimatedLatencyMS), tint: .green),
+            TrustDiagnostic(title: "Buffer", value: "\(routeState.bufferSize) frames", tint: .blue),
+            TrustDiagnostic(title: "CPU", value: String(format: "%.1f%%", cpuUsagePercent), tint: cpuUsagePercent > 15 ? .orange : .green),
+            TrustDiagnostic(title: "Content", value: smartContentProfile.rawValue.capitalized, tint: settings.smartPresetMatching ? .green : .blue),
+            TrustDiagnostic(title: "Clips", value: "\(meterModel.meter.limitedSamples) protected", tint: meterModel.meter.limitedSamples > 0 ? .orange : .green),
+            TrustDiagnostic(title: "Recovery", value: routeState.statusMessage, tint: lastError == nil ? .green : .orange)
+        ]
+    }
+
+    func resetSettings() {
+        settings = .default
+    }
+
+    private func save<T: Encodable>(_ value: T, forKey key: String) {
+        guard let data = try? JSONEncoder().encode(value) else { return }
+        defaults.set(data, forKey: key)
+    }
+
+    private var processingPreset: DSPPreset {
+        selectedPreset.optimized(for: settings.syncMode)
+    }
+
+    private func updateBridgePreset() {
+        bridge.update(preset: processingPreset, bypass: isBypassed, loudnessMatchedBypass: settings.loudnessMatchedCompare)
+    }
+
+    private func handleMeter(_ meter: DSPMeter) {
+        meterModel.meter = meter
+        smartContentProfile = SmartPresetAdvisor.profile(for: meter)
+        guard settings.smartPresetMatching,
+              isBridgeRunning,
+              !isBypassed,
+              selectedPreset.name != DSPPreset.manual.name,
+              let suggested = smartPresetStabilizer.observe(smartContentProfile),
+              suggested.name != selectedPreset.name else { return }
+
+        isApplyingSmartPreset = true
+        selectedPreset = suggested
+        isApplyingSmartPreset = false
+        routeState.statusMessage = "Smart preset: \(suggested.name)"
+    }
+
+    private func applyDevicePresetIfNeeded() {
+        let outputName = routeState.selectedPhysicalOutputName
+        guard outputName != activeProfileOutputName else { return }
+        activeProfileOutputName = outputName
+        isApplyingDevicePreset = true
+        selectedPreset = profile.preset(for: outputName) ?? favoritePreset()
+        isApplyingDevicePreset = false
+    }
+
+    private func rememberSelectedPresetForCurrentOutput() {
+        guard !isApplyingDevicePreset, !isApplyingSmartPreset else { return }
+        profile.favoritePresetName = selectedPreset.name
+        profile.remember(selectedPreset, for: routeState.selectedPhysicalOutputName)
+    }
+
+    private func favoritePreset() -> DSPPreset {
+        presets.first(where: { $0.name == profile.favoritePresetName }) ?? .cleanLoud
+    }
+
+    private func startCPURefresh() {
+        cpuRefreshTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            _ = self.cpuSampler.sample()
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                self.cpuUsagePercent = self.cpuSampler.sample()
+            }
+        }
+    }
+
+    private static func load<T: Decodable>(_ type: T.Type, from defaults: UserDefaults, key: String) -> T? {
+        guard let data = defaults.data(forKey: key) else { return nil }
+        return try? JSONDecoder().decode(type, from: data)
+    }
+}
+
+private enum DefaultsKey {
+    static let profile = "sonicbloom.profile"
+    static let settings = "sonicbloom.settings"
+}
+
+private final class CalibrationTonePlayer {
+    private let engine = AVAudioEngine()
+    private let player = AVAudioPlayerNode()
+    private let format = AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 1)!
+
+    init() {
+        engine.attach(player)
+        engine.connect(player, to: engine.mainMixerNode, format: format)
+    }
+
+    func play(_ sound: CalibrationSound) {
+        let frameCount = AVAudioFrameCount(48_000)
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount),
+              let data = buffer.floatChannelData?[0] else { return }
+        buffer.frameLength = frameCount
+        var seed: UInt32 = 0x51A7
+        for frame in 0..<Int(frameCount) {
+            let t = Double(frame) / format.sampleRate
+            let fade = min(1, min(t * 12, (1 - t) * 12))
+            switch sound {
+            case .tone:
+                data[frame] = Float(sin(2 * Double.pi * 440 * t) * 0.18 * fade)
+            case .noise:
+                seed = 1_664_525 &* seed &+ 1_013_904_223
+                let noise = Double(seed % 20_000) / 10_000 - 1
+                data[frame] = Float(noise * 0.10 * fade)
+            }
+        }
+        if !engine.isRunning {
+            try? engine.start()
+        }
+        player.stop()
+        player.scheduleBuffer(buffer, at: nil, options: .interrupts)
+        player.play()
+    }
+}
