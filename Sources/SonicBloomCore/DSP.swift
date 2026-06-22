@@ -108,8 +108,8 @@ public final class SonicBloomProcessor {
             return DSPMeter()
         }
 
-        outputLeft.resize(to: frameCount)
-        outputRight.resize(to: frameCount)
+        outputLeft.resizeAudioBuffer(to: frameCount)
+        outputRight.resizeAudioBuffer(to: frameCount)
         var mutableConfig = config
         let cMeter = inputLeft.withUnsafeBufferPointer { leftPointer in
             inputRight.withUnsafeBufferPointer { rightPointer in
@@ -146,8 +146,12 @@ public final class SonicBloomProcessor {
     }
 }
 
-private extension Array where Element == Float {
-    mutating func resize(to count: Int) {
+public extension Array where Element == Float {
+    mutating func resizeAudioBuffer(to count: Int, reserveAtLeast reservedCount: Int = 0) {
+        let targetCapacity = Swift.max(count, reservedCount)
+        if capacity < targetCapacity {
+            reserveCapacity(targetCapacity)
+        }
         if self.count < count {
             append(contentsOf: repeatElement(0, count: count - self.count))
         } else if self.count > count {

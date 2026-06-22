@@ -20,6 +20,7 @@ private let sonicBloomPlaybackIOProc: AudioDeviceIOProc = { _, _, _, _, outputDa
 final class SonicBloomAudioBridge: @unchecked Sendable {
     private static let ringCapacity = 8192
     private static let preferredBufferFrameSize: UInt32 = 64
+    private static let maxRealtimeScratchFrames = 2048
 
     private let settingsLock = NSLock()
 
@@ -82,6 +83,7 @@ final class SonicBloomAudioBridge: @unchecked Sendable {
         processor = SonicBloomProcessor(sampleRate: sampleRate)
         ring = SonicBloomRingBufferCreate(Self.ringCapacity)
         configBuffer = SonicBloomDSPConfigBufferCreate()
+        prewarmRealtimeBuffers()
         resetRing()
         update(preset: preset, bypass: bypass, loudnessMatchedBypass: loudnessMatchedBypass)
 
@@ -282,8 +284,8 @@ final class SonicBloomAudioBridge: @unchecked Sendable {
         let frameCount = inputFrameCount(buffers)
         guard frameCount > 0 else { return false }
 
-        scratchLeft.resize(to: frameCount)
-        scratchRight.resize(to: frameCount)
+        scratchLeft.resizeAudioBuffer(to: frameCount, reserveAtLeast: Self.maxRealtimeScratchFrames)
+        scratchRight.resizeAudioBuffer(to: frameCount, reserveAtLeast: Self.maxRealtimeScratchFrames)
         scratchLeft.withUnsafeMutableBufferPointer { $0.initialize(repeating: 0) }
         scratchRight.withUnsafeMutableBufferPointer { $0.initialize(repeating: 0) }
 
@@ -328,6 +330,13 @@ final class SonicBloomAudioBridge: @unchecked Sendable {
         for index in 0..<sampleCount {
             target[index] = data[index]
         }
+    }
+
+    private func prewarmRealtimeBuffers() {
+        scratchLeft.resizeAudioBuffer(to: 0, reserveAtLeast: Self.maxRealtimeScratchFrames)
+        scratchRight.resizeAudioBuffer(to: 0, reserveAtLeast: Self.maxRealtimeScratchFrames)
+        processedLeft.resizeAudioBuffer(to: 0, reserveAtLeast: Self.maxRealtimeScratchFrames)
+        processedRight.resizeAudioBuffer(to: 0, reserveAtLeast: Self.maxRealtimeScratchFrames)
     }
 
     private func clear(_ buffers: UnsafeMutableAudioBufferListPointer) {
@@ -455,15 +464,5 @@ private struct MeterAccumulator {
             spectrumPower[index] = 0
         }
         limitedSamples = 0
-    }
-}
-
-private extension Array where Element == Float {
-    mutating func resize(to count: Int) {
-        if self.count < count {
-            append(contentsOf: repeatElement(0, count: count - self.count))
-        } else if self.count > count {
-            removeLast(self.count - count)
-        }
     }
 }

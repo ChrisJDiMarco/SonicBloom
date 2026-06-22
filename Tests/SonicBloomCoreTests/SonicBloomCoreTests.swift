@@ -134,6 +134,19 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertEqual(bufferMeter.outputPeak, frameResult.meter.outputPeak, accuracy: 0.000_01)
     }
 
+    func testAudioBufferResizePreservesReservedCapacity() {
+        var buffer: [Float] = []
+
+        buffer.resizeAudioBuffer(to: 64, reserveAtLeast: 512)
+        let capacity = buffer.capacity
+        buffer.resizeAudioBuffer(to: 16, reserveAtLeast: 512)
+        buffer.resizeAudioBuffer(to: 256, reserveAtLeast: 512)
+
+        XCTAssertGreaterThanOrEqual(capacity, 512)
+        XCTAssertEqual(buffer.count, 256)
+        XCTAssertEqual(buffer.capacity, capacity)
+    }
+
     func testSpatialBloomCreatesDelayedStereoEnergyUnderCeiling() {
         let frames = [StereoFrame(left: 1, right: 0)] + Array(repeating: StereoFrame(left: 0, right: 0), count: 128)
         let preset = DSPPreset.manual.with(spatialAmount: 0.9, limiterCeilingDB: -0.1)
