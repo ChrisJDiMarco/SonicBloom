@@ -125,6 +125,9 @@ final class SonicBloomViewModel: ObservableObject {
         var next = routeManager.currentState()
         next.recoveryMessage = previous.recoveryMessage
         next.recoveryAttempts = previous.recoveryAttempts
+        if isBridgeRunning {
+            next.bufferSize = previous.bufferSize
+        }
         let shouldRestartBridge = next.needsBridgeRestart(after: previous, bridgeWasRunning: isBridgeRunning)
         if isBridgeRunning, !next.isProcessingAvailable {
             next = next.recordingDegradedRecovery("Route degraded: SonicBloom Output unavailable.")

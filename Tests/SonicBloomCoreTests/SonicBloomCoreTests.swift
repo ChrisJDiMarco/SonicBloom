@@ -676,6 +676,9 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertEqual(AudioSyncMode.music.preferredBufferFrameSize, 128)
         XCTAssertEqual(AudioSyncMode.video.preferredBufferFrameSize, 64)
         XCTAssertEqual(AudioSyncMode.gaming.preferredBufferFrameSize, 32)
+        XCTAssertEqual(AudioSyncMode.music.maxQueuedOutputFrames(observedCallbackFrames: 128), 512)
+        XCTAssertEqual(AudioSyncMode.video.maxQueuedOutputFrames(observedCallbackFrames: 64), 512)
+        XCTAssertEqual(AudioSyncMode.gaming.maxQueuedOutputFrames(observedCallbackFrames: 1024), 1024)
     }
 
     func testSmartPresetAdvisorClassifiesAndStabilizesContent() {
@@ -823,6 +826,35 @@ final class SonicBloomCoreTests: XCTestCase {
         )
 
         XCTAssertTrue(next.needsBridgeRestart(after: previous, bridgeWasRunning: true))
+    }
+
+    func testRouteStateDoesNotRestartForBufferDisplayMismatch() {
+        let previous = AudioRouteState(
+            virtualDeviceName: "SonicBloom Output",
+            bridgeInputDeviceID: 1,
+            bridgeInputDeviceName: "SonicBloom Output",
+            selectedPhysicalOutputID: 2,
+            selectedPhysicalOutputName: "AudioBox USB",
+            sampleRate: 48_000,
+            channels: 2,
+            bufferSize: 128,
+            installHealth: .active,
+            statusMessage: "Processing"
+        )
+        let next = AudioRouteState(
+            virtualDeviceName: "SonicBloom Output",
+            bridgeInputDeviceID: 1,
+            bridgeInputDeviceName: "SonicBloom Output",
+            selectedPhysicalOutputID: 2,
+            selectedPhysicalOutputName: "AudioBox USB",
+            sampleRate: 48_000,
+            channels: 2,
+            bufferSize: 64,
+            installHealth: .installed,
+            statusMessage: "Ready"
+        )
+
+        XCTAssertFalse(next.needsBridgeRestart(after: previous, bridgeWasRunning: true))
     }
 
     func testOlderRouteStateJSONDefaultsRecoveryFields() throws {

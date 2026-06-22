@@ -69,6 +69,10 @@ public enum AudioSyncMode: String, Codable, CaseIterable, Identifiable, Sendable
         case .gaming: 32
         }
     }
+
+    public func maxQueuedOutputFrames(observedCallbackFrames: Int) -> Int {
+        max(512, max(observedCallbackFrames, Int(preferredBufferFrameSize) * 4))
+    }
 }
 
 public enum CalibrationOutputKind: String, Codable, CaseIterable, Identifiable, Sendable {

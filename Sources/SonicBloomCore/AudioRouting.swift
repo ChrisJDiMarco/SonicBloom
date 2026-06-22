@@ -137,8 +137,7 @@ public struct AudioRouteState: Codable, Equatable, Sendable {
             bridgeInputDeviceID != previous.bridgeInputDeviceID ||
             selectedPhysicalOutputID != previous.selectedPhysicalOutputID ||
             abs(sampleRate - previous.sampleRate) > 0.001 ||
-            channels != previous.channels ||
-            bufferSize != previous.bufferSize
+            channels != previous.channels
     }
 
     private enum CodingKeys: String, CodingKey {

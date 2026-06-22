@@ -30,7 +30,7 @@ final class SonicBloomAudioBridge: @unchecked Sendable {
     private var preset = DSPPreset.cleanLoud
     private var bypass = false
     private var loudnessMatchedBypass = false
-    private var bufferFrameSize = AudioSyncMode.video.preferredBufferFrameSize
+    private var syncMode = AudioSyncMode.video
     private var captureDeviceID: AudioDeviceID?
     private var playbackDeviceID: AudioDeviceID?
     private var captureIOProcID: AudioDeviceIOProcID?
@@ -78,7 +78,7 @@ final class SonicBloomAudioBridge: @unchecked Sendable {
         let inputID = AudioDeviceID(inputDeviceID)
         let outputID = AudioDeviceID(outputDeviceID)
         sampleRate = deviceSampleRate(outputID)
-        bufferFrameSize = preferredBufferFrameSize
+        syncMode = AudioSyncMode.allCases.first { $0.preferredBufferFrameSize == preferredBufferFrameSize } ?? .video
         try setDeviceSampleRate(inputID, sampleRate)
         applyBufferPreference(inputDeviceID: inputDeviceID, outputDeviceID: outputDeviceID, frameSize: preferredBufferFrameSize)
 
@@ -222,7 +222,7 @@ final class SonicBloomAudioBridge: @unchecked Sendable {
             config: config
         )
 
-        writeOutput(left: processedLeft, right: processedRight, maxQueuedFrames: max(frameCount, Int(bufferFrameSize) * 2))
+        writeOutput(left: processedLeft, right: processedRight, maxQueuedFrames: syncMode.maxQueuedOutputFrames(observedCallbackFrames: frameCount))
         publishMeterIfNeeded(meter, frameCount: frameCount)
     }
 
