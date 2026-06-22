@@ -1,5 +1,17 @@
 import Foundation
 
+public struct PresetShareDocument: Codable, Equatable, Sendable {
+    public var app: String
+    public var formatVersion: Int
+    public var preset: DSPPreset
+
+    public init(preset: DSPPreset, app: String = "SonicBloom", formatVersion: Int = 1) {
+        self.app = app
+        self.formatVersion = formatVersion
+        self.preset = preset
+    }
+}
+
 public final class PresetStore {
     private let directoryURL: URL
     private var fileURL: URL {
@@ -27,6 +39,20 @@ public final class PresetStore {
         presets.append(preset)
         let data = try JSONEncoder.pretty.encode(presets)
         try data.write(to: fileURL, options: .atomic)
+    }
+
+    public func exportPreset(named name: String) throws -> Data? {
+        guard let preset = try loadCustomPresets().first(where: { $0.name == name }) else {
+            return nil
+        }
+        return try JSONEncoder.pretty.encode(PresetShareDocument(preset: preset))
+    }
+
+    @discardableResult
+    public func importPreset(from data: Data) throws -> DSPPreset {
+        let preset = try JSONDecoder().decode(PresetShareDocument.self, from: data).preset
+        try saveCustomPreset(preset)
+        return preset
     }
 }
 

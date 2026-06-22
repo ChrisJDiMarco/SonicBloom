@@ -463,6 +463,24 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertEqual(try store.loadCustomPresets(), [preset])
     }
 
+    func testPresetStoreExportsAndImportsShareDocument() throws {
+        let sourceDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let targetDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let source = PresetStore(directoryURL: sourceDirectory)
+        let target = PresetStore(directoryURL: targetDirectory)
+        let preset = DSPPreset.manual.with(name: "AirPods Max Movie Mode", bassAmount: 0.34, hrtfAmount: 0.42)
+
+        try source.saveCustomPreset(preset)
+        let data = try XCTUnwrap(source.exportPreset(named: preset.name))
+        let imported = try target.importPreset(from: data)
+
+        XCTAssertEqual(imported, preset)
+        XCTAssertEqual(try target.loadCustomPresets(), [preset])
+        XCTAssertNil(try source.exportPreset(named: "Missing"))
+    }
+
     func testProfileDefaultsAreStableAndCodable() throws {
         let profile = SonicBloomProfile.default
 
