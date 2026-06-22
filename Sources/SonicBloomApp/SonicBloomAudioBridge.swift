@@ -19,7 +19,6 @@ private let sonicBloomPlaybackIOProc: AudioDeviceIOProc = { _, _, _, _, outputDa
 
 final class SonicBloomAudioBridge: @unchecked Sendable {
     private static let ringCapacity = 8192
-    private static let preferredBufferFrameSize: UInt32 = 64
     private static let maxRealtimeScratchFrames = 2048
 
     private let settingsLock = NSLock()
@@ -31,6 +30,7 @@ final class SonicBloomAudioBridge: @unchecked Sendable {
     private var preset = DSPPreset.cleanLoud
     private var bypass = false
     private var loudnessMatchedBypass = false
+    private var bufferFrameSize = AudioSyncMode.video.preferredBufferFrameSize
     private var captureDeviceID: AudioDeviceID?
     private var playbackDeviceID: AudioDeviceID?
     private var captureIOProcID: AudioDeviceIOProcID?
@@ -70,15 +70,17 @@ final class SonicBloomAudioBridge: @unchecked Sendable {
         outputDeviceID: UInt32,
         preset: DSPPreset,
         bypass: Bool,
-        loudnessMatchedBypass: Bool
+        loudnessMatchedBypass: Bool,
+        preferredBufferFrameSize: UInt32
     ) throws {
         stop()
 
         let inputID = AudioDeviceID(inputDeviceID)
         let outputID = AudioDeviceID(outputDeviceID)
         sampleRate = deviceSampleRate(outputID)
+        bufferFrameSize = preferredBufferFrameSize
         try setDeviceSampleRate(inputID, sampleRate)
-        applyLowLatencyBufferPreference(inputDeviceID: inputDeviceID, outputDeviceID: outputDeviceID)
+        applyBufferPreference(inputDeviceID: inputDeviceID, outputDeviceID: outputDeviceID, frameSize: preferredBufferFrameSize)
 
         processor = SonicBloomProcessor(sampleRate: sampleRate)
         ring = SonicBloomRingBufferCreate(Self.ringCapacity)
@@ -96,15 +98,15 @@ final class SonicBloomAudioBridge: @unchecked Sendable {
         }
     }
 
-    func applyLowLatencyBufferPreference(inputDeviceID: UInt32, outputDeviceID: UInt32) {
-        try? setDeviceBufferFrameSize(AudioDeviceID(inputDeviceID), Self.preferredBufferFrameSize)
-        try? setDeviceBufferFrameSize(AudioDeviceID(outputDeviceID), Self.preferredBufferFrameSize)
+    func applyBufferPreference(inputDeviceID: UInt32, outputDeviceID: UInt32, frameSize: UInt32) {
+        try? setDeviceBufferFrameSize(AudioDeviceID(inputDeviceID), frameSize)
+        try? setDeviceBufferFrameSize(AudioDeviceID(outputDeviceID), frameSize)
     }
 
-    func scheduleLowLatencyBufferRetries(inputDeviceID: UInt32, outputDeviceID: UInt32) {
+    func scheduleBufferPreferenceRetries(inputDeviceID: UInt32, outputDeviceID: UInt32, frameSize: UInt32) {
         for delay in [0.15, 0.5, 1.0] {
             DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + delay) { [weak self] in
-                self?.applyLowLatencyBufferPreference(inputDeviceID: inputDeviceID, outputDeviceID: outputDeviceID)
+                self?.applyBufferPreference(inputDeviceID: inputDeviceID, outputDeviceID: outputDeviceID, frameSize: frameSize)
             }
         }
     }
@@ -220,7 +222,7 @@ final class SonicBloomAudioBridge: @unchecked Sendable {
             config: config
         )
 
-        writeOutput(left: processedLeft, right: processedRight, maxQueuedFrames: max(frameCount, Int(Self.preferredBufferFrameSize) * 2))
+        writeOutput(left: processedLeft, right: processedRight, maxQueuedFrames: max(frameCount, Int(bufferFrameSize) * 2))
         publishMeterIfNeeded(meter, frameCount: frameCount)
     }
 

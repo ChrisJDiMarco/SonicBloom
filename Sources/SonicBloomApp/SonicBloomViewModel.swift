@@ -64,6 +64,13 @@ final class SonicBloomViewModel: ObservableObject {
             if !settings.smartPresetMatching {
                 smartPresetStabilizer.reset()
             }
+            if oldValue.syncMode != settings.syncMode {
+                routeState.bufferSize = Int(settings.syncMode.preferredBufferFrameSize)
+                if isBridgeRunning, !isTransitioning {
+                    startBridge()
+                    return
+                }
+            }
             updateBridgePreset()
         }
     }
@@ -184,19 +191,23 @@ final class SonicBloomViewModel: ObservableObject {
                 outputDeviceID: outputDeviceID,
                 preset: processingPreset,
                 bypass: isBypassed,
-                loudnessMatchedBypass: settings.loudnessMatchedCompare
+                loudnessMatchedBypass: settings.loudnessMatchedCompare,
+                preferredBufferFrameSize: settings.syncMode.preferredBufferFrameSize
             )
             let selection = try routeManager.activateBridgeSystemOutput()
-            bridge.applyLowLatencyBufferPreference(
+            bridge.applyBufferPreference(
                 inputDeviceID: selection.input.id,
-                outputDeviceID: selection.output.id
+                outputDeviceID: selection.output.id,
+                frameSize: settings.syncMode.preferredBufferFrameSize
             )
-            bridge.scheduleLowLatencyBufferRetries(
+            bridge.scheduleBufferPreferenceRetries(
                 inputDeviceID: selection.input.id,
-                outputDeviceID: selection.output.id
+                outputDeviceID: selection.output.id,
+                frameSize: settings.syncMode.preferredBufferFrameSize
             )
             routeState = routeManager.currentState()
             routeState.installHealth = .active
+            routeState.bufferSize = Int(settings.syncMode.preferredBufferFrameSize)
             routeState.statusMessage = "Processing active: \(selection.input.name) -> \(selection.output.name)"
             isBridgeRunning = true
             startRouteRecoveryWatchdog()

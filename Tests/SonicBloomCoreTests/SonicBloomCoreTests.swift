@@ -639,6 +639,12 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertEqual(gaming.limiterLookaheadMS, 0.2)
     }
 
+    func testSyncModeChoosesHardwareBufferFrameSize() {
+        XCTAssertEqual(AudioSyncMode.music.preferredBufferFrameSize, 128)
+        XCTAssertEqual(AudioSyncMode.video.preferredBufferFrameSize, 64)
+        XCTAssertEqual(AudioSyncMode.gaming.preferredBufferFrameSize, 32)
+    }
+
     func testSmartPresetAdvisorClassifiesAndStabilizesContent() {
         XCTAssertEqual(SmartPresetAdvisor.profile(for: DSPMeter(lowEnergy: 0.02, midEnergy: 0.32, highEnergy: 0.04)), .speech)
         XCTAssertEqual(SmartPresetAdvisor.profile(for: DSPMeter(lowEnergy: 0.42, midEnergy: 0.18, highEnergy: 0.08)), .movie)

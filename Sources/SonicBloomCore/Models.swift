@@ -61,6 +61,14 @@ public enum AudioSyncMode: String, Codable, CaseIterable, Identifiable, Sendable
     case gaming = "Gaming"
 
     public var id: String { rawValue }
+
+    public var preferredBufferFrameSize: UInt32 {
+        switch self {
+        case .music: 128
+        case .video: 64
+        case .gaming: 32
+        }
+    }
 }
 
 public enum CalibrationOutputKind: String, Codable, CaseIterable, Identifiable, Sendable {
