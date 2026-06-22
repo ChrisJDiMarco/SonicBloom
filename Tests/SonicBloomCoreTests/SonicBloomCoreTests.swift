@@ -323,6 +323,21 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertLessThanOrEqual(peak, preset.limiterCeilingLinear + 0.000_1)
     }
 
+    func testHRTFHeadShadowReducesFarEarTreble() {
+        let preset = DSPPreset.manual.with(hrtfAmount: 1, limiterCeilingDB: -0.1)
+        let low = leftOnlyTone(frequency: 500, amplitude: 0.18, count: 4_096)
+        let high = leftOnlyTone(frequency: 7_000, amplitude: 0.18, count: 4_096)
+
+        let lowOut = SonicBloomProcessor(sampleRate: 48_000).process(low, preset: preset, bypass: false).frames
+        let highOut = SonicBloomProcessor(sampleRate: 48_000).process(high, preset: preset, bypass: false).frames
+        let lowFarRatio = channelToneMagnitude(lowOut, frequency: 500, channel: \.right)
+            / max(channelToneMagnitude(lowOut, frequency: 500, channel: \.left), 0.000_001)
+        let highFarRatio = channelToneMagnitude(highOut, frequency: 7_000, channel: \.right)
+            / max(channelToneMagnitude(highOut, frequency: 7_000, channel: \.left), 0.000_001)
+
+        XCTAssertLessThan(highFarRatio, lowFarRatio * 0.72)
+    }
+
     func testHeadphoneProfilesApplyCalibrationBands() throws {
         let profile = try XCTUnwrap(HeadphoneProfileCatalog.builtIns.first { $0.id == "airpods-pro" })
         let calibrated = profile.applying(to: .flat)
@@ -853,6 +868,27 @@ final class SonicBloomCoreTests: XCTestCase {
             let sample = Float(low + high)
             return StereoFrame(left: sample, right: sample)
         }
+    }
+
+    private func leftOnlyTone(frequency: Double, amplitude: Double, count: Int) -> [StereoFrame] {
+        (0..<count).map { index in
+            let time = Double(index) / 48_000
+            let sample = Float(sin(2 * Double.pi * frequency * time) * amplitude)
+            return StereoFrame(left: sample, right: 0)
+        }
+    }
+
+    private func channelToneMagnitude(_ frames: [StereoFrame], frequency: Double, channel: KeyPath<StereoFrame, Float>) -> Float {
+        guard !frames.isEmpty else { return 0 }
+        var real = 0.0
+        var imag = 0.0
+        for (index, frame) in frames.enumerated() {
+            let phase = 2 * Double.pi * frequency * Double(index) / 48_000
+            let sample = Double(frame[keyPath: channel])
+            real += sample * cos(phase)
+            imag -= sample * sin(phase)
+        }
+        return Float(2 * sqrt(real * real + imag * imag) / Double(frames.count))
     }
 
     private func toneMagnitude(_ frames: [StereoFrame], frequency: Double) -> Float {

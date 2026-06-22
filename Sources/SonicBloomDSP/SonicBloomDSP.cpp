@@ -27,8 +27,8 @@ constexpr std::array<float, hrtfTapCount> hrtfNearEar = {
     -0.015f, 0.01f, -0.006f, 0.004f, 0.0f, 0.0f
 };
 constexpr std::array<float, hrtfTapCount> hrtfFarEar = {
-    0.0f, 0.0f, 0.16f, 0.22f, 0.12f, -0.06f,
-    0.04f, -0.02f, 0.015f, -0.01f, 0.006f, 0.0f
+    0.0f, 0.0f, 0.20f, 0.17f, 0.08f, 0.04f,
+    0.02f, 0.01f, 0.005f, 0.002f, 0.001f, 0.0f
 };
 
 float clamp(float value, float lower, float upper) {
