@@ -716,9 +716,11 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertEqual(loud.waveformIntensity, 1)
         XCTAssertEqual(SonicBloomSettings.default.syncMode, .auto)
         XCTAssertTrue(SonicBloomSettings.default.smartPresetMatching)
+        XCTAssertFalse(SonicBloomSettings.default.showAdvancedControls)
 
-        let data = try JSONEncoder().encode(SonicBloomSettings.default)
-        XCTAssertEqual(try JSONDecoder().decode(SonicBloomSettings.self, from: data), .default)
+        let studio = SonicBloomSettings(showAdvancedControls: true)
+        let data = try JSONEncoder().encode(studio)
+        XCTAssertEqual(try JSONDecoder().decode(SonicBloomSettings.self, from: data), studio)
     }
 
     func testOlderSettingsJSONDefaultsToMusicSyncMode() throws {

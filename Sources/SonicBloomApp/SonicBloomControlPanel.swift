@@ -14,16 +14,21 @@ struct SonicBloomControlPanel: View {
                 VStack(spacing: 14) {
                     HeroAnalyzer(viewModel: viewModel)
                         .fixedSize(horizontal: false, vertical: true)
-                    ConsoleTabBar(selection: $tab)
-                        .fixedSize(horizontal: false, vertical: true)
-                    ScrollView(.vertical) {
-                        tabContent
-                            .frame(maxWidth: .infinity, alignment: .topLeading)
-                            .padding(.bottom, 10)
+                    if viewModel.settings.showAdvancedControls {
+                        ConsoleTabBar(selection: $tab)
+                            .fixedSize(horizontal: false, vertical: true)
+                        ScrollView(.vertical) {
+                            tabContent
+                                .frame(maxWidth: .infinity, alignment: .topLeading)
+                                .padding(.bottom, 10)
+                        }
+                        .scrollIndicators(.visible)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                        .clipped()
+                    } else {
+                        SimpleModePanel(viewModel: viewModel)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     }
-                    .scrollIndicators(.visible)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .clipped()
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
@@ -54,6 +59,20 @@ struct SonicBloomControlPanel: View {
             }
 
             ProcessingCard(viewModel: viewModel)
+
+            Button {
+                viewModel.settings.showAdvancedControls.toggle()
+            } label: {
+                Label(viewModel.settings.showAdvancedControls ? "Simple View" : "Studio View", systemImage: viewModel.settings.showAdvancedControls ? "sparkles" : "slider.horizontal.3")
+                    .font(.caption.weight(.bold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 9)
+                    .foregroundStyle(SBColor.green)
+                    .background(SBColor.green.opacity(0.12))
+                    .overlay { RoundedRectangle(cornerRadius: 8).stroke(SBColor.green.opacity(0.35), lineWidth: 1) }
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+            .buttonStyle(.plain)
 
             Text("PRESETS")
                 .font(.caption.weight(.semibold))
@@ -129,6 +148,118 @@ private enum ConsoleTab: String, CaseIterable, Identifiable {
         case .space: "dot.radiowaves.left.and.right"
         case .settings: "gearshape.fill"
         }
+    }
+}
+
+private struct SimpleModePanel: View {
+    @ObservedObject var viewModel: SonicBloomViewModel
+
+    var body: some View {
+        VStack(spacing: 14) {
+            HStack(spacing: 14) {
+                ConsoleCard(title: "MAGIC MODE", icon: "sparkles", color: SBColor.green) {
+                    VStack(alignment: .leading, spacing: 14) {
+                        HStack(spacing: 12) {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(viewModel.isBridgeRunning ? "Enhancing Mac Audio" : "Ready To Enhance")
+                                    .font(.system(size: 28, weight: .black))
+                                Text(viewModel.deviceProfileSummary)
+                                    .font(.callout.weight(.medium))
+                                    .foregroundStyle(SBColor.subtext)
+                            }
+                            Spacer()
+                            Button {
+                                viewModel.runPrimaryAction()
+                            } label: {
+                                Label(viewModel.isBridgeRunning ? "TURN OFF" : "ENHANCE", systemImage: viewModel.primaryActionIcon)
+                                    .font(.system(size: 15, weight: .bold))
+                                    .padding(.horizontal, 24)
+                                    .padding(.vertical, 12)
+                                    .foregroundStyle(viewModel.isBridgeRunning ? SBColor.orange : .white)
+                                    .background(viewModel.isBridgeRunning ? SBColor.orange.opacity(0.22) : SBColor.green.opacity(0.86))
+                                    .overlay { RoundedRectangle(cornerRadius: 8).stroke(viewModel.isBridgeRunning ? SBColor.orange : SBColor.green, lineWidth: 1) }
+                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(viewModel.isTransitioning)
+                        }
+
+                        HStack(spacing: 12) {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("PRESET")
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(SBColor.subtext)
+                                Picker("Preset", selection: presetNameBinding) {
+                                    ForEach(viewModel.presets) { preset in
+                                        Text(preset.name).tag(preset.name)
+                                    }
+                                }
+                                .labelsHidden()
+                                .pickerStyle(.menu)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            RoutePicker(label: "Output", value: viewModel.routeState.selectedPhysicalOutputName ?? "No output")
+                        }
+
+                        MiniSlider(title: "MAGIC INTENSITY", value: magicIntensityBinding, range: 0...1, color: SBColor.green)
+                    }
+                }
+
+                ConsoleCard(title: "SAFE HEADROOM", icon: "shield.fill", color: SBColor.orange) {
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text(String(format: "%.1f dB", viewModel.meterModel.meter.gainReductionDB))
+                            .font(.system(size: 34, weight: .black, design: .monospaced))
+                            .foregroundStyle(SBColor.orange)
+                        Text("gain reduction")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(SBColor.subtext)
+                        HeadroomMeters(meterModel: viewModel.meterModel, compact: true)
+                            .frame(height: 110)
+                    }
+                }
+                .frame(width: 260)
+            }
+
+            HStack(spacing: 14) {
+                MetricStack(title: "MODE", value: viewModel.settings.syncMode.rawValue, color: SBColor.green)
+                MetricStack(title: "CONTENT", value: viewModel.smartContentProfile.rawValue.capitalized, color: SBColor.blue)
+                MetricStack(title: "LATENCY", value: String(format: "%.1f ms", viewModel.routeState.estimatedLatencyMS), color: SBColor.orange)
+                MetricStack(title: "CLIPS", value: "\(viewModel.meterModel.meter.limitedSamples) protected", color: SBColor.green)
+            }
+            .frame(height: 76)
+            .consolePanel()
+
+            Spacer(minLength: 0)
+        }
+    }
+
+    private var presetNameBinding: Binding<String> {
+        Binding(
+            get: { viewModel.selectedPreset.name },
+            set: { name in
+                if let preset = viewModel.presets.first(where: { $0.name == name }) {
+                    viewModel.selectPreset(preset)
+                }
+            }
+        )
+    }
+
+    private var magicIntensityBinding: Binding<Double> {
+        Binding(
+            get: { min(max(viewModel.selectedPreset.loudnessAmount / 0.56, 0), 1) },
+            set: { value in
+                let amount = min(max(value, 0), 1)
+                viewModel.selectedPreset = viewModel.selectedPreset.with(
+                    inputGainDB: amount * 4,
+                    bassAmount: 0.08 + amount * 0.42,
+                    widthAmount: 0.08 + amount * 0.24,
+                    spatialAmount: 0.04 + amount * 0.32,
+                    loudnessAmount: 0.08 + amount * 0.48,
+                    fidelityAmount: 0.05 + amount * 0.24,
+                    limiterCeilingDB: min(viewModel.selectedPreset.limiterCeilingDB, -1)
+                )
+            }
+        )
     }
 }
 

@@ -425,7 +425,7 @@ public struct SonicBloomSettings: Codable, Equatable, Sendable {
         autoEnhanceOnLaunch: Bool = false,
         reduceMotion: Bool = false,
         waveformIntensity: Double = 0.72,
-        showAdvancedControls: Bool = true,
+        showAdvancedControls: Bool = false,
         syncMode: AudioSyncMode = .auto,
         loudnessMatchedCompare: Bool = true,
         smartPresetMatching: Bool = true
@@ -451,7 +451,7 @@ public struct SonicBloomSettings: Codable, Equatable, Sendable {
             autoEnhanceOnLaunch: try values.decodeIfPresent(Bool.self, forKey: .autoEnhanceOnLaunch) ?? false,
             reduceMotion: try values.decodeIfPresent(Bool.self, forKey: .reduceMotion) ?? false,
             waveformIntensity: try values.decodeIfPresent(Double.self, forKey: .waveformIntensity) ?? 0.72,
-            showAdvancedControls: try values.decodeIfPresent(Bool.self, forKey: .showAdvancedControls) ?? true,
+            showAdvancedControls: try values.decodeIfPresent(Bool.self, forKey: .showAdvancedControls) ?? false,
             syncMode: try values.decodeIfPresent(AudioSyncMode.self, forKey: .syncMode) ?? .music,
             loudnessMatchedCompare: try values.decodeIfPresent(Bool.self, forKey: .loudnessMatchedCompare) ?? true,
             smartPresetMatching: try values.decodeIfPresent(Bool.self, forKey: .smartPresetMatching) ?? false
