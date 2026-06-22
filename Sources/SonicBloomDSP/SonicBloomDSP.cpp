@@ -224,6 +224,8 @@ struct SonicBloomDSPHandle {
     size_t ambienceIndex = 0;
     std::array<float, ambienceBufferSize> ambienceL = {};
     std::array<float, ambienceBufferSize> ambienceR = {};
+    std::array<float, ambienceBufferSize> ambienceC = {};
+    std::array<float, ambienceBufferSize> ambienceD = {};
     float ambienceDiffuseL = 0.0f;
     float ambienceDiffuseR = 0.0f;
     size_t hrtfIndex = 0;
@@ -281,6 +283,8 @@ struct SonicBloomDSPHandle {
         ambienceIndex = 0;
         ambienceL.fill(0.0f);
         ambienceR.fill(0.0f);
+        ambienceC.fill(0.0f);
+        ambienceD.fill(0.0f);
         ambienceDiffuseL = 0.0f;
         ambienceDiffuseR = 0.0f;
         hrtfIndex = 0;
@@ -467,6 +471,7 @@ SonicBloomDSPMeter SonicBloomDSPProcess(
     const size_t ambienceDelayA = boundedDelayFrames(0.015f, handle->sampleRate);
     const size_t ambienceDelayB = boundedDelayFrames(0.027f, handle->sampleRate);
     const size_t ambienceDelayC = boundedDelayFrames(0.041f, handle->sampleRate);
+    const size_t ambienceDelayD = boundedDelayFrames(0.059f, handle->sampleRate);
     const size_t lookaheadFrames = static_cast<size_t>(clamp(
         std::round(handle->sampleRate * limiterLookaheadMS * 0.001f),
         8.0f,
@@ -611,19 +616,36 @@ SonicBloomDSPMeter SonicBloomDSPProcess(
             const size_t readA = (handle->ambienceIndex + ambienceBufferSize - ambienceDelayA) % ambienceBufferSize;
             const size_t readB = (handle->ambienceIndex + ambienceBufferSize - ambienceDelayB) % ambienceBufferSize;
             const size_t readC = (handle->ambienceIndex + ambienceBufferSize - ambienceDelayC) % ambienceBufferSize;
-            const float wetL = handle->ambienceR[readA] * 0.42f + handle->ambienceL[readB] * 0.32f + handle->ambienceR[readC] * 0.24f;
-            const float wetR = handle->ambienceL[readA] * 0.42f + handle->ambienceR[readB] * 0.32f + handle->ambienceL[readC] * 0.24f;
-            handle->ambienceDiffuseL = handle->ambienceDiffuseL * 0.9992f + (wetL + handle->ambienceDiffuseR * 0.18f) * ambienceAmount * 0.035f;
-            handle->ambienceDiffuseR = handle->ambienceDiffuseR * 0.9992f + (wetR + handle->ambienceDiffuseL * 0.18f) * ambienceAmount * 0.035f;
-            const float feedback = ambienceAmount * 0.18f;
-            handle->ambienceL[handle->ambienceIndex] = left + wetL * feedback + handle->ambienceDiffuseR * 0.08f;
-            handle->ambienceR[handle->ambienceIndex] = right + wetR * feedback + handle->ambienceDiffuseL * 0.08f;
+            const size_t readD = (handle->ambienceIndex + ambienceBufferSize - ambienceDelayD) % ambienceBufferSize;
+            const float tankA = handle->ambienceL[readA];
+            const float tankB = handle->ambienceR[readB];
+            const float tankC = handle->ambienceC[readC];
+            const float tankD = handle->ambienceD[readD];
+            const float feedback = 0.46f + ambienceAmount * 0.19f;
+            const float mixedA = (tankA + tankB + tankC + tankD) * 0.5f;
+            const float mixedB = (tankA - tankB + tankC - tankD) * 0.5f;
+            const float mixedC = (tankA + tankB - tankC - tankD) * 0.5f;
+            const float mixedD = (tankA - tankB - tankC + tankD) * 0.5f;
+            const float monoIn = (left + right) * 0.5f;
+            const float sideIn = (left - right) * 0.5f;
+            handle->ambienceDiffuseL = handle->ambienceDiffuseL * 0.992f + (tankA - tankC + tankB * 0.20f) * ambienceAmount * 0.020f;
+            handle->ambienceDiffuseR = handle->ambienceDiffuseR * 0.992f + (tankB - tankD + tankA * 0.20f) * ambienceAmount * 0.020f;
+            const float dampL = handle->ambienceDiffuseL;
+            const float dampR = handle->ambienceDiffuseR;
+            handle->ambienceL[handle->ambienceIndex] = monoIn * 0.30f + sideIn * 0.14f + mixedA * feedback;
+            handle->ambienceR[handle->ambienceIndex] = monoIn * 0.25f - sideIn * 0.18f + mixedB * feedback;
+            handle->ambienceC[handle->ambienceIndex] = monoIn * -0.18f + sideIn * 0.22f + mixedC * feedback;
+            handle->ambienceD[handle->ambienceIndex] = monoIn * 0.20f - sideIn * 0.11f + mixedD * feedback;
             handle->ambienceIndex = (handle->ambienceIndex + 1) % ambienceBufferSize;
-            left += (wetL * 0.22f + handle->ambienceDiffuseL * 0.42f) * ambienceAmount;
-            right += (wetR * 0.22f + handle->ambienceDiffuseR * 0.42f) * ambienceAmount;
+            const float wetL = tankA * 0.24f + tankB * 0.18f - tankC * 0.15f + tankD * 0.10f + dampL * 0.38f;
+            const float wetR = tankB * 0.24f - tankA * 0.12f + tankC * 0.18f + tankD * 0.13f + dampR * 0.38f;
+            left += wetL * ambienceAmount;
+            right += wetR * ambienceAmount;
         } else {
-            handle->ambienceL[handle->ambienceIndex] = left;
-            handle->ambienceR[handle->ambienceIndex] = right;
+            handle->ambienceL[handle->ambienceIndex] = 0.0f;
+            handle->ambienceR[handle->ambienceIndex] = 0.0f;
+            handle->ambienceC[handle->ambienceIndex] = 0.0f;
+            handle->ambienceD[handle->ambienceIndex] = 0.0f;
             handle->ambienceDiffuseL = 0.0f;
             handle->ambienceDiffuseR = 0.0f;
             handle->ambienceIndex = (handle->ambienceIndex + 1) % ambienceBufferSize;

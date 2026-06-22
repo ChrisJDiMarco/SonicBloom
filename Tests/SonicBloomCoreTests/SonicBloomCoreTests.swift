@@ -280,6 +280,24 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertGreaterThan(rightTail, 0.000_1)
     }
 
+    func testAmbienceLateTailHasDenseRoomEnergy() {
+        let frames = [StereoFrame(left: 0.8, right: 0)] + Array(repeating: StereoFrame(left: 0, right: 0), count: 8_800)
+        let preset = DSPPreset.manual.with(ambienceAmount: 1, limiterCeilingDB: -0.1)
+
+        let result = SonicBloomProcessor(sampleRate: 48_000).process(frames, preset: preset, bypass: false).frames
+        let tail = Array(result[5_200..<8_500])
+        let activeWindows = stride(from: 0, to: tail.count - 64, by: 64).filter { start in
+            rms(Array(tail[start..<(start + 64)])) > 0.000_03
+        }.count
+
+        let earlyTail = rms(Array(result[1_200..<2_200]))
+        let lateTail = rms(Array(result[7_200..<8_500]))
+
+        XCTAssertGreaterThan(activeWindows, 30)
+        XCTAssertGreaterThan(lateTail, 0.000_1)
+        XCTAssertLessThan(lateTail, earlyTail * 0.7)
+    }
+
     func testHRTFSpatialConvolutionMovesMonoIntoBothChannels() {
         let frames = [StereoFrame(left: 0.8, right: 0)] + Array(repeating: StereoFrame(left: 0, right: 0), count: 256)
         let preset = DSPPreset.manual.with(hrtfAmount: 1, limiterCeilingDB: -0.1)
