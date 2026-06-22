@@ -515,6 +515,28 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertEqual(zoom.outputGainDB, -60)
     }
 
+    func testProfileResolvesPerAppPresetWithSyncMode() {
+        var profile = SonicBloomProfile.default
+        profile.upsert(AppAudioRule(
+            bundleIdentifier: "com.google.Chrome",
+            displayName: "Chrome",
+            gainDB: 2,
+            presetName: DSPPreset.movies.name
+        ))
+
+        let preset = profile.effectivePreset(
+            basePreset: .cleanLoud,
+            for: "com.google.Chrome",
+            syncMode: .gaming
+        )
+
+        XCTAssertEqual(preset.name, DSPPreset.movies.name)
+        XCTAssertEqual(preset.outputGainDB, 2)
+        XCTAssertEqual(preset.ambienceAmount, 0)
+        XCTAssertEqual(preset.hrtfAmount, 0)
+        XCTAssertEqual(preset.spatialAmount, 0)
+    }
+
     func testCalibrationTuningBuildsOutputSpecificPreset() {
         let tuning = CalibrationTuning(
             outputKind: .tinySpeakers,

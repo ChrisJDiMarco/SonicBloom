@@ -290,6 +290,16 @@ public struct SonicBloomProfile: Codable, Equatable, Sendable {
         return preset.with(outputGainDB: gain)
     }
 
+    public func effectivePreset(
+        basePreset: DSPPreset,
+        for bundleIdentifier: String?,
+        syncMode: AudioSyncMode,
+        catalog: [DSPPreset] = PresetCatalog.builtIns
+    ) -> DSPPreset {
+        effectivePreset(basePreset: basePreset, for: bundleIdentifier, catalog: catalog)
+            .optimized(for: syncMode)
+    }
+
     public mutating func upsert(_ rule: AppAudioRule) {
         guard !rule.bundleIdentifier.isEmpty else { return }
         appRules[rule.bundleIdentifier] = rule

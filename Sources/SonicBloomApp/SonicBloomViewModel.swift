@@ -1,4 +1,4 @@
-import AppKit
+@preconcurrency import AppKit
 import AVFoundation
 import Foundation
 import SonicBloomCore
@@ -37,6 +37,7 @@ final class SonicBloomViewModel: ObservableObject {
     private var cpuSampler = ProcessCPUUsageSampler()
     private var cpuRefreshTask: Task<Void, Never>?
     private var routeRecoveryTask: Task<Void, Never>?
+    private var appActivationObserver: NSObjectProtocol?
     private var smartPresetStabilizer = SmartPresetStabilizer()
     private var activeProfileOutputName: String?
     private var isApplyingDevicePreset = false
@@ -50,7 +51,12 @@ final class SonicBloomViewModel: ObservableObject {
         }
     }
     @Published var profile: SonicBloomProfile {
-        didSet { save(profile, forKey: DefaultsKey.profile) }
+        didSet {
+            save(profile, forKey: DefaultsKey.profile)
+            refreshAppMixerRules()
+            activeAppRule = profile.appRule(for: foregroundAppBundleIdentifier)
+            updateBridgePreset()
+        }
     }
     @Published var settings: SonicBloomSettings {
         didSet {
@@ -71,6 +77,8 @@ final class SonicBloomViewModel: ObservableObject {
     @Published private(set) var cpuUsagePercent = 0.0
     @Published private(set) var smartContentProfile: SmartContentProfile = .quiet
     @Published private(set) var appMixerRules: [AppAudioRule] = []
+    @Published private(set) var foregroundAppBundleIdentifier: String?
+    @Published private(set) var activeAppRule: AppAudioRule?
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -85,12 +93,17 @@ final class SonicBloomViewModel: ObservableObject {
             }
         }
         refreshAppMixerRules()
+        refreshForegroundApplication()
+        startAppActivationObserver()
         startCPURefresh()
     }
 
     deinit {
         cpuRefreshTask?.cancel()
         routeRecoveryTask?.cancel()
+        if let appActivationObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(appActivationObserver)
+        }
     }
 
     func refreshRoute() {
@@ -333,6 +346,7 @@ final class SonicBloomViewModel: ObservableObject {
             TrustDiagnostic(title: "Output", value: routeState.selectedPhysicalOutputName ?? "No output", tint: routeState.selectedPhysicalOutputName == nil ? .orange : .blue),
             TrustDiagnostic(title: "Latency", value: String(format: "%.1f ms", routeState.estimatedLatencyMS), tint: .green),
             TrustDiagnostic(title: "Buffer", value: "\(routeState.bufferSize) frames", tint: .blue),
+            TrustDiagnostic(title: "App", value: activeAppRule?.displayName ?? "Global", tint: activeAppRule == nil ? .blue : .green),
             TrustDiagnostic(title: "CPU", value: String(format: "%.1f%%", cpuUsagePercent), tint: cpuUsagePercent > 15 ? .orange : .green),
             TrustDiagnostic(title: "Content", value: smartContentProfile.rawValue.capitalized, tint: settings.smartPresetMatching ? .green : .blue),
             TrustDiagnostic(title: "Clips", value: "\(meterModel.meter.limitedSamples) protected", tint: meterModel.meter.limitedSamples > 0 ? .orange : .green),
@@ -350,7 +364,12 @@ final class SonicBloomViewModel: ObservableObject {
     }
 
     private var processingPreset: DSPPreset {
-        selectedPreset.optimized(for: settings.syncMode)
+        profile.effectivePreset(
+            basePreset: selectedPreset,
+            for: foregroundAppBundleIdentifier,
+            syncMode: settings.syncMode,
+            catalog: presets
+        )
     }
 
     private func updateBridgePreset() {
@@ -390,6 +409,27 @@ final class SonicBloomViewModel: ObservableObject {
 
     private func favoritePreset() -> DSPPreset {
         presets.first(where: { $0.name == profile.favoritePresetName }) ?? .cleanLoud
+    }
+
+    private func startAppActivationObserver() {
+        appActivationObserver = NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didActivateApplicationNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] notification in
+            let app = notification.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
+            Task { @MainActor in
+                self?.refreshForegroundApplication(app)
+            }
+        }
+    }
+
+    private func refreshForegroundApplication(_ app: NSRunningApplication? = NSWorkspace.shared.frontmostApplication) {
+        guard let bundleIdentifier = app?.bundleIdentifier,
+              bundleIdentifier != Bundle.main.bundleIdentifier else { return }
+        foregroundAppBundleIdentifier = bundleIdentifier
+        activeAppRule = profile.appRule(for: bundleIdentifier)
+        updateBridgePreset()
     }
 
     private static func discoveredAppRules(profile: SonicBloomProfile) -> [AppAudioRule] {
