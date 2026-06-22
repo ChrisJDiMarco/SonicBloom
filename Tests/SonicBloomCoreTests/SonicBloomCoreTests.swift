@@ -736,6 +736,56 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertTrue(degraded.recoverySummary.contains("3 attempts"))
     }
 
+    func testRouteStateRequestsBridgeRestartAfterCoreAudioRecovery() {
+        let degraded = AudioRouteState.default
+            .recordingDegradedRecovery("Route degraded: SonicBloom Output unavailable.")
+        let recovered = AudioRouteState(
+            virtualDeviceName: "SonicBloom Output",
+            bridgeInputDeviceID: 1,
+            bridgeInputDeviceName: "SonicBloom Output",
+            selectedPhysicalOutputID: 2,
+            selectedPhysicalOutputName: "AudioBox USB",
+            sampleRate: 48_000,
+            channels: 2,
+            bufferSize: 64,
+            installHealth: .installed,
+            statusMessage: "Ready"
+        )
+
+        XCTAssertTrue(recovered.needsBridgeRestart(after: degraded, bridgeWasRunning: true))
+        XCTAssertFalse(recovered.needsBridgeRestart(after: degraded, bridgeWasRunning: false))
+        XCTAssertFalse(AudioRouteState.default.needsBridgeRestart(after: degraded, bridgeWasRunning: true))
+    }
+
+    func testRouteStateRequestsBridgeRestartAfterOutputChange() {
+        let previous = AudioRouteState(
+            virtualDeviceName: "SonicBloom Output",
+            bridgeInputDeviceID: 1,
+            bridgeInputDeviceName: "SonicBloom Output",
+            selectedPhysicalOutputID: 2,
+            selectedPhysicalOutputName: "AudioBox USB",
+            sampleRate: 48_000,
+            channels: 2,
+            bufferSize: 64,
+            installHealth: .active,
+            statusMessage: "Processing"
+        )
+        let next = AudioRouteState(
+            virtualDeviceName: "SonicBloom Output",
+            bridgeInputDeviceID: 1,
+            bridgeInputDeviceName: "SonicBloom Output",
+            selectedPhysicalOutputID: 3,
+            selectedPhysicalOutputName: "MacBook Speakers",
+            sampleRate: 48_000,
+            channels: 2,
+            bufferSize: 64,
+            installHealth: .installed,
+            statusMessage: "Ready"
+        )
+
+        XCTAssertTrue(next.needsBridgeRestart(after: previous, bridgeWasRunning: true))
+    }
+
     func testOlderRouteStateJSONDefaultsRecoveryFields() throws {
         let data = #"{"virtualDeviceName":"SonicBloom Output","sampleRate":48000,"channels":2,"bufferSize":64,"installHealth":"installed","statusMessage":"Ready"}"#.data(using: .utf8)!
 

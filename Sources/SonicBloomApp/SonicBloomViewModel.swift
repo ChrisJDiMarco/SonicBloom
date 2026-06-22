@@ -111,17 +111,22 @@ final class SonicBloomViewModel: ObservableObject {
         var next = routeManager.currentState()
         next.recoveryMessage = previous.recoveryMessage
         next.recoveryAttempts = previous.recoveryAttempts
-        if isBridgeRunning,
-           let oldOutput = previous.selectedPhysicalOutputName,
-           let newOutput = next.selectedPhysicalOutputName,
-           oldOutput != newOutput {
-            next = next.recordingRecovery("Recovered route: \(oldOutput) -> \(newOutput)")
-        }
+        let shouldRestartBridge = next.needsBridgeRestart(after: previous, bridgeWasRunning: isBridgeRunning)
         if isBridgeRunning, !next.isProcessingAvailable {
             next = next.recordingDegradedRecovery("Route degraded: SonicBloom Output unavailable.")
+        } else if shouldRestartBridge,
+                  let oldOutput = previous.selectedPhysicalOutputName,
+                  let newOutput = next.selectedPhysicalOutputName,
+                  oldOutput != newOutput {
+            next = next.recordingRecovery("Recovered route: \(oldOutput) -> \(newOutput)")
+        } else if shouldRestartBridge {
+            next = next.recordingRecovery("Recovered SonicBloom audio route.")
         }
         routeState = next
         applyDevicePresetIfNeeded()
+        if shouldRestartBridge {
+            startBridge()
+        }
     }
 
     func recoverAfterSystemWake() {

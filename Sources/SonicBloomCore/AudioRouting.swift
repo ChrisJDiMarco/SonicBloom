@@ -131,6 +131,16 @@ public struct AudioRouteState: Codable, Equatable, Sendable {
         return state
     }
 
+    public func needsBridgeRestart(after previous: AudioRouteState, bridgeWasRunning: Bool) -> Bool {
+        guard bridgeWasRunning, isProcessingAvailable else { return false }
+        return previous.installHealth == .degraded ||
+            bridgeInputDeviceID != previous.bridgeInputDeviceID ||
+            selectedPhysicalOutputID != previous.selectedPhysicalOutputID ||
+            abs(sampleRate - previous.sampleRate) > 0.001 ||
+            channels != previous.channels ||
+            bufferSize != previous.bufferSize
+    }
+
     private enum CodingKeys: String, CodingKey {
         case virtualDeviceName, bridgeInputDeviceID, bridgeInputDeviceName, selectedPhysicalOutputID, selectedPhysicalOutputName, sampleRate, channels, bufferSize, installHealth, statusMessage, recoveryMessage, recoveryAttempts
     }
