@@ -1,3 +1,4 @@
+import AppKit
 import AVFoundation
 import Foundation
 import SonicBloomCore
@@ -68,6 +69,7 @@ final class SonicBloomViewModel: ObservableObject {
     @Published var lastError: String?
     @Published private(set) var cpuUsagePercent = 0.0
     @Published private(set) var smartContentProfile: SmartContentProfile = .quiet
+    @Published private(set) var appMixerRules: [AppAudioRule] = []
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -81,6 +83,7 @@ final class SonicBloomViewModel: ObservableObject {
                 self?.handleMeter(meter)
             }
         }
+        refreshAppMixerRules()
         startCPURefresh()
     }
 
@@ -240,6 +243,43 @@ final class SonicBloomViewModel: ObservableObject {
         calibrationTonePlayer.play(sound)
     }
 
+    func refreshAppMixerRules() {
+        appMixerRules = Self.discoveredAppRules(profile: profile)
+    }
+
+    func setAppRuleGain(_ rule: AppAudioRule, gainDB: Double) {
+        profile.upsert(AppAudioRule(
+            bundleIdentifier: rule.bundleIdentifier,
+            displayName: rule.displayName,
+            gainDB: gainDB,
+            isMuted: rule.isMuted,
+            presetName: rule.presetName
+        ))
+        refreshAppMixerRules()
+    }
+
+    func toggleAppRuleMute(_ rule: AppAudioRule) {
+        profile.upsert(AppAudioRule(
+            bundleIdentifier: rule.bundleIdentifier,
+            displayName: rule.displayName,
+            gainDB: rule.gainDB,
+            isMuted: !rule.isMuted,
+            presetName: rule.presetName
+        ))
+        refreshAppMixerRules()
+    }
+
+    func setAppRulePreset(_ rule: AppAudioRule, presetName: String?) {
+        profile.upsert(AppAudioRule(
+            bundleIdentifier: rule.bundleIdentifier,
+            displayName: rule.displayName,
+            gainDB: rule.gainDB,
+            isMuted: rule.isMuted,
+            presetName: presetName
+        ))
+        refreshAppMixerRules()
+    }
+
     var deviceProfileSummary: String {
         guard let outputName = routeState.selectedPhysicalOutputName, !outputName.isEmpty else { return "No output" }
         let saved = profile.preset(for: outputName) != nil ? "Saved" : "Using"
@@ -309,6 +349,26 @@ final class SonicBloomViewModel: ObservableObject {
 
     private func favoritePreset() -> DSPPreset {
         presets.first(where: { $0.name == profile.favoritePresetName }) ?? .cleanLoud
+    }
+
+    private static func discoveredAppRules(profile: SonicBloomProfile) -> [AppAudioRule] {
+        var rules = profile.appRules
+        for app in NSWorkspace.shared.runningApplications where app.activationPolicy == .regular {
+            guard let bundleIdentifier = app.bundleIdentifier,
+                  bundleIdentifier != Bundle.main.bundleIdentifier else { continue }
+            let displayName = app.localizedName ?? bundleIdentifier
+            let saved = profile.appRule(for: bundleIdentifier)
+            rules[bundleIdentifier] = AppAudioRule(
+                bundleIdentifier: bundleIdentifier,
+                displayName: displayName,
+                gainDB: saved?.gainDB ?? 0,
+                isMuted: saved?.isMuted ?? false,
+                presetName: saved?.presetName
+            )
+        }
+        return rules.values.sorted {
+            ($0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending)
+        }
     }
 
     private func startCPURefresh() {

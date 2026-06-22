@@ -213,25 +213,51 @@ private extension CalibrationOutputKind {
     }
 }
 
+public struct AppAudioRule: Codable, Equatable, Identifiable, Sendable {
+    public var id: String { bundleIdentifier }
+    public var bundleIdentifier: String
+    public var displayName: String
+    public var gainDB: Double
+    public var isMuted: Bool
+    public var presetName: String?
+
+    public init(
+        bundleIdentifier: String,
+        displayName: String,
+        gainDB: Double = 0,
+        isMuted: Bool = false,
+        presetName: String? = nil
+    ) {
+        self.bundleIdentifier = bundleIdentifier
+        self.displayName = displayName.isEmpty ? bundleIdentifier : displayName
+        self.gainDB = min(max(gainDB, -60), 12)
+        self.isMuted = isMuted
+        self.presetName = presetName?.isEmpty == false ? presetName : nil
+    }
+}
+
 public struct SonicBloomProfile: Codable, Equatable, Sendable {
     public var displayName: String
     public var listeningMode: ListeningMode
     public var favoritePresetName: String
     public var preferredOutputName: String?
     public var devicePresets: [String: DSPPreset]
+    public var appRules: [String: AppAudioRule]
 
     public init(
         displayName: String = "Chris",
         listeningMode: ListeningMode = .everyday,
         favoritePresetName: String = DSPPreset.cleanLoud.name,
         preferredOutputName: String? = nil,
-        devicePresets: [String: DSPPreset] = [:]
+        devicePresets: [String: DSPPreset] = [:],
+        appRules: [String: AppAudioRule] = [:]
     ) {
         self.displayName = displayName.isEmpty ? "Chris" : displayName
         self.listeningMode = listeningMode
         self.favoritePresetName = favoritePresetName.isEmpty ? DSPPreset.cleanLoud.name : favoritePresetName
         self.preferredOutputName = preferredOutputName
         self.devicePresets = devicePresets
+        self.appRules = appRules
     }
 
     public static let `default` = SonicBloomProfile()
@@ -246,8 +272,23 @@ public struct SonicBloomProfile: Codable, Equatable, Sendable {
         devicePresets[outputName] = preset
     }
 
+    public func appRule(for bundleIdentifier: String?) -> AppAudioRule? {
+        guard let bundleIdentifier, !bundleIdentifier.isEmpty else { return nil }
+        return appRules[bundleIdentifier]
+    }
+
+    public mutating func upsert(_ rule: AppAudioRule) {
+        guard !rule.bundleIdentifier.isEmpty else { return }
+        appRules[rule.bundleIdentifier] = rule
+    }
+
+    public mutating func removeAppRule(for bundleIdentifier: String?) {
+        guard let bundleIdentifier, !bundleIdentifier.isEmpty else { return }
+        appRules.removeValue(forKey: bundleIdentifier)
+    }
+
     private enum CodingKeys: String, CodingKey {
-        case displayName, listeningMode, favoritePresetName, preferredOutputName, devicePresets
+        case displayName, listeningMode, favoritePresetName, preferredOutputName, devicePresets, appRules
     }
 
     public init(from decoder: Decoder) throws {
@@ -257,7 +298,8 @@ public struct SonicBloomProfile: Codable, Equatable, Sendable {
             listeningMode: try values.decodeIfPresent(ListeningMode.self, forKey: .listeningMode) ?? .everyday,
             favoritePresetName: try values.decodeIfPresent(String.self, forKey: .favoritePresetName) ?? DSPPreset.cleanLoud.name,
             preferredOutputName: try values.decodeIfPresent(String.self, forKey: .preferredOutputName),
-            devicePresets: try values.decodeIfPresent([String: DSPPreset].self, forKey: .devicePresets) ?? [:]
+            devicePresets: try values.decodeIfPresent([String: DSPPreset].self, forKey: .devicePresets) ?? [:],
+            appRules: try values.decodeIfPresent([String: AppAudioRule].self, forKey: .appRules) ?? [:]
         )
     }
 }

@@ -443,12 +443,100 @@ private struct RoutingWorkbench: View {
                     }
                 }
             }
+            PerAppMixer(viewModel: viewModel)
+                .frame(height: 280)
             HStack(spacing: 8) {
                 ConsoleAction(title: "Refresh Route", icon: "arrow.clockwise", color: SBColor.blue) { viewModel.refreshRoute() }
                 ConsoleAction(title: viewModel.primaryActionTitle, icon: viewModel.primaryActionIcon, color: SBColor.green) { viewModel.runPrimaryAction() }
                 ConsoleAction(title: "Use Current Output", icon: "checkmark.circle", color: SBColor.yellow) { viewModel.useCurrentOutputAsPreferred() }
             }
         }
+    }
+}
+
+private struct PerAppMixer: View {
+    @ObservedObject var viewModel: SonicBloomViewModel
+
+    var body: some View {
+        ConsoleCard(title: "PER-APP RULES", icon: "app.connected.to.app.below.fill", color: SBColor.green) {
+            VStack(spacing: 8) {
+                HStack {
+                    Text("APP")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(SBColor.subtext)
+                    Spacer()
+                    Button("Refresh") { viewModel.refreshAppMixerRules() }
+                        .font(.caption.weight(.bold))
+                        .buttonStyle(.plain)
+                        .foregroundStyle(SBColor.blue)
+                }
+                ForEach(Array(viewModel.appMixerRules.prefix(6))) { rule in
+                    PerAppRuleRow(
+                        rule: rule,
+                        presets: viewModel.presets,
+                        setGain: { viewModel.setAppRuleGain(rule, gainDB: $0) },
+                        toggleMute: { viewModel.toggleAppRuleMute(rule) },
+                        setPreset: { viewModel.setAppRulePreset(rule, presetName: $0) }
+                    )
+                }
+                if viewModel.appMixerRules.isEmpty {
+                    Text("No regular apps detected")
+                        .font(.caption)
+                        .foregroundStyle(SBColor.subtext)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+        }
+    }
+}
+
+private struct PerAppRuleRow: View {
+    var rule: AppAudioRule
+    var presets: [DSPPreset]
+    var setGain: (Double) -> Void
+    var toggleMute: () -> Void
+    var setPreset: (String?) -> Void
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Button(action: toggleMute) {
+                Image(systemName: rule.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                    .foregroundStyle(rule.isMuted ? SBColor.orange : SBColor.green)
+                    .frame(width: 24)
+            }
+            .buttonStyle(.plain)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(rule.displayName)
+                    .font(.caption.weight(.bold))
+                    .lineLimit(1)
+                Text(rule.bundleIdentifier)
+                    .font(.caption2)
+                    .foregroundStyle(SBColor.subtext)
+                    .lineLimit(1)
+            }
+            .frame(width: 210, alignment: .leading)
+            Slider(
+                value: Binding(get: { rule.gainDB }, set: { value in setGain(value) }),
+                in: -24...12
+            )
+            .tint(rule.gainDB >= 0 ? SBColor.green : SBColor.orange)
+            Text(String(format: "%.1f dB", rule.gainDB))
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(SBColor.subtext)
+                .frame(width: 58, alignment: .trailing)
+            Picker("Preset", selection: Binding(get: { rule.presetName ?? "" }, set: { setPreset($0.isEmpty ? nil : $0) })) {
+                Text("Follow Main").tag("")
+                ForEach(presets) { preset in
+                    Text(preset.name).tag(preset.name)
+                }
+            }
+            .labelsHidden()
+            .frame(width: 150)
+        }
+        .padding(8)
+        .background(SBColor.panel2)
+        .overlay { RoundedRectangle(cornerRadius: 7).stroke(rule.isMuted ? SBColor.orange.opacity(0.45) : SBColor.line, lineWidth: 1) }
+        .clipShape(RoundedRectangle(cornerRadius: 7))
     }
 }
 

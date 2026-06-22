@@ -395,6 +395,7 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertEqual(profile.favoritePresetName, DSPPreset.cleanLoud.name)
         XCTAssertEqual(profile.listeningMode, .everyday)
         XCTAssertEqual(profile.devicePresets, [:])
+        XCTAssertEqual(profile.appRules, [:])
 
         let data = try JSONEncoder().encode(profile)
         XCTAssertEqual(try JSONDecoder().decode(SonicBloomProfile.self, from: data), profile)
@@ -406,6 +407,7 @@ final class SonicBloomCoreTests: XCTestCase {
         let profile = try JSONDecoder().decode(SonicBloomProfile.self, from: data)
 
         XCTAssertEqual(profile.devicePresets, [:])
+        XCTAssertEqual(profile.appRules, [:])
         XCTAssertEqual(profile.favoritePresetName, DSPPreset.cleanLoud.name)
     }
 
@@ -418,6 +420,27 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertEqual(profile.preset(for: "AudioBox USB"), tuned)
         XCTAssertNil(profile.preset(for: nil))
         XCTAssertNil(profile.preset(for: ""))
+    }
+
+    func testProfileStoresPerAppAudioRules() {
+        var profile = SonicBloomProfile.default
+        let rule = AppAudioRule(
+            bundleIdentifier: "com.spotify.client",
+            displayName: "Spotify",
+            gainDB: 18,
+            isMuted: true,
+            presetName: DSPPreset.deepBass.name
+        )
+
+        profile.upsert(rule)
+
+        XCTAssertEqual(profile.appRule(for: "com.spotify.client")?.gainDB, 12)
+        XCTAssertEqual(profile.appRule(for: "com.spotify.client")?.isMuted, true)
+        XCTAssertEqual(profile.appRule(for: "com.spotify.client")?.presetName, DSPPreset.deepBass.name)
+        XCTAssertNil(profile.appRule(for: ""))
+
+        profile.removeAppRule(for: "com.spotify.client")
+        XCTAssertNil(profile.appRule(for: "com.spotify.client"))
     }
 
     func testCalibrationTuningBuildsOutputSpecificPreset() {
