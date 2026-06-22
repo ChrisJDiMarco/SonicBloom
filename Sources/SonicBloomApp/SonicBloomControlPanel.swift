@@ -476,7 +476,8 @@ private struct PerAppMixer: View {
                         presets: viewModel.presets,
                         setGain: { viewModel.setAppRuleGain(rule, gainDB: $0) },
                         toggleMute: { viewModel.toggleAppRuleMute(rule) },
-                        setPreset: { viewModel.setAppRulePreset(rule, presetName: $0) }
+                        setPreset: { viewModel.setAppRulePreset(rule, presetName: $0) },
+                        setSyncMode: { viewModel.setAppRuleSyncMode(rule, syncMode: $0) }
                     )
                 }
                 if viewModel.appMixerRules.isEmpty {
@@ -496,6 +497,7 @@ private struct PerAppRuleRow: View {
     var setGain: (Double) -> Void
     var toggleMute: () -> Void
     var setPreset: (String?) -> Void
+    var setSyncMode: (AudioSyncMode?) -> Void
 
     var body: some View {
         HStack(spacing: 10) {
@@ -532,6 +534,14 @@ private struct PerAppRuleRow: View {
             }
             .labelsHidden()
             .frame(width: 150)
+            Picker("Sync", selection: Binding(get: { rule.syncMode }, set: { setSyncMode($0) })) {
+                Text("Follow").tag(AudioSyncMode?.none)
+                ForEach(AudioSyncMode.allCases) { mode in
+                    Text(mode.rawValue).tag(Optional(mode))
+                }
+            }
+            .labelsHidden()
+            .frame(width: 105)
         }
         .padding(8)
         .background(SBColor.panel2)

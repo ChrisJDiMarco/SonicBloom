@@ -228,19 +228,22 @@ public struct AppAudioRule: Codable, Equatable, Identifiable, Sendable {
     public var gainDB: Double
     public var isMuted: Bool
     public var presetName: String?
+    public var syncMode: AudioSyncMode?
 
     public init(
         bundleIdentifier: String,
         displayName: String,
         gainDB: Double = 0,
         isMuted: Bool = false,
-        presetName: String? = nil
+        presetName: String? = nil,
+        syncMode: AudioSyncMode? = nil
     ) {
         self.bundleIdentifier = bundleIdentifier
         self.displayName = displayName.isEmpty ? bundleIdentifier : displayName
         self.gainDB = min(max(gainDB, -60), 12)
         self.isMuted = isMuted
         self.presetName = presetName?.isEmpty == false ? presetName : nil
+        self.syncMode = syncMode
     }
 }
 
@@ -305,7 +308,11 @@ public struct SonicBloomProfile: Codable, Equatable, Sendable {
         catalog: [DSPPreset] = PresetCatalog.builtIns
     ) -> DSPPreset {
         effectivePreset(basePreset: basePreset, for: bundleIdentifier, catalog: catalog)
-            .optimized(for: syncMode)
+            .optimized(for: effectiveSyncMode(for: bundleIdentifier, default: syncMode))
+    }
+
+    public func effectiveSyncMode(for bundleIdentifier: String?, default syncMode: AudioSyncMode) -> AudioSyncMode {
+        appRule(for: bundleIdentifier)?.syncMode ?? syncMode
     }
 
     public mutating func upsert(_ rule: AppAudioRule) {

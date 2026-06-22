@@ -55,6 +55,13 @@ final class SonicBloomViewModel: ObservableObject {
             save(profile, forKey: DefaultsKey.profile)
             refreshAppMixerRules()
             activeAppRule = profile.appRule(for: foregroundAppBundleIdentifier)
+            if oldValue.effectiveSyncMode(for: foregroundAppBundleIdentifier, default: settings.syncMode) != processingSyncMode {
+                routeState.bufferSize = Int(processingSyncMode.preferredBufferFrameSize)
+                if isBridgeRunning, !isTransitioning {
+                    startBridge()
+                    return
+                }
+            }
             updateBridgePreset()
         }
     }
@@ -65,7 +72,7 @@ final class SonicBloomViewModel: ObservableObject {
                 smartPresetStabilizer.reset()
             }
             if oldValue.syncMode != settings.syncMode {
-                routeState.bufferSize = Int(settings.syncMode.preferredBufferFrameSize)
+                routeState.bufferSize = Int(processingSyncMode.preferredBufferFrameSize)
                 if isBridgeRunning, !isTransitioning {
                     startBridge()
                     return
@@ -192,22 +199,22 @@ final class SonicBloomViewModel: ObservableObject {
                 preset: processingPreset,
                 bypass: isBypassed,
                 loudnessMatchedBypass: settings.loudnessMatchedCompare,
-                preferredBufferFrameSize: settings.syncMode.preferredBufferFrameSize
+                preferredBufferFrameSize: processingSyncMode.preferredBufferFrameSize
             )
             let selection = try routeManager.activateBridgeSystemOutput()
             bridge.applyBufferPreference(
                 inputDeviceID: selection.input.id,
                 outputDeviceID: selection.output.id,
-                frameSize: settings.syncMode.preferredBufferFrameSize
+                frameSize: processingSyncMode.preferredBufferFrameSize
             )
             bridge.scheduleBufferPreferenceRetries(
                 inputDeviceID: selection.input.id,
                 outputDeviceID: selection.output.id,
-                frameSize: settings.syncMode.preferredBufferFrameSize
+                frameSize: processingSyncMode.preferredBufferFrameSize
             )
             routeState = routeManager.currentState()
             routeState.installHealth = .active
-            routeState.bufferSize = Int(settings.syncMode.preferredBufferFrameSize)
+            routeState.bufferSize = Int(processingSyncMode.preferredBufferFrameSize)
             routeState.statusMessage = "Processing active: \(selection.input.name) -> \(selection.output.name)"
             isBridgeRunning = true
             startRouteRecoveryWatchdog()
@@ -323,7 +330,8 @@ final class SonicBloomViewModel: ObservableObject {
             displayName: rule.displayName,
             gainDB: gainDB,
             isMuted: rule.isMuted,
-            presetName: rule.presetName
+            presetName: rule.presetName,
+            syncMode: rule.syncMode
         ))
         refreshAppMixerRules()
     }
@@ -334,7 +342,8 @@ final class SonicBloomViewModel: ObservableObject {
             displayName: rule.displayName,
             gainDB: rule.gainDB,
             isMuted: !rule.isMuted,
-            presetName: rule.presetName
+            presetName: rule.presetName,
+            syncMode: rule.syncMode
         ))
         refreshAppMixerRules()
     }
@@ -345,7 +354,20 @@ final class SonicBloomViewModel: ObservableObject {
             displayName: rule.displayName,
             gainDB: rule.gainDB,
             isMuted: rule.isMuted,
-            presetName: presetName
+            presetName: presetName,
+            syncMode: rule.syncMode
+        ))
+        refreshAppMixerRules()
+    }
+
+    func setAppRuleSyncMode(_ rule: AppAudioRule, syncMode: AudioSyncMode?) {
+        profile.upsert(AppAudioRule(
+            bundleIdentifier: rule.bundleIdentifier,
+            displayName: rule.displayName,
+            gainDB: rule.gainDB,
+            isMuted: rule.isMuted,
+            presetName: rule.presetName,
+            syncMode: syncMode
         ))
         refreshAppMixerRules()
     }
@@ -386,6 +408,10 @@ final class SonicBloomViewModel: ObservableObject {
             syncMode: settings.syncMode,
             catalog: presets
         )
+    }
+
+    private var processingSyncMode: AudioSyncMode {
+        profile.effectiveSyncMode(for: foregroundAppBundleIdentifier, default: settings.syncMode)
     }
 
     private func updateBridgePreset() {
@@ -443,8 +469,16 @@ final class SonicBloomViewModel: ObservableObject {
     private func refreshForegroundApplication(_ app: NSRunningApplication? = NSWorkspace.shared.frontmostApplication) {
         guard let bundleIdentifier = app?.bundleIdentifier,
               bundleIdentifier != Bundle.main.bundleIdentifier else { return }
+        let oldSyncMode = processingSyncMode
         foregroundAppBundleIdentifier = bundleIdentifier
         activeAppRule = profile.appRule(for: bundleIdentifier)
+        if oldSyncMode != processingSyncMode {
+            routeState.bufferSize = Int(processingSyncMode.preferredBufferFrameSize)
+            if isBridgeRunning, !isTransitioning {
+                startBridge()
+                return
+            }
+        }
         updateBridgePreset()
     }
 
@@ -460,7 +494,8 @@ final class SonicBloomViewModel: ObservableObject {
                 displayName: displayName,
                 gainDB: saved?.gainDB ?? 0,
                 isMuted: saved?.isMuted ?? false,
-                presetName: saved?.presetName
+                presetName: saved?.presetName,
+                syncMode: saved?.syncMode
             )
         }
         return rules.values.sorted {

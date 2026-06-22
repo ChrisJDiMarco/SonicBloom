@@ -504,7 +504,8 @@ final class SonicBloomCoreTests: XCTestCase {
             displayName: "Spotify",
             gainDB: 18,
             isMuted: true,
-            presetName: DSPPreset.deepBass.name
+            presetName: DSPPreset.deepBass.name,
+            syncMode: .music
         )
 
         profile.upsert(rule)
@@ -512,10 +513,20 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertEqual(profile.appRule(for: "com.spotify.client")?.gainDB, 12)
         XCTAssertEqual(profile.appRule(for: "com.spotify.client")?.isMuted, true)
         XCTAssertEqual(profile.appRule(for: "com.spotify.client")?.presetName, DSPPreset.deepBass.name)
+        XCTAssertEqual(profile.appRule(for: "com.spotify.client")?.syncMode, .music)
         XCTAssertNil(profile.appRule(for: ""))
 
         profile.removeAppRule(for: "com.spotify.client")
         XCTAssertNil(profile.appRule(for: "com.spotify.client"))
+    }
+
+    func testOlderAppAudioRuleJSONDefaultsSyncMode() throws {
+        let data = #"{"bundleIdentifier":"com.spotify.client","displayName":"Spotify","gainDB":2,"isMuted":false,"presetName":"Deep Bass"}"#.data(using: .utf8)!
+
+        let rule = try JSONDecoder().decode(AppAudioRule.self, from: data)
+
+        XCTAssertNil(rule.syncMode)
+        XCTAssertEqual(rule.presetName, DSPPreset.deepBass.name)
     }
 
     func testProfileResolvesEffectivePerAppPreset() {
@@ -560,6 +571,28 @@ final class SonicBloomCoreTests: XCTestCase {
 
         XCTAssertEqual(preset.name, DSPPreset.movies.name)
         XCTAssertEqual(preset.outputGainDB, 2)
+        XCTAssertEqual(preset.ambienceAmount, 0)
+        XCTAssertEqual(preset.hrtfAmount, 0)
+        XCTAssertEqual(preset.spatialAmount, 0)
+    }
+
+    func testProfileResolvesPerAppSyncModeOverride() {
+        var profile = SonicBloomProfile.default
+        profile.upsert(AppAudioRule(
+            bundleIdentifier: "com.apple.TV",
+            displayName: "TV",
+            presetName: DSPPreset.movies.name,
+            syncMode: .gaming
+        ))
+
+        let preset = profile.effectivePreset(
+            basePreset: .cleanLoud,
+            for: "com.apple.TV",
+            syncMode: .music
+        )
+
+        XCTAssertEqual(profile.effectiveSyncMode(for: "com.apple.TV", default: .music), .gaming)
+        XCTAssertEqual(preset.name, DSPPreset.movies.name)
         XCTAssertEqual(preset.ambienceAmount, 0)
         XCTAssertEqual(preset.hrtfAmount, 0)
         XCTAssertEqual(preset.spatialAmount, 0)
