@@ -713,6 +713,15 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertFalse(script.contains("BlackHole"))
     }
 
+    func testHALInstallerScriptUninstallsOnlySonicBloomDriver() {
+        let script = SonicBloomHALInstaller.uninstallScript()
+
+        XCTAssertTrue(script.contains("/bin/rm -rf /Library/Audio/Plug-Ins/HAL/SonicBloomHAL.driver"))
+        XCTAssertTrue(script.contains("/usr/bin/killall coreaudiod || true"))
+        XCTAssertFalse(script.contains("BlackHole"))
+        XCTAssertFalse(script.contains("Soundflower"))
+    }
+
     private func rms(_ frames: [StereoFrame]) -> Float {
         guard !frames.isEmpty else { return 0 }
         let sum = frames.reduce(Float(0)) { partial, frame in

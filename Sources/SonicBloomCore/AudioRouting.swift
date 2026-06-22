@@ -231,6 +231,7 @@ public protocol AudioRouteManaging {
     func preferredBridgeSelection() -> AudioBridgeSelection?
     func activateBridgeSystemOutput() throws -> AudioBridgeSelection
     func installVirtualOutputDevice() throws
+    func uninstallVirtualOutputDevice() throws
     func restorePreviousSystemOutput() throws
     func handle(_ command: AudioEngineCommand) throws
 }
@@ -289,6 +290,10 @@ public final class CoreAudioRouteManager: AudioRouteManaging, @unchecked Sendabl
         try SonicBloomHALInstaller.install(driverURL: driverURL)
     }
 
+    public func uninstallVirtualOutputDevice() throws {
+        try SonicBloomHALInstaller.uninstall()
+    }
+
     public func restorePreviousSystemOutput() throws {
         lock.lock()
         let previousOutputDeviceID = previousOutputDeviceID
@@ -339,8 +344,22 @@ public enum SonicBloomHALInstaller {
         """
     }
 
+    static func uninstallScript() -> String {
+        """
+        /bin/rm -rf \(targetPath)
+        /usr/bin/killall coreaudiod || true
+        """
+    }
+
     public static func install(driverURL: URL) throws {
-        let script = installScript(driverURL: driverURL)
+        try runPrivileged(script: installScript(driverURL: driverURL), failureMessage: "SonicBloom Output installation was canceled or failed.")
+    }
+
+    public static func uninstall() throws {
+        try runPrivileged(script: uninstallScript(), failureMessage: "SonicBloom Output uninstall was canceled or failed.")
+    }
+
+    private static func runPrivileged(script: String, failureMessage: String) throws {
         let appleScript = "do shell script \(appleScriptLiteral(script)) with administrator privileges"
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
@@ -358,7 +377,7 @@ public enum SonicBloomHALInstaller {
         guard process.terminationStatus == 0 else {
             let errorData = errorPipe.fileHandleForReading.readDataToEndOfFile()
             let message = String(data: errorData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
-            throw AudioRouteError.installerFailed(message?.isEmpty == false ? message! : "SonicBloom Output installation was canceled or failed.")
+            throw AudioRouteError.installerFailed(message?.isEmpty == false ? message! : failureMessage)
         }
     }
 

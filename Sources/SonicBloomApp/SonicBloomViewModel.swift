@@ -238,6 +238,18 @@ final class SonicBloomViewModel: ObservableObject {
         }
     }
 
+    func uninstallVirtualDevice() {
+        stopBridgeImmediately()
+        do {
+            try routeManager.uninstallVirtualOutputDevice()
+            refreshRoute()
+            routeState.statusMessage = "Uninstalled SonicBloom Output. Waiting for Core Audio..."
+            lastError = nil
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
     func startIfAutoEnhanceEnabled() {
         guard settings.autoEnhanceOnLaunch, !isBridgeRunning, !isTransitioning else { return }
         refreshRoute()
