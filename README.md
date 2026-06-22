@@ -15,6 +15,16 @@ open dist/SonicBloom.app
 
 The app bundle includes `SonicBloomHAL.driver`. Press **Install SonicBloom Output** in the app to copy it into `/Library/Audio/Plug-Ins/HAL/` with the standard macOS administrator prompt and restart Core Audio.
 
+## Package
+
+```bash
+Scripts/package_release.sh
+SONICBLOOM_INSTALLER_IDENTITY="Developer ID Installer: Your Name (TEAMID)" Scripts/package_release.sh
+SONICBLOOM_INSTALLER_IDENTITY="Developer ID Installer: Your Name (TEAMID)" SONICBLOOM_NOTARY_PROFILE="sonicbloom-notary" Scripts/package_release.sh
+```
+
+The package installs `SonicBloom.app` into `/Applications`. Signing and notarization are enabled by environment variables so local development still works without Apple Developer credentials.
+
 ## What Exists
 
 - Native AppKit/SwiftUI control panel
@@ -28,6 +38,6 @@ The app bundle includes `SonicBloomHAL.driver`. Press **Install SonicBloom Outpu
 - Unit tests for presets, DSP safety, and route defaults
 - Bundled `SonicBloomHAL.driver` virtual duplex output/input prototype
 
-## Driver Work Left
+## Release Work Left
 
-The HAL driver is intentionally small and source-owned. Before public release it still needs hardened signing/notarization, long-session latency/dropout work, and a lock-free audio ring buffer.
+The HAL driver is intentionally small and source-owned. Before public release it still needs production Developer ID credentials, long-session latency/dropout work, and broader device recovery testing.
