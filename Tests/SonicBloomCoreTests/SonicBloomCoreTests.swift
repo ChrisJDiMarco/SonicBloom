@@ -443,6 +443,31 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertNil(profile.appRule(for: "com.spotify.client"))
     }
 
+    func testProfileResolvesEffectivePerAppPreset() {
+        var profile = SonicBloomProfile.default
+        profile.upsert(AppAudioRule(
+            bundleIdentifier: "com.spotify.client",
+            displayName: "Spotify",
+            gainDB: 4,
+            presetName: DSPPreset.deepBass.name
+        ))
+        profile.upsert(AppAudioRule(
+            bundleIdentifier: "us.zoom.xos",
+            displayName: "Zoom",
+            isMuted: true,
+            presetName: DSPPreset.spokenVoice.name
+        ))
+
+        let spotify = profile.effectivePreset(basePreset: .cleanLoud, for: "com.spotify.client")
+        let zoom = profile.effectivePreset(basePreset: .cleanLoud, for: "us.zoom.xos")
+
+        XCTAssertEqual(profile.effectivePreset(basePreset: .cleanLoud, for: "com.apple.Safari"), .cleanLoud)
+        XCTAssertEqual(spotify.name, DSPPreset.deepBass.name)
+        XCTAssertEqual(spotify.outputGainDB, 3)
+        XCTAssertEqual(zoom.name, DSPPreset.spokenVoice.name)
+        XCTAssertEqual(zoom.outputGainDB, -60)
+    }
+
     func testCalibrationTuningBuildsOutputSpecificPreset() {
         let tuning = CalibrationTuning(
             outputKind: .tinySpeakers,
