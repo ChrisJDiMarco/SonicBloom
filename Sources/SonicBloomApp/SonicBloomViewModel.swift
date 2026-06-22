@@ -36,6 +36,7 @@ final class SonicBloomViewModel: ObservableObject {
     private let defaults: UserDefaults
     private var cpuSampler = ProcessCPUUsageSampler()
     private var cpuRefreshTask: Task<Void, Never>?
+    private var routeRecoveryTask: Task<Void, Never>?
     private var smartPresetStabilizer = SmartPresetStabilizer()
     private var activeProfileOutputName: String?
     private var isApplyingDevicePreset = false
@@ -89,6 +90,7 @@ final class SonicBloomViewModel: ObservableObject {
 
     deinit {
         cpuRefreshTask?.cancel()
+        routeRecoveryTask?.cancel()
     }
 
     func refreshRoute() {
@@ -107,6 +109,16 @@ final class SonicBloomViewModel: ObservableObject {
         }
         routeState = next
         applyDevicePresetIfNeeded()
+    }
+
+    func recoverAfterSystemWake() {
+        let wasRunning = isBridgeRunning
+        refreshRoute()
+        guard wasRunning else { return }
+        routeState = routeState.recordingRecovery("Recovered route after system wake.")
+        if routeState.isProcessingAvailable {
+            updateBridgePreset()
+        }
     }
 
     func toggleBridge() {
@@ -169,9 +181,11 @@ final class SonicBloomViewModel: ObservableObject {
             routeState.installHealth = .active
             routeState.statusMessage = "Processing active: \(selection.input.name) -> \(selection.output.name)"
             isBridgeRunning = true
+            startRouteRecoveryWatchdog()
             lastError = nil
         } catch {
             bridge.stop()
+            routeRecoveryTask?.cancel()
             try? routeManager.restorePreviousSystemOutput()
             isBridgeRunning = false
             lastError = error.localizedDescription
@@ -193,6 +207,7 @@ final class SonicBloomViewModel: ObservableObject {
             DispatchQueue.main.async { [weak self] in
                 self?.refreshRoute()
                 self?.isTransitioning = false
+                self?.routeRecoveryTask?.cancel()
             }
         }
     }
@@ -204,6 +219,7 @@ final class SonicBloomViewModel: ObservableObject {
         isBypassed = false
         isTransitioning = false
         meterModel.meter = DSPMeter()
+        routeRecoveryTask?.cancel()
         refreshRoute()
     }
 
@@ -391,6 +407,17 @@ final class SonicBloomViewModel: ObservableObject {
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
                 self.cpuUsagePercent = self.cpuSampler.sample()
+            }
+        }
+    }
+
+    private func startRouteRecoveryWatchdog() {
+        routeRecoveryTask?.cancel()
+        routeRecoveryTask = Task { @MainActor [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 3_000_000_000)
+                guard let self, self.isBridgeRunning, !self.isTransitioning else { continue }
+                self.refreshRoute()
             }
         }
     }

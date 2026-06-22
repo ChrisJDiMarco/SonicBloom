@@ -12,11 +12,13 @@ final class SonicBloomAppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         installStatusItem()
+        installRecoveryObservers()
         openControlPanel()
         viewModel.startIfAutoEnhanceEnabled()
     }
 
     func applicationWillTerminate(_ notification: Notification) {
+        NSWorkspace.shared.notificationCenter.removeObserver(self)
         viewModel.stopBridgeImmediately()
     }
 
@@ -72,6 +74,20 @@ final class SonicBloomAppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func quit() {
         NSApp.terminate(nil)
+    }
+
+    private func installRecoveryObservers() {
+        NSWorkspace.shared.notificationCenter.addObserver(
+            self,
+            selector: #selector(recoverAfterWake),
+            name: NSWorkspace.didWakeNotification,
+            object: nil
+        )
+    }
+
+    @objc private func recoverAfterWake() {
+        viewModel.recoverAfterSystemWake()
+        refreshStatusMenu()
     }
 
     private func refreshStatusMenu() {
