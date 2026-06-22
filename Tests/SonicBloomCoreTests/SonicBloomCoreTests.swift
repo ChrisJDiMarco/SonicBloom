@@ -85,6 +85,22 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertFalse(result.frames.contains { $0.left.isNaN || $0.right.isNaN })
     }
 
+    func testLimiterControlsOversampledTruePeak() {
+        let preset = DSPPreset.manual.with(limiterCeilingDB: -3, limiterLookaheadMS: 0.2, limiterReleaseMS: 20)
+        let ceiling = preset.limiterCeilingLinear
+        let pattern = [-ceiling, ceiling, ceiling, -ceiling]
+        let frames = (0..<1_024).map { index in
+            let sample = pattern[index % pattern.count]
+            return StereoFrame(left: sample, right: sample)
+        }
+        let processor = SonicBloomProcessor(sampleRate: 48_000)
+
+        let result = processor.process(frames, preset: preset, bypass: false)
+        let truePeak = cubicTruePeak(Array(result.frames.dropFirst(96)).map(\.left))
+
+        XCTAssertLessThanOrEqual(truePeak, ceiling + 0.000_1)
+    }
+
     func testBufferProcessorMatchesFrameProcessor() {
         let frames = (0..<384).map { index in
             StereoFrame(
@@ -735,6 +751,34 @@ final class SonicBloomCoreTests: XCTestCase {
         return zip(frames.dropFirst(), frames).reduce(Float(0)) { partial, pair in
             partial + abs(pair.0.left - pair.1.left) + abs(pair.0.right - pair.1.right)
         }
+    }
+
+    private func cubicTruePeak(_ samples: [Float]) -> Float {
+        guard samples.count >= 4 else { return samples.map(abs).max() ?? 0 }
+        var peak = samples.map(abs).max() ?? 0
+        for index in 3..<samples.count {
+            for step in 1..<4 {
+                let t = Float(step) / 4
+                let sample = catmullRom(
+                    samples[index - 3],
+                    samples[index - 2],
+                    samples[index - 1],
+                    samples[index],
+                    t
+                )
+                peak = max(peak, abs(sample))
+            }
+        }
+        return peak
+    }
+
+    private func catmullRom(_ y0: Float, _ y1: Float, _ y2: Float, _ y3: Float, _ t: Float) -> Float {
+        0.5 * (
+            2 * y1
+            + (-y0 + y2) * t
+            + (2 * y0 - 5 * y1 + 4 * y2 - y3) * t * t
+            + (-y0 + 3 * y1 - 3 * y2 + y3) * t * t * t
+        )
     }
 
     private func sineMix(lowFrequency: Double, lowAmplitude: Double, highFrequency: Double, highAmplitude: Double, count: Int) -> [StereoFrame] {

@@ -55,6 +55,23 @@ float onePoleAlpha(float frequency, float sampleRate) {
     return 1.0f - std::exp(-2.0f * pi * frequency / std::max(sampleRate, 1.0f));
 }
 
+float catmullRom(float y0, float y1, float y2, float y3, float t) {
+    return 0.5f * (
+        2.0f * y1
+        + (-y0 + y2) * t
+        + (2.0f * y0 - 5.0f * y1 + 4.0f * y2 - y3) * t * t
+        + (-y0 + 3.0f * y1 - 3.0f * y2 + y3) * t * t * t
+    );
+}
+
+float oversampledPeak(float y0, float y1, float y2, float y3) {
+    float peak = std::max(std::fabs(y2), std::fabs(y3));
+    peak = std::max(peak, std::fabs(catmullRom(y0, y1, y2, y3, 0.25f)));
+    peak = std::max(peak, std::fabs(catmullRom(y0, y1, y2, y3, 0.50f)));
+    peak = std::max(peak, std::fabs(catmullRom(y0, y1, y2, y3, 0.75f)));
+    return peak;
+}
+
 size_t spatialDelayFrames(float sampleRate) {
     const float frames = sampleRate * 0.00035f;
     return static_cast<size_t>(clamp(std::round(frames), 1.0f, static_cast<float>(spatialDelayBufferSize - 1)));
@@ -194,6 +211,10 @@ struct SonicBloomDSPHandle {
     std::array<float, lookaheadBufferSize> lookaheadR = {};
     float truePeakPreviousL = 0.0f;
     float truePeakPreviousR = 0.0f;
+    float truePeakPrevious2L = 0.0f;
+    float truePeakPrevious2R = 0.0f;
+    float truePeakPrevious3L = 0.0f;
+    float truePeakPrevious3R = 0.0f;
     float bypassRawPower = 0.0f;
     float bypassProcessedPower = 0.0f;
     float bypassMatchGain = 1.0f;
@@ -247,6 +268,10 @@ struct SonicBloomDSPHandle {
         lookaheadR.fill(0.0f);
         truePeakPreviousL = 0.0f;
         truePeakPreviousR = 0.0f;
+        truePeakPrevious2L = 0.0f;
+        truePeakPrevious2R = 0.0f;
+        truePeakPrevious3L = 0.0f;
+        truePeakPrevious3R = 0.0f;
         bypassRawPower = 0.0f;
         bypassProcessedPower = 0.0f;
         bypassMatchGain = 1.0f;
@@ -646,12 +671,26 @@ SonicBloomDSPMeter SonicBloomDSPProcess(
         for (size_t offset = 0; offset < futureCount; ++offset) {
             const size_t sampleIndex = (handle->lookaheadIndex + lookaheadBufferSize - offset) % lookaheadBufferSize;
             const size_t previousIndex = (sampleIndex + lookaheadBufferSize - 1) % lookaheadBufferSize;
+            const size_t previous2Index = (sampleIndex + lookaheadBufferSize - 2) % lookaheadBufferSize;
+            const size_t previous3Index = (sampleIndex + lookaheadBufferSize - 3) % lookaheadBufferSize;
             const float sampleL = handle->lookaheadL[sampleIndex];
             const float sampleR = handle->lookaheadR[sampleIndex];
             const float midpointL = (sampleL + handle->lookaheadL[previousIndex]) * 0.5f;
             const float midpointR = (sampleR + handle->lookaheadR[previousIndex]) * 0.5f;
             futurePeak = std::max(futurePeak, std::max(std::fabs(sampleL), std::fabs(sampleR)));
             futurePeak = std::max(futurePeak, std::max(std::fabs(midpointL), std::fabs(midpointR)));
+            futurePeak = std::max(futurePeak, oversampledPeak(
+                handle->lookaheadL[previous3Index],
+                handle->lookaheadL[previous2Index],
+                handle->lookaheadL[previousIndex],
+                sampleL
+            ));
+            futurePeak = std::max(futurePeak, oversampledPeak(
+                handle->lookaheadR[previous3Index],
+                handle->lookaheadR[previous2Index],
+                handle->lookaheadR[previousIndex],
+                sampleR
+            ));
         }
 
         const bool lookaheadReady = handle->lookaheadFill >= lookaheadFrames;
@@ -671,8 +710,18 @@ SonicBloomDSPMeter SonicBloomDSPProcess(
         limitedLeft *= handle->limiterGain;
         limitedRight *= handle->limiterGain;
 
-        const float truePeakL = std::max(std::fabs(limitedLeft), std::fabs((limitedLeft + handle->truePeakPreviousL) * 0.5f));
-        const float truePeakR = std::max(std::fabs(limitedRight), std::fabs((limitedRight + handle->truePeakPreviousR) * 0.5f));
+        const float truePeakL = oversampledPeak(
+            handle->truePeakPrevious3L,
+            handle->truePeakPrevious2L,
+            handle->truePeakPreviousL,
+            limitedLeft
+        );
+        const float truePeakR = oversampledPeak(
+            handle->truePeakPrevious3R,
+            handle->truePeakPrevious2R,
+            handle->truePeakPreviousR,
+            limitedRight
+        );
         const float truePeak = std::max(truePeakL, truePeakR);
         if (truePeak > limiterCeiling) {
             const float safetyGain = limiterCeiling / truePeak;
@@ -680,6 +729,10 @@ SonicBloomDSPMeter SonicBloomDSPProcess(
             limitedRight *= safetyGain;
             handle->limiterGain = std::min(handle->limiterGain, safetyGain);
         }
+        handle->truePeakPrevious3L = handle->truePeakPrevious2L;
+        handle->truePeakPrevious3R = handle->truePeakPrevious2R;
+        handle->truePeakPrevious2L = handle->truePeakPreviousL;
+        handle->truePeakPrevious2R = handle->truePeakPreviousR;
         handle->truePeakPreviousL = limitedLeft;
         handle->truePeakPreviousR = limitedRight;
 
