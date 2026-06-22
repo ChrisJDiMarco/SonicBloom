@@ -92,7 +92,20 @@ final class SonicBloomViewModel: ObservableObject {
     }
 
     func refreshRoute() {
-        routeState = routeManager.currentState()
+        let previous = routeState
+        var next = routeManager.currentState()
+        next.recoveryMessage = previous.recoveryMessage
+        next.recoveryAttempts = previous.recoveryAttempts
+        if isBridgeRunning,
+           let oldOutput = previous.selectedPhysicalOutputName,
+           let newOutput = next.selectedPhysicalOutputName,
+           oldOutput != newOutput {
+            next = next.recordingRecovery("Recovered route: \(oldOutput) -> \(newOutput)")
+        }
+        if isBridgeRunning, !next.isProcessingAvailable {
+            next = next.recordingDegradedRecovery("Route degraded: SonicBloom Output unavailable.")
+        }
+        routeState = next
         applyDevicePresetIfNeeded()
     }
 
@@ -295,7 +308,7 @@ final class SonicBloomViewModel: ObservableObject {
             TrustDiagnostic(title: "CPU", value: String(format: "%.1f%%", cpuUsagePercent), tint: cpuUsagePercent > 15 ? .orange : .green),
             TrustDiagnostic(title: "Content", value: smartContentProfile.rawValue.capitalized, tint: settings.smartPresetMatching ? .green : .blue),
             TrustDiagnostic(title: "Clips", value: "\(meterModel.meter.limitedSamples) protected", tint: meterModel.meter.limitedSamples > 0 ? .orange : .green),
-            TrustDiagnostic(title: "Recovery", value: routeState.statusMessage, tint: lastError == nil ? .green : .orange)
+            TrustDiagnostic(title: "Recovery", value: routeState.recoverySummary, tint: lastError == nil ? .green : .orange)
         ]
     }
 

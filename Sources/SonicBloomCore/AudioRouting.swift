@@ -57,6 +57,8 @@ public struct AudioRouteState: Codable, Equatable, Sendable {
     public var bufferSize: Int
     public var installHealth: AudioInstallHealth
     public var statusMessage: String
+    public var recoveryMessage: String?
+    public var recoveryAttempts: Int
 
     public var isProcessingAvailable: Bool {
         installHealth == .active || installHealth == .installed
@@ -78,6 +80,73 @@ public struct AudioRouteState: Codable, Equatable, Sendable {
     public var estimatedLatencyMS: Double {
         guard sampleRate > 0 else { return 0 }
         return Double(max(bufferSize, 0) * 2) / sampleRate * 1_000
+    }
+
+    public var recoverySummary: String {
+        recoveryMessage ?? "No recovery needed"
+    }
+
+    public init(
+        virtualDeviceName: String,
+        bridgeInputDeviceID: UInt32?,
+        bridgeInputDeviceName: String?,
+        selectedPhysicalOutputID: UInt32?,
+        selectedPhysicalOutputName: String?,
+        sampleRate: Double,
+        channels: Int,
+        bufferSize: Int,
+        installHealth: AudioInstallHealth,
+        statusMessage: String,
+        recoveryMessage: String? = nil,
+        recoveryAttempts: Int = 0
+    ) {
+        self.virtualDeviceName = virtualDeviceName
+        self.bridgeInputDeviceID = bridgeInputDeviceID
+        self.bridgeInputDeviceName = bridgeInputDeviceName
+        self.selectedPhysicalOutputID = selectedPhysicalOutputID
+        self.selectedPhysicalOutputName = selectedPhysicalOutputName
+        self.sampleRate = sampleRate
+        self.channels = channels
+        self.bufferSize = bufferSize
+        self.installHealth = installHealth
+        self.statusMessage = statusMessage
+        self.recoveryMessage = recoveryMessage?.isEmpty == false ? recoveryMessage : nil
+        self.recoveryAttempts = max(recoveryAttempts, 0)
+    }
+
+    public func recordingRecovery(_ message: String) -> AudioRouteState {
+        var state = self
+        state.recoveryMessage = message.isEmpty ? nil : message
+        state.recoveryAttempts += 1
+        return state
+    }
+
+    public func recordingDegradedRecovery(_ message: String) -> AudioRouteState {
+        var state = recordingRecovery(message)
+        state.installHealth = .degraded
+        return state
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case virtualDeviceName, bridgeInputDeviceID, bridgeInputDeviceName, selectedPhysicalOutputID, selectedPhysicalOutputName, sampleRate, channels, bufferSize, installHealth, statusMessage, recoveryMessage, recoveryAttempts
+    }
+
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            virtualDeviceName: try values.decode(String.self, forKey: .virtualDeviceName),
+            bridgeInputDeviceID: try values.decodeIfPresent(UInt32.self, forKey: .bridgeInputDeviceID),
+            bridgeInputDeviceName: try values.decodeIfPresent(String.self, forKey: .bridgeInputDeviceName),
+            selectedPhysicalOutputID: try values.decodeIfPresent(UInt32.self, forKey: .selectedPhysicalOutputID),
+            selectedPhysicalOutputName: try values.decodeIfPresent(String.self, forKey: .selectedPhysicalOutputName),
+            sampleRate: try values.decode(Double.self, forKey: .sampleRate),
+            channels: try values.decode(Int.self, forKey: .channels),
+            bufferSize: try values.decode(Int.self, forKey: .bufferSize),
+            installHealth: try values.decode(AudioInstallHealth.self, forKey: .installHealth),
+            statusMessage: try values.decode(String.self, forKey: .statusMessage),
+            recoveryMessage: try values.decodeIfPresent(String.self, forKey: .recoveryMessage),
+            recoveryAttempts: try values.decodeIfPresent(Int.self, forKey: .recoveryAttempts) ?? 0
+        )
     }
 }
 

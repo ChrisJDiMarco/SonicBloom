@@ -597,6 +597,49 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertEqual(state.estimatedLatencyMS, 2.666, accuracy: 0.001)
     }
 
+    func testRouteStateRecordsLastRecoveryWithoutDroppingRoute() {
+        let state = AudioRouteState(
+            virtualDeviceName: "SonicBloom Output",
+            bridgeInputDeviceID: 1,
+            bridgeInputDeviceName: "SonicBloom Output",
+            selectedPhysicalOutputID: 2,
+            selectedPhysicalOutputName: "AudioBox USB",
+            sampleRate: 48_000,
+            channels: 2,
+            bufferSize: 64,
+            installHealth: .active,
+            statusMessage: "Processing"
+        )
+
+        let recovered = state.recordingRecovery("Recovered route after output change.")
+
+        XCTAssertEqual(recovered.selectedPhysicalOutputName, "AudioBox USB")
+        XCTAssertEqual(recovered.installHealth, .active)
+        XCTAssertEqual(recovered.recoveryAttempts, 1)
+        XCTAssertEqual(recovered.recoveryMessage, "Recovered route after output change.")
+        XCTAssertEqual(recovered.recoverySummary, "Recovered route after output change.")
+    }
+
+    func testRouteStateRecordsDegradedRecovery() {
+        let state = AudioRouteState.default
+
+        let degraded = state.recordingDegradedRecovery("Route degraded: SonicBloom Output unavailable.")
+
+        XCTAssertEqual(degraded.installHealth, .degraded)
+        XCTAssertEqual(degraded.recoveryAttempts, 1)
+        XCTAssertEqual(degraded.recoverySummary, "Route degraded: SonicBloom Output unavailable.")
+    }
+
+    func testOlderRouteStateJSONDefaultsRecoveryFields() throws {
+        let data = #"{"virtualDeviceName":"SonicBloom Output","sampleRate":48000,"channels":2,"bufferSize":64,"installHealth":"installed","statusMessage":"Ready"}"#.data(using: .utf8)!
+
+        let state = try JSONDecoder().decode(AudioRouteState.self, from: data)
+
+        XCTAssertNil(state.recoveryMessage)
+        XCTAssertEqual(state.recoveryAttempts, 0)
+        XCTAssertEqual(state.recoverySummary, "No recovery needed")
+    }
+
     func testProcessCPUUsageSamplerUsesDeltaTime() {
         var sampler = ProcessCPUUsageSampler()
 
