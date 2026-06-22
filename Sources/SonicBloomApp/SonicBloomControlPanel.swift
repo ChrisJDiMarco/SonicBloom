@@ -662,6 +662,7 @@ private struct CalibrationWizard: View {
                 MiniSlider(title: "BASS RESPONSE", value: tuningBinding(\.bassPreference), range: 0...1, color: SBColor.yellow)
                 MiniSlider(title: "CLARITY", value: tuningBinding(\.clarityPreference), range: 0...1, color: SBColor.blue)
                 MiniSlider(title: "SPACE", value: tuningBinding(\.spatialPreference), range: 0...1, color: SBColor.green)
+                MiniSlider(title: "LOUDNESS", value: tuningBinding(\.loudnessPreference), range: 0...1, color: SBColor.red)
 
                 HStack(spacing: 8) {
                     ConsoleAction(title: "Save To Output", icon: "checkmark.circle", color: SBColor.green) { viewModel.applyCalibration(tuning) }

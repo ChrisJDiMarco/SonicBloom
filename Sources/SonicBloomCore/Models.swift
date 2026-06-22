@@ -91,37 +91,43 @@ public struct CalibrationTuning: Codable, Equatable, Sendable {
     public var bassPreference: Double
     public var clarityPreference: Double
     public var spatialPreference: Double
+    public var loudnessPreference: Double
 
     public init(
         outputKind: CalibrationOutputKind = .speakers,
         bassPreference: Double = 0.5,
         clarityPreference: Double = 0.5,
-        spatialPreference: Double = 0.5
+        spatialPreference: Double = 0.5,
+        loudnessPreference: Double = 0.5
     ) {
         self.outputKind = outputKind
         self.bassPreference = Self.clamp01(bassPreference)
         self.clarityPreference = Self.clamp01(clarityPreference)
         self.spatialPreference = Self.clamp01(spatialPreference)
+        self.loudnessPreference = Self.clamp01(loudnessPreference)
     }
 
     public func applying(to preset: DSPPreset) -> DSPPreset {
         var bands = preset.eqBandsDB
         let bassDB = (bassPreference - 0.5) * 4.0 + outputKind.bassEQOffset
         let clarityDB = (clarityPreference - 0.5) * 3.0 + outputKind.clarityEQOffset
+        let loudness = 0.08 + loudnessPreference * 0.48
         add(bassDB, to: 4...10, bands: &bands)
         add(clarityDB, to: 17...26, bands: &bands)
 
         return preset.with(
             name: DSPPreset.manual.name,
             eqBandsDB: bands.map { min(max($0, -12), 12) },
+            inputGainDB: min(max(preset.inputGainDB + loudnessPreference * 2.2, -12), 12),
             bassAmount: min(max(outputKind.baseBass + bassPreference * 0.58, 0), 1),
             widthAmount: min(max(outputKind.baseWidth + spatialPreference * outputKind.widthScale, 0), 1),
             spatialAmount: min(max(outputKind.baseSpatial + spatialPreference * outputKind.spatialScale, 0), 1),
             crossfeedAmount: min(max(outputKind.baseCrossfeed, 0), 1),
-            loudnessAmount: max(preset.loudnessAmount, 0.18),
+            loudnessAmount: max(preset.loudnessAmount, loudness),
             fidelityAmount: min(max(outputKind.baseFidelity + clarityPreference * 0.32, 0), 1),
             hrtfAmount: min(max(outputKind.baseHRTF + spatialPreference * outputKind.hrtfScale, 0), 1),
-            limiterCeilingDB: min(preset.limiterCeilingDB, -1)
+            limiterCeilingDB: min(preset.limiterCeilingDB, -1 - loudnessPreference * 0.4),
+            outputGainDB: min(max(preset.outputGainDB + (loudnessPreference - 0.5) * 1.4, -12), 12)
         )
     }
 
@@ -133,6 +139,21 @@ public struct CalibrationTuning: Codable, Equatable, Sendable {
 
     private static func clamp01(_ value: Double) -> Double {
         min(max(value, 0), 1)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case outputKind, bassPreference, clarityPreference, spatialPreference, loudnessPreference
+    }
+
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            outputKind: try values.decodeIfPresent(CalibrationOutputKind.self, forKey: .outputKind) ?? .speakers,
+            bassPreference: try values.decodeIfPresent(Double.self, forKey: .bassPreference) ?? 0.5,
+            clarityPreference: try values.decodeIfPresent(Double.self, forKey: .clarityPreference) ?? 0.5,
+            spatialPreference: try values.decodeIfPresent(Double.self, forKey: .spatialPreference) ?? 0.5,
+            loudnessPreference: try values.decodeIfPresent(Double.self, forKey: .loudnessPreference) ?? 0.5
+        )
     }
 }
 

@@ -661,7 +661,8 @@ final class SonicBloomCoreTests: XCTestCase {
             outputKind: .tinySpeakers,
             bassPreference: 1,
             clarityPreference: 0.75,
-            spatialPreference: 0.2
+            spatialPreference: 0.2,
+            loudnessPreference: 1
         )
 
         let tuned = tuning.applying(to: .flat)
@@ -669,6 +670,8 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertEqual(tuned.name, DSPPreset.manual.name)
         XCTAssertGreaterThan(tuned.bassAmount, 0.55)
         XCTAssertGreaterThan(tuned.fidelityAmount, 0.2)
+        XCTAssertGreaterThan(tuned.loudnessAmount, 0.45)
+        XCTAssertGreaterThan(tuned.inputGainDB, DSPPreset.flat.inputGainDB)
         XCTAssertGreaterThan(tuned.eqBandsDB[6], DSPPreset.flat.eqBandsDB[6])
         XCTAssertLessThan(tuned.spatialAmount, 0.18)
         XCTAssertLessThanOrEqual(tuned.limiterCeilingDB, -1)
@@ -679,18 +682,30 @@ final class SonicBloomCoreTests: XCTestCase {
             outputKind: .headphones,
             bassPreference: -2,
             clarityPreference: 3,
-            spatialPreference: 1
+            spatialPreference: 1,
+            loudnessPreference: -4
         )
 
         let tuned = tuning.applying(to: .flat)
 
         XCTAssertEqual(tuning.bassPreference, 0)
         XCTAssertEqual(tuning.clarityPreference, 1)
+        XCTAssertEqual(tuning.loudnessPreference, 0)
         XCTAssertGreaterThan(tuned.crossfeedAmount, 0.2)
         XCTAssertGreaterThan(tuned.hrtfAmount, 0.25)
+        XCTAssertLessThanOrEqual(tuned.loudnessAmount, 0.18)
+        XCTAssertLessThanOrEqual(tuned.outputGainDB, 0)
 
         let data = try JSONEncoder().encode(tuning)
         XCTAssertEqual(try JSONDecoder().decode(CalibrationTuning.self, from: data), tuning)
+    }
+
+    func testOlderCalibrationTuningJSONDefaultsLoudnessPreference() throws {
+        let data = #"{"outputKind":"Speakers","bassPreference":0.4,"clarityPreference":0.6,"spatialPreference":0.7}"#.data(using: .utf8)!
+
+        let tuning = try JSONDecoder().decode(CalibrationTuning.self, from: data)
+
+        XCTAssertEqual(tuning.loudnessPreference, 0.5)
     }
 
     func testSettingsClampVisualizerIntensity() throws {
