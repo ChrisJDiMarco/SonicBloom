@@ -598,13 +598,14 @@ private struct SettingsWorkbench: View {
                     MiniSlider(title: "WAVEFORM INTENSITY", value: settingsBinding(\.waveformIntensity), range: 0...1, color: SBColor.red)
                 }
             }
-            .frame(width: 380)
+            .frame(width: 340)
 
             CalibrationWizard(viewModel: viewModel)
+                .frame(minWidth: 360, maxWidth: .infinity)
+                .layoutPriority(1)
 
             VStack(spacing: 12) {
                 TrustPanel(viewModel: viewModel)
-                    .frame(height: 230)
                 ConsoleCard(title: "MAINTENANCE", icon: "wrench.and.screwdriver", color: SBColor.yellow) {
                     VStack(spacing: 10) {
                         ConsoleAction(title: "Install Driver", icon: "arrow.down.circle", color: SBColor.green) { viewModel.installVirtualDevice() }
@@ -618,6 +619,7 @@ private struct SettingsWorkbench: View {
             }
             .frame(width: 300)
         }
+        .frame(maxWidth: .infinity, alignment: .topLeading)
     }
 
     private func settingsBinding(_ keyPath: WritableKeyPath<SonicBloomSettings, Bool>) -> Binding<Bool> {
