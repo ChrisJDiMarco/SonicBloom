@@ -34,12 +34,22 @@ macOS may show a microphone permission prompt because virtual system-audio devic
 When reporting an issue, include:
 
 - the text from Settings > Maintenance > Copy Diagnostics
+- the text from Settings > Maintenance > Copy Support Bundle
 - macOS version and Mac model
 - output device name
 - SonicBloom preset and sync mode
 - Spatial Profile from diagnostics, especially after importing BRIR / SOFA JSON
 - whether the issue happens in YouTube, Spotify, Zoom, games, or all apps
 - the Trust & Health diagnostics: output, latency, buffer, CPU, content, and clips
+
+Copy Support Bundle includes diagnostics, recent route/driver events, HAL logs, recovery logs, and a known-issues checklist.
+
+## Known Issues Checklist
+
+- Bluetooth and AirPods can briefly disappear during macOS device switches. Use Repair Audio if playback does not recover.
+- Some third-party Audio Units can crackle or fail to render. Remove the effect and retry before blaming the main route.
+- Binary `.sofa` files need conversion to JSON before import.
+- Unsigned local builds may show macOS security prompts until the app is signed and notarized.
 
 ## BRIR / SOFA Imports
 

@@ -10,7 +10,7 @@ Run these first:
 Scripts/qa_gate.sh
 ```
 
-Pass means the DSP, preset, routing planner, installer script, recovery planner, and packaged HAL bundle checks are green. It does not prove live-device stability.
+Pass means the DSP, preset, routing planner, installer script, recovery planner, packaged HAL bundle checks, and release-readiness report are green. It does not prove live-device stability.
 
 For a live playback soak, start SonicBloom, play Spotify/YouTube/Zoom audio, then run:
 
@@ -37,6 +37,7 @@ Attach the generated `dist/stability/SonicBloom-stability-*.log` to any dropout,
 | Games | Full-screen game audio | No persistent underruns or route loss |  |
 | Spatial import | Import SOFA-style BRIR JSON, enable Movies/Headphones | Diagnostics shows imported Spatial Profile, sound changes, no clipping |  |
 | Per-app profiles | Save a browser/app profile, enable automatic app profiles | Only eligible running audio apps create taps; master preset remains stable |  |
+| Support bundle | Settings > Maintenance > Copy Support Bundle after a route repair | Clipboard includes diagnostics, route events, HAL log section, and known issues |  |
 | Quit/crash | Force quit SonicBloom while active | Recovery helper restores the physical output |  |
 | Uninstall | Run release uninstaller | App, HAL driver, and recovery agent are removed |  |
 

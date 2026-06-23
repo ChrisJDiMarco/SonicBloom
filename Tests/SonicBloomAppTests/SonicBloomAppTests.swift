@@ -913,11 +913,27 @@ final class SonicBloomAppTests: XCTestCase {
         XCTAssertTrue(viewModel.diagnosticsReport.contains("Clips Protected: 7"))
     }
 
+    @MainActor
+    func testViewModelBuildsSupportBundleReport() {
+        let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let viewModel = SonicBloomViewModel.testInstance(defaults: defaults)
+
+        viewModel.handleMeterForTesting(DSPMeter(inputPeak: 0.2, outputPeak: 0.3, gainReductionDB: 1.5, limitedSamples: 7))
+
+        XCTAssertTrue(viewModel.supportBundleReport.contains("SonicBloom Support Bundle"))
+        XCTAssertTrue(viewModel.supportBundleReport.contains("SonicBloom Diagnostics"))
+        XCTAssertTrue(viewModel.supportBundleReport.contains("Known Issues Checklist"))
+    }
+
     func testSettingsExposeCopyDiagnosticsAction() throws {
         let controlPanel = try String(contentsOf: URL(fileURLWithPath: "Sources/SonicBloomApp/SonicBloomControlPanel.swift"))
 
         XCTAssertTrue(controlPanel.contains("Copy Diagnostics"))
         XCTAssertTrue(controlPanel.contains("viewModel.copyDiagnosticsReport()"))
+        XCTAssertTrue(controlPanel.contains("Copy Support Bundle"))
+        XCTAssertTrue(controlPanel.contains("viewModel.copySupportBundleReport()"))
     }
 
     func testSettingsExposeLatencyAndRepairActions() throws {

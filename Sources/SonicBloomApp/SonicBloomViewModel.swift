@@ -70,6 +70,7 @@ final class SonicBloomViewModel: ObservableObject {
     private let audioUnitEffectLoader: AudioUnitEffectLoader
     private let audioUnitEffectPreflight: AudioUnitEffectPreflight
     private let presetStore: PresetStore
+    private let supportEventLogURL = SonicBloomSupportEventLogger.defaultLogURL()
     private var cpuSampler = ProcessCPUUsageSampler()
     private var cpuRefreshTask: Task<Void, Never>?
     private var routeRecoveryTask: Task<Void, Never>?
@@ -394,6 +395,7 @@ final class SonicBloomViewModel: ObservableObject {
             startRouteLease()
             startPerAppTaps(sampleRate: selection.output.sampleRate)
             startRouteRecoveryWatchdog()
+            recordSupportEvent("route", routeState.statusMessage)
         } catch {
             perAppTapCoordinator.stop()
             bridge.stop()
@@ -402,6 +404,7 @@ final class SonicBloomViewModel: ObservableObject {
             try? routeManager.restorePreviousSystemOutput()
             isBridgeRunning = false
             lastError = error.localizedDescription
+            recordSupportEvent("error", "Start failed: \(error.localizedDescription)")
             refreshRoute()
         }
     }
@@ -424,12 +427,14 @@ final class SonicBloomViewModel: ObservableObject {
                     self?.isTransitioning = false
                     self?.routeRecoveryTask?.cancel()
                     self?.stopRouteLease()
+                    self?.recordSupportEvent("route", "Enhancement off; Mac output restored.")
                 }
             } catch {
                 DispatchQueue.main.async { [weak self] in
                     self?.lastError = error.localizedDescription
                     self?.routeState.statusMessage = "Could not restore Mac output; keeping enhancement on."
                     self?.isTransitioning = false
+                    self?.recordSupportEvent("error", "Stop failed: \(error.localizedDescription)")
                 }
             }
         }
@@ -453,6 +458,7 @@ final class SonicBloomViewModel: ObservableObject {
             try routeManager.installVirtualOutputDevice()
             refreshRoute()
             routeState.statusMessage = "Installed SonicBloom Output. Waiting for Core Audio..."
+            recordSupportEvent("driver", routeState.statusMessage)
             Task { @MainActor in
                 try? await Task.sleep(nanoseconds: 2_000_000_000)
                 refreshRoute()
@@ -460,6 +466,7 @@ final class SonicBloomViewModel: ObservableObject {
             lastError = nil
         } catch {
             lastError = error.localizedDescription
+            recordSupportEvent("error", "Driver install failed: \(error.localizedDescription)")
         }
     }
 
@@ -469,9 +476,11 @@ final class SonicBloomViewModel: ObservableObject {
             try routeManager.uninstallVirtualOutputDevice()
             refreshRoute()
             routeState.statusMessage = "Uninstalled SonicBloom Output. Waiting for Core Audio..."
+            recordSupportEvent("driver", routeState.statusMessage)
             lastError = nil
         } catch {
             lastError = error.localizedDescription
+            recordSupportEvent("error", "Driver uninstall failed: \(error.localizedDescription)")
         }
     }
 
@@ -706,6 +715,7 @@ final class SonicBloomViewModel: ObservableObject {
             return
         }
         routeState = routeState.recordingRecovery("Repairing SonicBloom audio path.")
+        recordSupportEvent("repair", routeState.recoverySummary)
         isRepairingAudioPath = true
         defer { isRepairingAudioPath = false }
         startBridge()
@@ -867,10 +877,28 @@ final class SonicBloomViewModel: ObservableObject {
         )
     }
 
+    var supportBundleReport: String {
+        SonicBloomSupportBundle.build(
+            diagnosticsReport: diagnosticsReport,
+            recentEvents: SonicBloomSupportEventLogger.recentEvents(from: supportEventLogURL),
+            halLog: readOptionalTextFile("/tmp/SonicBloomHAL.log"),
+            recoveryLog: readOptionalTextFile("/tmp/SonicBloomRecovery.log"),
+            recoveryErrorLog: readOptionalTextFile("/tmp/SonicBloomRecovery.err")
+        )
+    }
+
     func copyDiagnosticsReport() {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(diagnosticsReport, forType: .string)
         routeState.statusMessage = "Copied diagnostics to clipboard."
+        recordSupportEvent("support", routeState.statusMessage)
+    }
+
+    func copySupportBundleReport() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(supportBundleReport, forType: .string)
+        routeState.statusMessage = "Copied support bundle to clipboard."
+        recordSupportEvent("support", routeState.statusMessage)
     }
 
     func resetSettings() {
@@ -1084,6 +1112,14 @@ final class SonicBloomViewModel: ObservableObject {
         if clear {
             SonicBloomRouteLease.clear()
         }
+    }
+
+    private func recordSupportEvent(_ category: String, _ message: String) {
+        try? SonicBloomSupportEventLogger.append(category: category, message: message, to: supportEventLogURL)
+    }
+
+    private func readOptionalTextFile(_ path: String) -> String? {
+        try? String(contentsOf: URL(fileURLWithPath: path), encoding: .utf8)
     }
 
     private static func load<T: Decodable>(_ type: T.Type, from defaults: UserDefaults, key: String) -> T? {

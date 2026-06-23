@@ -959,6 +959,7 @@ private struct SettingsWorkbench: View {
                         ConsoleAction(title: "Repair Audio", icon: "bandage", color: SBColor.orange) { viewModel.repairAudioPath() }
                         ConsoleAction(title: "Optimize Latency", icon: "timer", color: SBColor.green) { viewModel.optimizeLatencyForVideo() }
                         ConsoleAction(title: "Copy Diagnostics", icon: "doc.on.doc", color: SBColor.blue) { viewModel.copyDiagnosticsReport() }
+                        ConsoleAction(title: "Copy Support Bundle", icon: "folder.badge.questionmark", color: SBColor.blue) { viewModel.copySupportBundleReport() }
                         ConsoleAction(title: "Reset Settings", icon: "arrow.uturn.backward", color: SBColor.yellow) { viewModel.resetSettings() }
                     }
                 }

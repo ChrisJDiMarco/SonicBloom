@@ -2015,6 +2015,39 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertTrue(report.contains("Last Error: Test error"))
     }
 
+    func testSupportBundleIncludesDiagnosticsEventsAndSystemLogs() {
+        let bundle = SonicBloomSupportBundle.build(
+            diagnosticsReport: "SonicBloom Diagnostics\nOutput: AirPods Pro",
+            recentEvents: ["2026-06-23T12:00:00Z route Processing active"],
+            halLog: "HAL started",
+            recoveryLog: "Recovery restored output",
+            recoveryErrorLog: "No errors"
+        )
+
+        XCTAssertTrue(bundle.contains("SonicBloom Support Bundle"))
+        XCTAssertTrue(bundle.contains("Output: AirPods Pro"))
+        XCTAssertTrue(bundle.contains("Recent Events"))
+        XCTAssertTrue(bundle.contains("HAL started"))
+        XCTAssertTrue(bundle.contains("Recovery restored output"))
+        XCTAssertTrue(bundle.contains("Known Issues Checklist"))
+    }
+
+    func testSupportEventLoggerKeepsRecentEvents() throws {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+            .appendingPathComponent("support-events.log")
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+
+        try SonicBloomSupportEventLogger.append(category: "route", message: "one", to: url, now: Date(timeIntervalSince1970: 1))
+        try SonicBloomSupportEventLogger.append(category: "route", message: "two", to: url, now: Date(timeIntervalSince1970: 2))
+        try SonicBloomSupportEventLogger.append(category: "route", message: "three", to: url, now: Date(timeIntervalSince1970: 3))
+
+        let recent = SonicBloomSupportEventLogger.recentEvents(from: url, maxLines: 2).joined(separator: "\n")
+        XCTAssertFalse(recent.contains("one"))
+        XCTAssertTrue(recent.contains("two"))
+        XCTAssertTrue(recent.contains("three"))
+    }
+
     func testRoutePlannerRequiresOwnedSonicBloomDriver() {
         let devices = [
             AudioDeviceSnapshot(id: 1, name: "AudioBox USB", inputChannels: 2, outputChannels: 2, sampleRate: 44_100, isVirtual: false),
@@ -2266,8 +2299,21 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertTrue(supportGuide.contains("Reset Mac Output"))
         XCTAssertTrue(supportGuide.contains("microphone permission"))
         XCTAssertTrue(supportGuide.contains("diagnostics"))
+        XCTAssertTrue(supportGuide.contains("Copy Support Bundle"))
         XCTAssertTrue(supportGuide.contains("BRIR / SOFA Imports"))
         XCTAssertTrue(supportGuide.contains("Per-App Profiles"))
+    }
+
+    func testReleaseReadinessScriptReportsCommercialBlockers() throws {
+        let qaGate = try String(contentsOf: URL(fileURLWithPath: "Scripts/qa_gate.sh"))
+        let readiness = try String(contentsOf: URL(fileURLWithPath: "Scripts/release_readiness.sh"))
+
+        XCTAssertTrue(qaGate.contains("Scripts/release_readiness.sh"))
+        XCTAssertTrue(readiness.contains("SONICBLOOM_APP_IDENTITY"))
+        XCTAssertTrue(readiness.contains("SONICBLOOM_INSTALLER_IDENTITY"))
+        XCTAssertTrue(readiness.contains("SONICBLOOM_NOTARY_PROFILE"))
+        XCTAssertTrue(readiness.contains("Docs/Support.md"))
+        XCTAssertTrue(readiness.contains("Docs/QA-Matrix.md"))
     }
 
     func testUpdateManifestReportsAvailableRelease() throws {
