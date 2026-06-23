@@ -7,9 +7,7 @@ Use this before calling any build release-ready. Record the macOS version, Mac m
 Run these first:
 
 ```bash
-swift test --filter SonicBloomCoreTests
-Scripts/build_app.sh
-Scripts/test_hal_bundle.sh
+Scripts/qa_gate.sh
 ```
 
 Pass means the DSP, preset, routing planner, installer script, recovery planner, and packaged HAL bundle checks are green. It does not prove live-device stability.

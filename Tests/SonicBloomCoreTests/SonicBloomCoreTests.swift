@@ -1952,6 +1952,18 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertTrue(packageScript.contains("minimumSystemVersion"))
     }
 
+    func testQAGateRunsAutomatedReleaseChecks() throws {
+        let qaScriptURL = URL(fileURLWithPath: "Scripts/qa_gate.sh")
+        let qaScript = try String(contentsOf: qaScriptURL)
+        let permissions = try FileManager.default.attributesOfItem(atPath: qaScriptURL.path)[.posixPermissions] as? NSNumber
+
+        XCTAssertTrue(qaScript.contains("swift test"))
+        XCTAssertTrue(qaScript.contains("Scripts/build_app.sh"))
+        XCTAssertTrue(qaScript.contains("Scripts/test_hal_bundle.sh"))
+        XCTAssertTrue(qaScript.contains("Scripts/package_release.sh --skip-build"))
+        XCTAssertEqual((permissions?.intValue ?? 0) & 0o111, 0o111)
+    }
+
     func testPackageReleaseValidatesStapledNotarization() throws {
         let packageScript = try String(contentsOf: URL(fileURLWithPath: "Scripts/package_release.sh"))
 
