@@ -21,6 +21,7 @@ final class SonicBloomAudioBridge: @unchecked Sendable {
     private static let ringCapacity = 8192
     private static let maxRealtimeScratchFrames = 2048
 
+    private let audioUnitHost: AudioUnitEffectHostChain
     private let settingsLock = NSLock()
     // ponytail: serializes current global/app ring writes; replace with a real timed mix bus when tap sync matters.
     private let outputWriteLock = NSLock()
@@ -52,6 +53,10 @@ final class SonicBloomAudioBridge: @unchecked Sendable {
         isCaptureStarted && isPlaybackStarted
     }
 
+    init(audioUnitHost: AudioUnitEffectHostChain = AudioUnitEffectHostChain()) {
+        self.audioUnitHost = audioUnitHost
+    }
+
     func update(preset: DSPPreset, bypass: Bool, loudnessMatchedBypass: Bool = false) {
         settingsLock.lock()
         self.preset = preset
@@ -65,6 +70,10 @@ final class SonicBloomAudioBridge: @unchecked Sendable {
             var config = preset.makeDSPConfig(sampleRate: currentSampleRate, bypass: bypass, loudnessMatchedBypass: loudnessMatchedBypass)
             SonicBloomDSPConfigBufferWrite(buffer, &config)
         }
+    }
+
+    func updateAudioUnitEffects(_ slots: [AudioUnitEffectSlot]) {
+        audioUnitHost.update(slots: slots, sampleRate: sampleRate)
     }
 
     func start(
@@ -129,6 +138,7 @@ final class SonicBloomAudioBridge: @unchecked Sendable {
         processedRight.removeAll(keepingCapacity: true)
         framesSinceMeterUpdate = 0
         pendingMeter.reset()
+        audioUnitHost.reset()
         if let ring {
             SonicBloomRingBufferDestroy(ring)
             self.ring = nil
@@ -438,6 +448,10 @@ final class SonicBloomAudioBridge: @unchecked Sendable {
         var right = Array(repeating: Float(0), count: count)
         SonicBloomRingBufferRead(ring, &left, &right, count)
         return zip(left, right).map { StereoFrame(left: $0, right: $1) }
+    }
+
+    var activeAudioUnitEffectIDsForTesting: [String] {
+        audioUnitHost.activeEffectIDs
     }
 #endif
 }

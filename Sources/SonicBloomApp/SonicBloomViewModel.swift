@@ -346,6 +346,7 @@ final class SonicBloomViewModel: ObservableObject {
                 loudnessMatchedBypass: settings.loudnessMatchedCompare,
                 preferredBufferFrameSize: processingSyncMode.preferredBufferFrameSize
             )
+            updateBridgeAudioUnitEffects()
             let selection = try routeManager.activateBridgeSystemOutput()
             bridge.applyBufferPreference(
                 inputDeviceID: selection.input.id,
@@ -584,6 +585,7 @@ final class SonicBloomViewModel: ObservableObject {
         }
         lastError = nil
         profile.addAudioUnitEffect(AudioUnitEffectSlot(effect: effect))
+        updateBridgeAudioUnitEffects()
     }
 
     func refreshAudioUnitEffects() {
@@ -592,10 +594,12 @@ final class SonicBloomViewModel: ObservableObject {
 
     func removeAudioUnitEffect(_ id: String) {
         profile.removeAudioUnitEffect(id)
+        updateBridgeAudioUnitEffects()
     }
 
     func setAudioUnitEffectEnabled(_ id: String, _ isEnabled: Bool) {
         profile.setAudioUnitEffectEnabled(id, isEnabled)
+        updateBridgeAudioUnitEffects()
     }
 
     var suggestedCalibrationTuning: CalibrationTuning {
@@ -796,6 +800,11 @@ final class SonicBloomViewModel: ObservableObject {
 
     private func updateBridgePreset() {
         bridge.update(preset: processingPreset, bypass: isBypassed, loudnessMatchedBypass: settings.loudnessMatchedCompare)
+    }
+
+    private func updateBridgeAudioUnitEffects() {
+        guard isBridgeRunning || isTransitioning else { return }
+        bridge.updateAudioUnitEffects(profile.audioUnitEffects)
     }
 
     private func restartPerAppTapsIfRunning() {

@@ -246,6 +246,63 @@ final class SonicBloomAppTests: XCTestCase {
         XCTAssertEqual(viewModel.lastError, "Broken Effect could not be loaded as an Audio Unit effect.")
     }
 
+    func testAudioUnitHostChainLoadsEnabledEffectsInOrder() {
+        let eq = AudioUnitEffectDescriptor(
+            name: "Studio EQ",
+            manufacturerName: "Apple",
+            componentType: kAudioUnitType_Effect,
+            componentSubType: fourCC("eqal"),
+            componentManufacturer: fourCC("appl")
+        )
+        let delay = AudioUnitEffectDescriptor(
+            name: "Delay",
+            manufacturerName: "Apple",
+            componentType: kAudioUnitType_Effect,
+            componentSubType: fourCC("dely"),
+            componentManufacturer: fourCC("appl")
+        )
+        let output = AudioUnitEffectDescriptor(
+            name: "Output",
+            manufacturerName: "Apple",
+            componentType: kAudioUnitType_Output,
+            componentSubType: fourCC("outp"),
+            componentManufacturer: fourCC("appl")
+        )
+        var loaded: [String] = []
+        let chain = AudioUnitEffectHostChain(loader: { effect, _ in
+            loaded.append(effect.id)
+            return NSObject()
+        })
+
+        chain.update(
+            slots: [
+                AudioUnitEffectSlot(effect: eq),
+                AudioUnitEffectSlot(effect: delay, isEnabled: false),
+                AudioUnitEffectSlot(effect: output)
+            ],
+            sampleRate: 48_000
+        )
+
+        XCTAssertEqual(loaded, [eq.id])
+        XCTAssertEqual(chain.activeEffectIDs, [eq.id])
+    }
+
+    func testAudioBridgeOwnsAudioUnitHostChain() {
+        let effect = AudioUnitEffectDescriptor(
+            name: "Studio EQ",
+            manufacturerName: "Apple",
+            componentType: kAudioUnitType_Effect,
+            componentSubType: fourCC("eqal"),
+            componentManufacturer: fourCC("appl")
+        )
+        let chain = AudioUnitEffectHostChain(loader: { _, _ in NSObject() })
+        let bridge = SonicBloomAudioBridge(audioUnitHost: chain)
+
+        bridge.updateAudioUnitEffects([AudioUnitEffectSlot(effect: effect)])
+
+        XCTAssertEqual(bridge.activeAudioUnitEffectIDsForTesting, [effect.id])
+    }
+
     @MainActor
     func testSmartMeterDoesNotChangeMasterPreset() {
         let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
