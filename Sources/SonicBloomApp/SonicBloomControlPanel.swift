@@ -1680,8 +1680,6 @@ private struct KnobControl: View {
             }
             CircularKnob(value: normalized, color: color, isActive: isHovering || isDragging)
                 .frame(width: 66, height: 66)
-                .accessibilityLabel(title.isEmpty ? "EQ gain" : title)
-                .accessibilityValue(label)
             Text(label)
                 .font(.system(size: 12, weight: .medium, design: .monospaced))
                 .foregroundStyle(SBColor.subtext)
@@ -1689,6 +1687,20 @@ private struct KnobControl: View {
         .contentShape(Rectangle())
         .onHover { isHovering = $0 }
         .highPriorityGesture(knobDragGesture)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityTitle)
+        .accessibilityValue(label)
+        .accessibilityHint("Drag up or down, or use VoiceOver increment and decrement, to adjust.")
+        .accessibilityAdjustableAction { direction in
+            switch direction {
+            case .increment:
+                step(by: 1)
+            case .decrement:
+                step(by: -1)
+            @unknown default:
+                break
+            }
+        }
     }
 
     private var normalized: Double {
@@ -1703,6 +1715,14 @@ private struct KnobControl: View {
     private var label: String {
         if let customDisplay { return customDisplay(value) }
         return String(format: display, value)
+    }
+
+    private var accessibilityTitle: String {
+        title.isEmpty ? "EQ gain" : title
+    }
+
+    private func step(by direction: Double) {
+        setNormalized(normalized + direction * 0.02)
     }
 
     private var knobDragGesture: some Gesture {
@@ -1800,6 +1820,9 @@ private struct MiniSlider: View {
             }
             Slider(value: $value, in: range)
                 .tint(color)
+                .accessibilityLabel(title)
+                .accessibilityValue(String(format: "%.2f", value))
+                .accessibilityHint("Use arrow keys or VoiceOver increment and decrement to adjust.")
         }
     }
 }

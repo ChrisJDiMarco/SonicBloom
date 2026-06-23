@@ -356,6 +356,15 @@ final class SonicBloomAppTests: XCTestCase {
         )
     }
 
+    func testCustomAudioControlsExposeVoiceOverAdjustment() throws {
+        let controlPanel = try String(contentsOf: URL(fileURLWithPath: "Sources/SonicBloomApp/SonicBloomControlPanel.swift"))
+
+        XCTAssertTrue(controlPanel.contains(".accessibilityAdjustableAction"))
+        XCTAssertTrue(controlPanel.contains("VoiceOver increment and decrement"))
+        XCTAssertTrue(controlPanel.contains(".accessibilityLabel(title)"))
+        XCTAssertTrue(controlPanel.contains(".accessibilityValue(label)"))
+    }
+
     func testBridgeEnqueuesPerAppFramesIntoPlaybackRing() {
         let bridge = SonicBloomAudioBridge()
         bridge.prepareRingForTesting(capacity: 8)
