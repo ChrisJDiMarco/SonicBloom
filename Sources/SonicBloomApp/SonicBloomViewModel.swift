@@ -31,6 +31,7 @@ enum CalibrationSound {
 final class SonicBloomViewModel: ObservableObject {
     let routeManager = CoreAudioRouteManager()
     private let bridge = SonicBloomAudioBridge()
+    private let perAppTapCoordinator = PerAppTapCoordinator()
     private let audioProcessInventory = CoreAudioProcessInventory()
     private let calibrationTonePlayer = CalibrationTonePlayer()
     private let audioControlQueue = DispatchQueue(label: "com.chrisdimarco.sonicbloom.audio-control")
@@ -49,6 +50,7 @@ final class SonicBloomViewModel: ObservableObject {
         didSet {
             updateBridgePreset()
             rememberSelectedPresetForCurrentOutput()
+            restartPerAppTapsIfRunning()
         }
     }
     @Published var profile: SonicBloomProfile {
@@ -64,6 +66,7 @@ final class SonicBloomViewModel: ObservableObject {
                 }
             }
             updateBridgePreset()
+            restartPerAppTapsIfRunning()
         }
     }
     @Published var settings: SonicBloomSettings {
@@ -80,6 +83,7 @@ final class SonicBloomViewModel: ObservableObject {
                 }
             }
             updateBridgePreset()
+            restartPerAppTapsIfRunning()
         }
     }
     @Published var routeState: AudioRouteState
@@ -221,9 +225,11 @@ final class SonicBloomViewModel: ObservableObject {
             routeState.bufferSize = Int(processingSyncMode.preferredBufferFrameSize)
             routeState.statusMessage = "Processing active: \(selection.input.name) -> \(selection.output.name)"
             isBridgeRunning = true
-            startRouteRecoveryWatchdog()
             lastError = nil
+            startPerAppTaps(sampleRate: selection.output.sampleRate)
+            startRouteRecoveryWatchdog()
         } catch {
+            perAppTapCoordinator.stop()
             bridge.stop()
             routeRecoveryTask?.cancel()
             try? routeManager.restorePreviousSystemOutput()
@@ -240,6 +246,7 @@ final class SonicBloomViewModel: ObservableObject {
         isBypassed = false
         meterModel.meter = DSPMeter()
         routeState.statusMessage = "Turning enhancement off..."
+        perAppTapCoordinator.stop()
 
         audioControlQueue.async { [bridge, routeManager] in
             bridge.stop()
@@ -253,6 +260,7 @@ final class SonicBloomViewModel: ObservableObject {
     }
 
     func stopBridgeImmediately() {
+        perAppTapCoordinator.stop()
         bridge.stop()
         try? routeManager.restorePreviousSystemOutput()
         isBridgeRunning = false
@@ -452,6 +460,33 @@ final class SonicBloomViewModel: ObservableObject {
 
     private func updateBridgePreset() {
         bridge.update(preset: processingPreset, bypass: isBypassed, loudnessMatchedBypass: settings.loudnessMatchedCompare)
+    }
+
+    private var perAppBasePreset: DSPPreset {
+        selectedPreset.optimized(for: processingSyncMode)
+    }
+
+    private func restartPerAppTapsIfRunning() {
+        guard isBridgeRunning, !isTransitioning else { return }
+        startPerAppTaps(sampleRate: routeState.sampleRate)
+    }
+
+    private func startPerAppTaps(sampleRate: Double) {
+        perAppTapCoordinator.stop()
+        refreshAppMixerRules()
+        let bridge = self.bridge
+        do {
+            try perAppTapCoordinator.start(
+                items: appMixerItems,
+                basePreset: perAppBasePreset,
+                sampleRate: sampleRate,
+                catalog: presets
+            ) { _, frames in
+                bridge.enqueueAppFrames(frames, observedCallbackFrames: frames.count)
+            }
+        } catch {
+            lastError = error.localizedDescription
+        }
     }
 
     private func handleMeter(_ meter: DSPMeter) {

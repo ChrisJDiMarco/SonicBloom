@@ -22,6 +22,8 @@ final class SonicBloomAudioBridge: @unchecked Sendable {
     private static let maxRealtimeScratchFrames = 2048
 
     private let settingsLock = NSLock()
+    // ponytail: serializes current global/app ring writes; replace with a real timed mix bus when tap sync matters.
+    private let outputWriteLock = NSLock()
 
     private var processor: SonicBloomProcessor?
     private var ring: OpaquePointer?
@@ -256,6 +258,15 @@ final class SonicBloomAudioBridge: @unchecked Sendable {
         }
     }
 
+    func enqueueAppFrames(_ frames: [StereoFrame], observedCallbackFrames: Int) {
+        guard !frames.isEmpty else { return }
+        writeOutput(
+            left: frames.map(\.left),
+            right: frames.map(\.right),
+            maxQueuedFrames: syncMode.maxQueuedOutputFrames(observedCallbackFrames: max(observedCallbackFrames, frames.count))
+        )
+    }
+
     private func renderInterleaved(_ buffer: AudioBuffer, ring: OpaquePointer) {
         let channels = max(Int(buffer.mNumberChannels), 1)
         let samples = Int(buffer.mDataByteSize) / MemoryLayout<Float>.size
@@ -267,6 +278,8 @@ final class SonicBloomAudioBridge: @unchecked Sendable {
 
     private func writeOutput(left: [Float], right: [Float], maxQueuedFrames: Int) {
         guard let ring else { return }
+        outputWriteLock.lock()
+        defer { outputWriteLock.unlock() }
         _ = left.withUnsafeBufferPointer { leftPointer in
             right.withUnsafeBufferPointer { rightPointer in
                 SonicBloomRingBufferWrite(ring, leftPointer.baseAddress, rightPointer.baseAddress, left.count)
@@ -410,6 +423,23 @@ final class SonicBloomAudioBridge: @unchecked Sendable {
         meterHandler?(pendingMeter.snapshot())
         pendingMeter.reset()
     }
+
+#if DEBUG
+    func prepareRingForTesting(capacity: Int) {
+        if let ring {
+            SonicBloomRingBufferDestroy(ring)
+        }
+        ring = SonicBloomRingBufferCreate(capacity)
+    }
+
+    func drainFramesForTesting(count: Int) -> [StereoFrame] {
+        guard let ring, count > 0 else { return [] }
+        var left = Array(repeating: Float(0), count: count)
+        var right = Array(repeating: Float(0), count: count)
+        SonicBloomRingBufferRead(ring, &left, &right, count)
+        return zip(left, right).map { StereoFrame(left: $0, right: $1) }
+    }
+#endif
 }
 
 private struct MeterAccumulator {
