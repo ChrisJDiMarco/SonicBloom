@@ -244,6 +244,24 @@ final class SonicBloomAppTests: XCTestCase {
     }
 
     @MainActor
+    func testImportedSpatialImpulseProfileAppliesToSelectedPreset() throws {
+        let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let viewModel = SonicBloomViewModel.testInstance(defaults: defaults)
+        viewModel.selectedPreset = .headphones
+
+        try viewModel.importSpatialImpulseProfile(
+            name: "Room BRIR",
+            text: #"{"sampleRate":48000,"nearEar":[1,0.2,0.05],"farEar":[0,0.1,0.2],"roomNear":[0,0,0.04],"roomFar":[0,0,0.03]}"#
+        )
+
+        XCTAssertEqual(viewModel.selectedPreset.name, DSPPreset.manual.name)
+        XCTAssertGreaterThan(viewModel.selectedPreset.hrtfAmount, DSPPreset.headphones.hrtfAmount)
+        XCTAssertTrue(viewModel.availableHeadphoneProfiles.contains { $0.name == "Room BRIR" })
+    }
+
+    @MainActor
     func testViewModelImportsAutoEQProfileFolder() throws {
         let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!

@@ -589,6 +589,13 @@ final class SonicBloomViewModel: ObservableObject {
         applyHeadphoneProfile(headphoneProfile)
     }
 
+    func importSpatialImpulseProfile(name: String, manufacturer: String = "Imported BRIR", text: String) throws {
+        let spatialProfile = try SpatialImpulseProfileImporter.profile(name: name, manufacturer: manufacturer, text: text)
+        let headphoneProfile = spatialProfile.headphoneProfile()
+        profile.addCustomHeadphoneProfile(headphoneProfile)
+        applyHeadphoneProfile(headphoneProfile)
+    }
+
     func importAutoEQProfiles(from directoryURL: URL) throws {
         let headphoneProfiles = try AutoEQProfileImporter.profiles(in: directoryURL)
         headphoneProfiles.forEach { profile.addCustomHeadphoneProfile($0) }
@@ -608,6 +615,23 @@ final class SonicBloomViewModel: ObservableObject {
         do {
             let text = try String(contentsOf: url, encoding: .utf8)
             try importAutoEQProfile(name: url.deletingPathExtension().lastPathComponent, text: text)
+            lastError = nil
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
+    func importSpatialImpulseProfileFromPanel() {
+        let panel = NSOpenPanel()
+        panel.title = "Import BRIR / SOFA JSON"
+        panel.allowedContentTypes = [.json, .plainText]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        do {
+            let text = try String(contentsOf: url, encoding: .utf8)
+            try importSpatialImpulseProfile(name: url.deletingPathExtension().lastPathComponent, text: text)
             lastError = nil
         } catch {
             lastError = error.localizedDescription

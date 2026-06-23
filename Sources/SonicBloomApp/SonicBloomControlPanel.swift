@@ -1066,6 +1066,9 @@ private struct CalibrationWizard: View {
                 ConsoleAction(title: "Import AutoEQ Profile", icon: "square.and.arrow.down", color: SBColor.blue) {
                     viewModel.importAutoEQProfileFromPanel()
                 }
+                ConsoleAction(title: "Import BRIR / SOFA JSON", icon: "waveform.path.ecg", color: SBColor.red) {
+                    viewModel.importSpatialImpulseProfileFromPanel()
+                }
                 ConsoleAction(title: "Import AutoEQ Folder", icon: "folder.badge.plus", color: SBColor.green) {
                     viewModel.importAutoEQProfileFolderFromPanel()
                 }

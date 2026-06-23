@@ -440,6 +440,46 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertLessThanOrEqual(peak, preset.limiterCeilingLinear + 0.000_1)
     }
 
+    func testFFTPartitionedConvolverMatchesDirectConvolution() throws {
+        let input: [Float] = [1, 0.5, -0.25, 0.125, 0]
+        let impulse: [Float] = [0.25, -0.5, 0.75, 0.125, -0.0625]
+        let convolver = try FFTPartitionedConvolver(impulse: impulse, blockSize: 2)
+
+        let output = convolver.process(input)
+        let expected = directConvolution(input, impulse)
+
+        XCTAssertEqual(output.count, expected.count)
+        for (actual, expectedSample) in zip(output, expected) {
+            XCTAssertEqual(actual, expectedSample, accuracy: 0.000_01)
+        }
+    }
+
+    func testSpatialImpulseProfileImporterParsesSOFAJSON() throws {
+        let text = """
+        {
+          "GLOBAL_Title": "Studio Nearfield BRIR",
+          "GLOBAL_ListenerShortName": "AirPods Lab Guess",
+          "Data.SamplingRate": [48000],
+          "Data.IR": [
+            [
+              [1.0, 0.25, -0.05, 0.02],
+              [0.0, 0.12, 0.18, 0.04]
+            ]
+          ]
+        }
+        """
+
+        let profile = try SpatialImpulseProfileImporter.profile(name: "", manufacturer: "SonicBloom", text: text)
+        let headphoneProfile = profile.headphoneProfile()
+
+        XCTAssertEqual(profile.name, "Studio Nearfield BRIR")
+        XCTAssertEqual(profile.sampleRate, 48_000)
+        XCTAssertEqual(profile.nearEar.prefix(2), [1.0, 0.25])
+        XCTAssertEqual(profile.farEar[1], 0.12, accuracy: 0.000_01)
+        XCTAssertGreaterThan(headphoneProfile.hrtfTrim, 0)
+        XCTAssertGreaterThan(headphoneProfile.spatialTrim, 0)
+    }
+
     func testHeadphoneProfilesApplyCalibrationBands() throws {
         let profile = try XCTUnwrap(HeadphoneProfileCatalog.builtIns.first { $0.id == "airpods-pro" })
         let calibrated = profile.applying(to: .flat)
@@ -2550,6 +2590,16 @@ final class SonicBloomCoreTests: XCTestCase {
             let sample = Float(sin(2 * Double.pi * frequency * time) * amplitude)
             return StereoFrame(left: sample, right: 0)
         }
+    }
+
+    private func directConvolution(_ input: [Float], _ impulse: [Float]) -> [Float] {
+        var output = Array(repeating: Float(0), count: input.count + impulse.count - 1)
+        for inputIndex in input.indices {
+            for impulseIndex in impulse.indices {
+                output[inputIndex + impulseIndex] += input[inputIndex] * impulse[impulseIndex]
+            }
+        }
+        return output
     }
 
     private func channelToneMagnitude(_ frames: [StereoFrame], frequency: Double, channel: KeyPath<StereoFrame, Float>) -> Float {
