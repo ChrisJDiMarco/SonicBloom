@@ -319,6 +319,21 @@ final class SonicBloomViewModel: ObservableObject {
         profile.remember(tuned, for: routeState.selectedPhysicalOutputName)
     }
 
+    func applyHeadphoneProfile(_ headphoneProfile: HeadphoneProfile) {
+        let tuned = headphoneProfile.applying(to: selectedPreset).with(name: DSPPreset.manual.name)
+        selectedPreset = tuned
+        profile.favoritePresetName = tuned.name
+        profile.remember(tuned, for: routeState.selectedPhysicalOutputName)
+    }
+
+    var suggestedCalibrationTuning: CalibrationTuning {
+        CalibrationTuning.recommended(for: routeState.selectedPhysicalOutputName)
+    }
+
+    var matchedOutputProfile: HeadphoneProfile? {
+        HeadphoneProfileCatalog.match(for: routeState.selectedPhysicalOutputName)
+    }
+
     func playCalibrationSound(_ sound: CalibrationSound) {
         calibrationTonePlayer.play(sound)
     }
@@ -395,6 +410,15 @@ final class SonicBloomViewModel: ObservableObject {
         ]
     }
 
+    var trustSummary: TrustSummary {
+        TrustSummaryBuilder.build(
+            routeState: routeState,
+            meter: meterModel.meter,
+            cpuUsagePercent: cpuUsagePercent,
+            lastError: lastError
+        )
+    }
+
     func resetSettings() {
         settings = .default
     }
@@ -469,7 +493,7 @@ final class SonicBloomViewModel: ObservableObject {
     }
 
     private func presetForOutput(_ outputName: String?) -> DSPPreset {
-        profile.preset(for: outputName) ?? DeviceProfileAdvisor.preset(for: outputName) ?? favoritePreset()
+        profile.preset(for: outputName) ?? DeviceProfileAdvisor.calibratedPreset(for: outputName) ?? favoritePreset()
     }
 
     private func startAppActivationObserver() {

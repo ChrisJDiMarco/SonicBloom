@@ -523,6 +523,35 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertNil(DeviceProfileAdvisor.preset(for: nil))
     }
 
+    func testHeadphoneCatalogMatchesCommonOutputNames() throws {
+        XCTAssertEqual(HeadphoneProfileCatalog.match(for: "Chris AirPods Pro")?.id, "airpods-pro")
+        XCTAssertEqual(HeadphoneProfileCatalog.match(for: "WH-1000XM5")?.id, "sony-wh1000xm5")
+        XCTAssertEqual(HeadphoneProfileCatalog.match(for: "Bose QuietComfort Ultra")?.id, "bose-qc-ultra")
+        XCTAssertEqual(HeadphoneProfileCatalog.match(for: "MacBook Pro Speakers")?.id, "macbook-speakers")
+        XCTAssertNil(HeadphoneProfileCatalog.match(for: "AudioBox USB"))
+    }
+
+    func testDeviceProfileAdvisorAppliesMatchedCalibration() throws {
+        let profile = try XCTUnwrap(HeadphoneProfileCatalog.match(for: "Chris AirPods Pro"))
+        let calibrated = try XCTUnwrap(DeviceProfileAdvisor.calibratedPreset(for: "Chris AirPods Pro"))
+
+        XCTAssertEqual(calibrated.name, DSPPreset.airPods.name)
+        XCTAssertEqual(calibrated.eqBandsDB, profile.applying(to: DSPPreset.airPods).eqBandsDB)
+        XCTAssertNotEqual(calibrated.eqBandsDB, DSPPreset.airPods.eqBandsDB)
+    }
+
+    func testRecommendedCalibrationTuningUsesOutputName() {
+        let airPods = CalibrationTuning.recommended(for: "Chris AirPods Pro")
+        let macBook = CalibrationTuning.recommended(for: "MacBook Pro Speakers")
+        let unknown = CalibrationTuning.recommended(for: "AudioBox USB")
+
+        XCTAssertEqual(airPods.outputKind, .airPods)
+        XCTAssertEqual(macBook.outputKind, .tinySpeakers)
+        XCTAssertEqual(unknown.outputKind, .speakers)
+        XCTAssertGreaterThan(macBook.bassPreference, airPods.bassPreference)
+        XCTAssertGreaterThan(airPods.spatialPreference, unknown.spatialPreference)
+    }
+
     func testProfileStoresPerAppAudioRules() {
         var profile = SonicBloomProfile.default
         let rule = AppAudioRule(
@@ -974,6 +1003,26 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertEqual(sampler.sample(wallTime: 10, processCPUTime: 2), 0)
         XCTAssertEqual(sampler.sample(wallTime: 11, processCPUTime: 2.25), 25, accuracy: 0.001)
         XCTAssertEqual(sampler.sample(wallTime: 11, processCPUTime: 3), 0)
+    }
+
+    func testTrustSummaryUsesUserFacingProtectionCopy() {
+        var route = AudioRouteState.default
+        route.installHealth = .active
+        route.selectedPhysicalOutputName = "AirPods Pro"
+        route.bufferSize = 64
+
+        let clean = TrustSummaryBuilder.build(routeState: route, meter: DSPMeter(limitedSamples: 0), cpuUsagePercent: 4, lastError: nil)
+        let protected = TrustSummaryBuilder.build(routeState: route, meter: DSPMeter(limitedSamples: 1_536), cpuUsagePercent: 4, lastError: nil)
+        let degraded = TrustSummaryBuilder.build(routeState: route.recordingDegradedRecovery("Route unavailable."), meter: DSPMeter(), cpuUsagePercent: 28, lastError: "Route unavailable.")
+
+        XCTAssertEqual(clean.headline, "Audio protected")
+        XCTAssertEqual(clean.clipping, "No clipping")
+        XCTAssertEqual(clean.route, "Route healthy -> AirPods Pro")
+        XCTAssertEqual(clean.cpu, "CPU normal")
+        XCTAssertEqual(protected.clipping, "1,536 peaks protected")
+        XCTAssertEqual(degraded.headline, "Needs attention")
+        XCTAssertEqual(degraded.route, "Route degraded")
+        XCTAssertEqual(degraded.cpu, "CPU high")
     }
 
     func testRoutePlannerRequiresOwnedSonicBloomDriver() {

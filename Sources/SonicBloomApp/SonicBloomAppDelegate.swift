@@ -48,7 +48,9 @@ final class SonicBloomAppDelegate: NSObject, NSApplicationDelegate {
             let controller = SonicBloomHostingController(rootView: SonicBloomControlPanel(viewModel: viewModel))
             let newWindow = NSWindow(contentViewController: controller)
             newWindow.title = "SonicBloom"
-            newWindow.setContentSize(NSSize(width: 1500, height: 1020))
+            let compactSize = NSSize(width: 1440, height: 900)
+            newWindow.setContentSize(compactSize)
+            newWindow.contentMinSize = compactSize
             newWindow.styleMask = [.titled, .closable, .miniaturizable, .resizable]
             newWindow.titlebarAppearsTransparent = false
             newWindow.toolbarStyle = .unifiedCompact

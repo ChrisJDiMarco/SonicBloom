@@ -224,7 +224,7 @@ private struct SimpleModePanel: View {
                 MetricStack(title: "MODE", value: viewModel.settings.syncMode.rawValue, color: SBColor.green)
                 MetricStack(title: "CONTENT", value: viewModel.smartContentProfile.rawValue.capitalized, color: SBColor.blue)
                 MetricStack(title: "LATENCY", value: String(format: "%.1f ms", viewModel.routeState.estimatedLatencyMS), color: SBColor.orange)
-                MetricStack(title: "CLIPS", value: "\(viewModel.meterModel.meter.limitedSamples) protected", color: SBColor.green)
+                MetricStack(title: "CLIPPING", value: viewModel.trustSummary.clipping, color: SBColor.green)
             }
             .frame(height: 76)
             .consolePanel()
@@ -774,6 +774,11 @@ private struct CalibrationWizard: View {
         ConsoleCard(title: "CALIBRATION WIZARD", icon: "wand.and.stars", color: SBColor.green) {
             VStack(alignment: .leading, spacing: 10) {
                 RoutePicker(label: "Output", value: viewModel.routeState.selectedPhysicalOutputName ?? "No output")
+                if let matchedProfile = viewModel.matchedOutputProfile {
+                    MatchedProfileRow(profile: matchedProfile) {
+                        viewModel.applyHeadphoneProfile(matchedProfile)
+                    }
+                }
                 Text("OUTPUT TYPE")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(SBColor.subtext)
@@ -786,6 +791,7 @@ private struct CalibrationWizard: View {
                 .labelsHidden()
 
                 HStack(spacing: 8) {
+                    ConsoleAction(title: "Smart Start", icon: "sparkles", color: SBColor.green) { tuning = viewModel.suggestedCalibrationTuning }
                     ConsoleAction(title: "Play Tone", icon: "waveform", color: SBColor.blue) { viewModel.playCalibrationSound(.tone) }
                     ConsoleAction(title: "Play Noise", icon: "speaker.wave.2", color: SBColor.orange) { viewModel.playCalibrationSound(.noise) }
                 }
@@ -803,8 +809,7 @@ private struct CalibrationWizard: View {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 160), spacing: 8)], spacing: 8) {
                     ForEach(HeadphoneProfileCatalog.builtIns) { profile in
                         Button {
-                            viewModel.selectedPreset = profile.applying(to: viewModel.selectedPreset).with(name: DSPPreset.manual.name)
-                            viewModel.profile.favoritePresetName = DSPPreset.manual.name
+                            viewModel.applyHeadphoneProfile(profile)
                         } label: {
                             VStack(alignment: .leading, spacing: 3) {
                                 Text(profile.name)
@@ -824,6 +829,9 @@ private struct CalibrationWizard: View {
                 }
             }
         }
+        .onAppear {
+            tuning = viewModel.suggestedCalibrationTuning
+        }
     }
 
     private var outputKindBinding: Binding<CalibrationOutputKind> {
@@ -838,17 +846,75 @@ private struct CalibrationWizard: View {
     }
 }
 
+private struct MatchedProfileRow: View {
+    var profile: HeadphoneProfile
+    var apply: () -> Void
+
+    var body: some View {
+        HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text("MATCHED PROFILE")
+                    .font(.caption2.weight(.black))
+                    .foregroundStyle(SBColor.green)
+                Text("\(profile.manufacturer) \(profile.name)")
+                    .font(.caption.weight(.semibold))
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 0)
+            Button("Apply") { apply() }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .tint(SBColor.green)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(SBColor.green.opacity(0.10))
+        .overlay { RoundedRectangle(cornerRadius: 8).stroke(SBColor.green.opacity(0.28), lineWidth: 1) }
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+}
+
 private struct TrustPanel: View {
     @ObservedObject var viewModel: SonicBloomViewModel
 
     var body: some View {
         ConsoleCard(title: "TRUST & HEALTH", icon: "checkmark.shield", color: SBColor.green) {
             VStack(spacing: 7) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(viewModel.trustSummary.headline)
+                        .font(.headline.weight(.black))
+                    TrustSummaryRow(value: viewModel.trustSummary.clipping, color: SBColor.green)
+                    TrustSummaryRow(value: viewModel.trustSummary.route, color: viewModel.routeState.isProcessingAvailable ? SBColor.green : SBColor.orange)
+                    TrustSummaryRow(value: viewModel.trustSummary.cpu, color: viewModel.cpuUsagePercent > 15 ? SBColor.orange : SBColor.blue)
+                }
+                .padding(.bottom, 5)
                 ForEach(viewModel.trustDiagnostics) { item in
                     TrustDiagnosticRow(item: item)
                 }
             }
         }
+    }
+}
+
+private struct TrustSummaryRow: View {
+    var value: String
+    var color: Color
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Circle()
+                .fill(color)
+                .frame(width: 7, height: 7)
+            Text(value)
+                .font(.caption.weight(.semibold))
+                .lineLimit(1)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 7)
+        .background(color.opacity(0.10))
+        .overlay { RoundedRectangle(cornerRadius: 6).stroke(color.opacity(0.28), lineWidth: 1) }
+        .clipShape(RoundedRectangle(cornerRadius: 6))
     }
 }
 

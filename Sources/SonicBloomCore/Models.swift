@@ -107,6 +107,20 @@ public struct CalibrationTuning: Codable, Equatable, Sendable {
         self.loudnessPreference = Self.clamp01(loudnessPreference)
     }
 
+    public static func recommended(for outputName: String?) -> CalibrationTuning {
+        let kind = DeviceProfileAdvisor.outputKind(for: outputName)
+        switch kind {
+        case .speakers:
+            return CalibrationTuning(outputKind: kind, bassPreference: 0.50, clarityPreference: 0.56, spatialPreference: 0.42, loudnessPreference: 0.50)
+        case .headphones:
+            return CalibrationTuning(outputKind: kind, bassPreference: 0.48, clarityPreference: 0.58, spatialPreference: 0.62, loudnessPreference: 0.44)
+        case .airPods:
+            return CalibrationTuning(outputKind: kind, bassPreference: 0.54, clarityPreference: 0.58, spatialPreference: 0.70, loudnessPreference: 0.46)
+        case .tinySpeakers:
+            return CalibrationTuning(outputKind: kind, bassPreference: 0.76, clarityPreference: 0.70, spatialPreference: 0.32, loudnessPreference: 0.56)
+        }
+    }
+
     public func applying(to preset: DSPPreset) -> DSPPreset {
         var bands = preset.eqBandsDB
         let bassDB = (bassPreference - 0.5) * 4.0 + outputKind.bassEQOffset
@@ -728,6 +742,19 @@ public enum DeviceProfileAdvisor {
         return nil
     }
 
+    public static func calibratedPreset(for outputName: String?) -> DSPPreset? {
+        guard let preset = preset(for: outputName) else { return nil }
+        return HeadphoneProfileCatalog.match(for: outputName)?.applying(to: preset) ?? preset
+    }
+
+    public static func outputKind(for outputName: String?) -> CalibrationOutputKind {
+        guard let name = outputName?.lowercased(), !name.isEmpty else { return .speakers }
+        if contains(name, ["airpods"]) { return .airPods }
+        if contains(name, ["macbook", "built-in", "internal speakers", "tiny", "iphone", "ipad"]) { return .tinySpeakers }
+        if contains(name, ["headphone", "headset", "quietcomfort", "wh-1000", "wh1000", "hd 600", "hd600", "sony", "bose", "sennheiser", "beats"]) { return .headphones }
+        return .speakers
+    }
+
     private static func contains(_ value: String, _ needles: [String]) -> Bool {
         needles.contains { value.contains($0) }
     }
@@ -774,6 +801,18 @@ public enum HeadphoneProfileCatalog {
             calibrationBandsDB: curve(low: 0.6, lowerMid: -0.2, presence: 0.4, air: -0.5)
         ),
         HeadphoneProfile(
+            id: "airpods-3",
+            manufacturer: "Apple",
+            name: "AirPods",
+            calibrationBandsDB: curve(low: 1.0, lowerMid: -0.1, presence: 0.8, air: -0.4)
+        ),
+        HeadphoneProfile(
+            id: "earpods",
+            manufacturer: "Apple",
+            name: "EarPods",
+            calibrationBandsDB: curve(low: 1.6, lowerMid: 0.2, presence: 0.8, air: 0.1)
+        ),
+        HeadphoneProfile(
             id: "macbook-speakers",
             manufacturer: "Apple",
             name: "MacBook Speakers",
@@ -786,18 +825,62 @@ public enum HeadphoneProfileCatalog {
             calibrationBandsDB: curve(low: -1.4, lowerMid: 0.2, presence: 0.8, air: 0.9)
         ),
         HeadphoneProfile(
+            id: "sony-wh1000xm4",
+            manufacturer: "Sony",
+            name: "WH-1000XM4",
+            calibrationBandsDB: curve(low: -1.2, lowerMid: 0.3, presence: 0.7, air: 0.8)
+        ),
+        HeadphoneProfile(
             id: "bose-qc35",
             manufacturer: "Bose",
             name: "QuietComfort 35",
             calibrationBandsDB: curve(low: -0.8, lowerMid: 0.5, presence: 0.9, air: 0.4)
         ),
         HeadphoneProfile(
+            id: "bose-qc-ultra",
+            manufacturer: "Bose",
+            name: "QuietComfort Ultra",
+            calibrationBandsDB: curve(low: -0.9, lowerMid: 0.3, presence: 0.8, air: 0.5)
+        ),
+        HeadphoneProfile(
             id: "sennheiser-hd600",
             manufacturer: "Sennheiser",
             name: "HD 600",
             calibrationBandsDB: curve(low: 1.1, lowerMid: 0.0, presence: -0.2, air: 0.8)
+        ),
+        HeadphoneProfile(
+            id: "sennheiser-momentum4",
+            manufacturer: "Sennheiser",
+            name: "Momentum 4",
+            calibrationBandsDB: curve(low: -0.7, lowerMid: 0.1, presence: 0.5, air: 0.6)
+        ),
+        HeadphoneProfile(
+            id: "beats-studio-pro",
+            manufacturer: "Beats",
+            name: "Studio Pro",
+            calibrationBandsDB: curve(low: -1.3, lowerMid: 0.4, presence: 0.7, air: 0.3)
         )
     ]
+
+    public static func match(for outputName: String?) -> HeadphoneProfile? {
+        guard let name = outputName?.lowercased(), !name.isEmpty else { return nil }
+        let candidates: [(String, [String])] = [
+            ("airpods-pro", ["airpods pro"]),
+            ("airpods-max", ["airpods max"]),
+            ("airpods-3", ["airpods"]),
+            ("earpods", ["earpods"]),
+            ("macbook-speakers", ["macbook", "built-in", "internal speakers"]),
+            ("sony-wh1000xm5", ["wh-1000xm5", "wh1000xm5", "xm5"]),
+            ("sony-wh1000xm4", ["wh-1000xm4", "wh1000xm4", "xm4"]),
+            ("bose-qc-ultra", ["quietcomfort ultra", "qc ultra"]),
+            ("bose-qc35", ["quietcomfort 35", "qc35"]),
+            ("sennheiser-hd600", ["hd 600", "hd600"]),
+            ("sennheiser-momentum4", ["momentum 4"]),
+            ("beats-studio-pro", ["beats studio pro", "studio pro"])
+        ]
+        guard let id = candidates.first(where: { _, needles in needles.contains { name.contains($0) } })?.0 else { return nil }
+        return builtIns.first { $0.id == id }
+    }
 
     private static func curve(low: Double, lowerMid: Double, presence: Double, air: Double) -> [Double] {
         (0..<DSPPreset.bandCount).map { index in
