@@ -1623,6 +1623,7 @@ final class SonicBloomCoreTests: XCTestCase {
 
         XCTAssertTrue(packageScript.contains("SonicBloom-Uninstall.command"))
         XCTAssertTrue(uninstallScript.contains("/Applications/SonicBloom.app"))
+        XCTAssertTrue(uninstallScript.contains("\"$app/Contents/MacOS/SonicBloomRecovery\" --once"))
         XCTAssertTrue(uninstallScript.contains("/Library/Audio/Plug-Ins/HAL/SonicBloomHAL.driver"))
         XCTAssertTrue(uninstallScript.contains("com.chrisdimarco.sonicbloom.recovery.plist"))
         XCTAssertFalse(uninstallScript.contains("BlackHole"))

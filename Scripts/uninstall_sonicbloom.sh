@@ -10,6 +10,7 @@ rm -f "$plist"
 
 osascript -e 'quit app "SonicBloom"' >/dev/null 2>&1 || true
 pkill -x SonicBloom >/dev/null 2>&1 || true
+"$app/Contents/MacOS/SonicBloomRecovery" --once >/dev/null 2>&1 || true
 pkill -x SonicBloomRecovery >/dev/null 2>&1 || true
 
 if [[ -d "$app" ]]; then
