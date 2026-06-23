@@ -256,6 +256,8 @@ final class SonicBloomViewModel: ObservableObject {
                 updateStatusText = "Update \(manifest.version) requires macOS \(manifest.minimumSystemVersion)"
             case .insecurePackageURL:
                 updateStatusText = "Update package URL must use HTTPS"
+            case .invalidPackageURL:
+                updateStatusText = "Update package must be a .pkg installer"
             case .missingChecksum:
                 updateStatusText = "Update package checksum missing"
             case .invalidChecksum:

@@ -2045,6 +2045,20 @@ final class SonicBloomCoreTests: XCTestCase {
         )
     }
 
+    func testUpdateManifestRequiresPackageInstallerURL() throws {
+        let manifest = SonicBloomUpdateManifest(
+            version: "0.2.0",
+            minimumSystemVersion: "13.0",
+            packageURL: URL(string: "https://example.com/SonicBloom-0.2.0.zip")!,
+            packageSHA256: SonicBloomUpdatePackageVerifier.sha256Hex(for: Data("pkg".utf8))
+        )
+
+        XCTAssertEqual(
+            SonicBloomUpdater.decision(currentVersion: "0.1.0", currentSystemVersion: "13.0", manifest: manifest),
+            .invalidPackageURL(manifest)
+        )
+    }
+
     func testUpdateManifestRequiresPackageChecksum() throws {
         let manifest = SonicBloomUpdateManifest(
             version: "0.2.0",
