@@ -15,6 +15,7 @@ public extension DSPPreset {
         config.ambienceAmount = Float(ambienceAmount)
         config.fidelityAmount = Float(fidelityAmount)
         config.nightModeAmount = Float(nightModeAmount)
+        config.masteringAmount = Float(masteringAmount)
         config.hrtfAmount = Float(hrtfAmount)
         config.limiterCeilingDB = Float(limiterCeilingDB)
         config.limiterLookaheadMS = Float(limiterLookaheadMS)

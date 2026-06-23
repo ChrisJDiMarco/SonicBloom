@@ -204,6 +204,13 @@ struct SonicBloomDSPHandle {
     float nightMidLowR = 0.0f;
     float nightMidEnvelope = 0.0f;
     float nightHighEnvelope = 0.0f;
+    float masteringLowL = 0.0f;
+    float masteringLowR = 0.0f;
+    float masteringMidLowL = 0.0f;
+    float masteringMidLowR = 0.0f;
+    float masteringLowEnvelope = 0.0f;
+    float masteringMidEnvelope = 0.0f;
+    float masteringHighEnvelope = 0.0f;
     float limiterGain = 1.0f;
     size_t lookaheadIndex = 0;
     size_t lookaheadFill = 0;
@@ -263,6 +270,13 @@ struct SonicBloomDSPHandle {
         nightMidLowR = 0.0f;
         nightMidEnvelope = 0.0f;
         nightHighEnvelope = 0.0f;
+        masteringLowL = 0.0f;
+        masteringLowR = 0.0f;
+        masteringMidLowL = 0.0f;
+        masteringMidLowR = 0.0f;
+        masteringLowEnvelope = 0.0f;
+        masteringMidEnvelope = 0.0f;
+        masteringHighEnvelope = 0.0f;
         limiterGain = 1.0f;
         lookaheadIndex = 0;
         lookaheadFill = 0;
@@ -359,6 +373,7 @@ struct SonicBloomDSPConfigBuffer {
     std::atomic<float> ambienceAmount { 0.0f };
     std::atomic<float> fidelityAmount { 0.0f };
     std::atomic<float> nightModeAmount { 0.0f };
+    std::atomic<float> masteringAmount { 0.0f };
     std::atomic<float> hrtfAmount { 0.0f };
     std::atomic<float> limiterCeilingDB { -1.0f };
     std::atomic<float> limiterLookaheadMS { 0.2f };
@@ -447,6 +462,7 @@ SonicBloomDSPMeter SonicBloomDSPProcess(
     const float ambienceAmount = clamp(config->ambienceAmount, 0.0f, 1.0f);
     const float fidelityAmount = clamp(config->fidelityAmount, 0.0f, 1.0f);
     const float nightModeAmount = clamp(config->nightModeAmount, 0.0f, 1.0f);
+    const float masteringAmount = clamp(config->masteringAmount, 0.0f, 1.0f);
     const float hrtfAmount = clamp(config->hrtfAmount, 0.0f, 1.0f);
     const float limiterCeiling = clamp(dbToGain(config->limiterCeilingDB), 0.05f, 1.0f);
     const bool matchedBypass = config->bypass && config->loudnessMatchedBypass;
@@ -464,6 +480,10 @@ SonicBloomDSPMeter SonicBloomDSPProcess(
     const float nightPresenceSplitAlpha = onePoleAlpha(2600.0f, handle->sampleRate);
     const float nightAttack = onePoleAlpha(90.0f, handle->sampleRate);
     const float nightRelease = onePoleAlpha(8.0f, handle->sampleRate);
+    const float masteringLowSplitAlpha = onePoleAlpha(180.0f, handle->sampleRate);
+    const float masteringHighSplitAlpha = onePoleAlpha(2600.0f, handle->sampleRate);
+    const float masteringAttack = onePoleAlpha(130.0f, handle->sampleRate);
+    const float masteringRelease = onePoleAlpha(11.0f, handle->sampleRate);
     const float limiterLookaheadMS = clamp(config->limiterLookaheadMS, 0.2f, 10.0f);
     const float limiterReleaseMS = clamp(config->limiterReleaseMS, 20.0f, 300.0f);
     const float limiterRelease = 1.0f - std::exp(-1.0f / ((limiterReleaseMS * 0.001f) * std::max(handle->sampleRate, 1.0f)));
@@ -651,6 +671,34 @@ SonicBloomDSPMeter SonicBloomDSPProcess(
             handle->ambienceIndex = (handle->ambienceIndex + 1) % ambienceBufferSize;
         }
 
+        if (masteringAmount > 0.0f) {
+            handle->masteringLowL += masteringLowSplitAlpha * (left - handle->masteringLowL);
+            handle->masteringLowR += masteringLowSplitAlpha * (right - handle->masteringLowR);
+            handle->masteringMidLowL += masteringHighSplitAlpha * (left - handle->masteringMidLowL);
+            handle->masteringMidLowR += masteringHighSplitAlpha * (right - handle->masteringMidLowR);
+            const float lowL = handle->masteringLowL;
+            const float lowR = handle->masteringLowR;
+            const float midL = handle->masteringMidLowL - lowL;
+            const float midR = handle->masteringMidLowR - lowR;
+            const float highL = left - handle->masteringMidLowL;
+            const float highR = right - handle->masteringMidLowR;
+            const float lowPeak = std::max(std::fabs(lowL), std::fabs(lowR));
+            const float midPeak = std::max(std::fabs(midL), std::fabs(midR));
+            const float highPeak = std::max(std::fabs(highL), std::fabs(highR));
+            const float lowAlpha = lowPeak > handle->masteringLowEnvelope ? masteringAttack : masteringRelease;
+            const float midAlpha = midPeak > handle->masteringMidEnvelope ? masteringAttack : masteringRelease;
+            const float highAlpha = highPeak > handle->masteringHighEnvelope ? masteringAttack : masteringRelease;
+            handle->masteringLowEnvelope += lowAlpha * (lowPeak - handle->masteringLowEnvelope);
+            handle->masteringMidEnvelope += midAlpha * (midPeak - handle->masteringMidEnvelope);
+            handle->masteringHighEnvelope += highAlpha * (highPeak - handle->masteringHighEnvelope);
+
+            const float lowGain = lerp(1.0f, dynamicsGain(handle->masteringLowEnvelope, 0.22f, 2.4f, 0.08f), masteringAmount);
+            const float midGain = lerp(1.0f, dynamicsGain(handle->masteringMidEnvelope, 0.18f, 1.8f, 0.10f), masteringAmount * 0.55f);
+            const float highGain = lerp(1.0f, dynamicsGain(handle->masteringHighEnvelope, 0.15f, 5.0f, 0.02f), masteringAmount);
+            left = lowL * lowGain + midL * midGain + highL * highGain;
+            right = lowR * lowGain + midR * midGain + highR * highGain;
+        }
+
         left += std::tanh(left * 2.0f) * loudnessAmount * 0.08f;
         right += std::tanh(right * 2.0f) * loudnessAmount * 0.08f;
 
@@ -835,6 +883,7 @@ void SonicBloomDSPConfigBufferWrite(SonicBloomDSPConfigBuffer *buffer, const Son
     buffer->ambienceAmount.store(config->ambienceAmount, std::memory_order_relaxed);
     buffer->fidelityAmount.store(config->fidelityAmount, std::memory_order_relaxed);
     buffer->nightModeAmount.store(config->nightModeAmount, std::memory_order_relaxed);
+    buffer->masteringAmount.store(config->masteringAmount, std::memory_order_relaxed);
     buffer->hrtfAmount.store(config->hrtfAmount, std::memory_order_relaxed);
     buffer->limiterCeilingDB.store(config->limiterCeilingDB, std::memory_order_relaxed);
     buffer->limiterLookaheadMS.store(config->limiterLookaheadMS, std::memory_order_relaxed);
@@ -863,6 +912,7 @@ int SonicBloomDSPConfigBufferRead(const SonicBloomDSPConfigBuffer *buffer, Sonic
     config->ambienceAmount = buffer->ambienceAmount.load(std::memory_order_relaxed);
     config->fidelityAmount = buffer->fidelityAmount.load(std::memory_order_relaxed);
     config->nightModeAmount = buffer->nightModeAmount.load(std::memory_order_relaxed);
+    config->masteringAmount = buffer->masteringAmount.load(std::memory_order_relaxed);
     config->hrtfAmount = buffer->hrtfAmount.load(std::memory_order_relaxed);
     config->limiterCeilingDB = buffer->limiterCeilingDB.load(std::memory_order_relaxed);
     config->limiterLookaheadMS = buffer->limiterLookaheadMS.load(std::memory_order_relaxed);

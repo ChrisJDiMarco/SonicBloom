@@ -65,12 +65,13 @@ struct SonicBloomControlPanel: View {
             } label: {
                 Label(viewModel.settings.showAdvancedControls ? "Simple View" : "Studio View", systemImage: viewModel.settings.showAdvancedControls ? "sparkles" : "slider.horizontal.3")
                     .font(.caption.weight(.bold))
-                    .frame(maxWidth: .infinity)
+                    .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 9)
                     .foregroundStyle(SBColor.green)
                     .background(SBColor.green.opacity(0.12))
                     .overlay { RoundedRectangle(cornerRadius: 8).stroke(SBColor.green.opacity(0.35), lineWidth: 1) }
                     .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .contentShape(RoundedRectangle(cornerRadius: 8))
             }
             .buttonStyle(.plain)
 
@@ -256,6 +257,7 @@ private struct SimpleModePanel: View {
                     spatialAmount: 0.04 + amount * 0.32,
                     loudnessAmount: 0.08 + amount * 0.48,
                     fidelityAmount: 0.05 + amount * 0.24,
+                    masteringAmount: 0.08 + amount * 0.34,
                     limiterCeilingDB: min(viewModel.selectedPreset.limiterCeilingDB, -1)
                 )
             }
@@ -339,7 +341,7 @@ private struct ConsoleTabBar: View {
                 } label: {
                     Label(tab.rawValue, systemImage: tab.icon)
                         .font(.system(size: 13, weight: .bold))
-                        .frame(maxWidth: .infinity)
+                        .frame(maxWidth: .infinity, alignment: .center)
                         .padding(.vertical, 10)
                         .background {
                             RoundedRectangle(cornerRadius: 8)
@@ -352,6 +354,7 @@ private struct ConsoleTabBar: View {
                                 .padding(.bottom, 2)
                         }
                         .foregroundStyle(selected ? SBColor.green : SBColor.subtext)
+                        .contentShape(RoundedRectangle(cornerRadius: 8))
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(tab.rawValue)
@@ -394,7 +397,7 @@ private struct ToneEngine: View {
                     KnobControl(title: "LOUDNESS", value: binding(\.loudnessAmount), range: 0...1, display: percentDisplay, color: SBColor.red)
                 }
                 HStack(spacing: 16) {
-                    FocusButton(title: "FOCUS", icon: "scope", action: { viewModel.selectedPreset = .spokenVoice })
+                    KnobControl(title: "MASTERING", value: binding(\.masteringAmount), range: 0...1, display: percentDisplay, color: SBColor.orange)
                     KnobControl(title: "PRESENCE", value: binding(\.fidelityAmount), range: 0...1, display: percentDisplay, color: SBColor.blue)
                     KnobControl(title: "NIGHT", value: binding(\.nightModeAmount), range: 0...1, display: percentDisplay, color: SBColor.green)
                 }
@@ -1037,6 +1040,7 @@ private struct PresetButton: View {
             }
             .padding(.horizontal, 11)
             .padding(.vertical, 11)
+            .frame(maxWidth: .infinity, alignment: .leading)
             .background(selected ? SBColor.green.opacity(0.22) : .clear)
             .overlay(alignment: .leading) {
                 if selected {
@@ -1046,6 +1050,7 @@ private struct PresetButton: View {
                 }
             }
             .clipShape(RoundedRectangle(cornerRadius: 8))
+            .contentShape(RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
     }
@@ -1645,24 +1650,6 @@ private struct RoutePicker: View {
                 .overlay { RoundedRectangle(cornerRadius: 5).stroke(SBColor.line, lineWidth: 1) }
                 .clipShape(RoundedRectangle(cornerRadius: 5))
         }
-    }
-}
-
-private struct FocusButton: View {
-    var title: String
-    var icon: String
-    var action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Label(title, systemImage: icon)
-                .font(.caption.weight(.bold))
-                .padding(.horizontal, 13)
-                .padding(.vertical, 9)
-                .background(SBColor.panel2)
-                .overlay { RoundedRectangle(cornerRadius: 7).stroke(SBColor.line, lineWidth: 1) }
-        }
-        .buttonStyle(.plain)
     }
 }
 

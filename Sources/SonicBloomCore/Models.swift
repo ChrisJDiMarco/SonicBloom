@@ -139,6 +139,7 @@ public struct CalibrationTuning: Codable, Equatable, Sendable {
             crossfeedAmount: min(max(outputKind.baseCrossfeed, 0), 1),
             loudnessAmount: max(preset.loudnessAmount, loudness),
             fidelityAmount: min(max(outputKind.baseFidelity + clarityPreference * 0.32, 0), 1),
+            masteringAmount: min(max(0.10 + clarityPreference * 0.22 + loudnessPreference * 0.16, 0), 1),
             hrtfAmount: min(max(outputKind.baseHRTF + spatialPreference * outputKind.hrtfScale, 0), 1),
             limiterCeilingDB: min(preset.limiterCeilingDB, -1 - loudnessPreference * 0.4),
             outputGainDB: min(max(preset.outputGainDB + (loudnessPreference - 0.5) * 1.4, -12), 12)
@@ -498,6 +499,7 @@ public struct DSPPreset: Codable, Equatable, Identifiable, Sendable {
     public var ambienceAmount: Double
     public var fidelityAmount: Double
     public var nightModeAmount: Double
+    public var masteringAmount: Double
     public var hrtfAmount: Double
     public var limiterCeilingDB: Double
     public var limiterLookaheadMS: Double
@@ -520,6 +522,7 @@ public struct DSPPreset: Codable, Equatable, Identifiable, Sendable {
         ambienceAmount: Double = 0,
         fidelityAmount: Double = 0,
         nightModeAmount: Double = 0,
+        masteringAmount: Double = 0,
         hrtfAmount: Double = 0,
         limiterCeilingDB: Double = -1,
         limiterLookaheadMS: Double = 0.2,
@@ -537,6 +540,7 @@ public struct DSPPreset: Codable, Equatable, Identifiable, Sendable {
         self.ambienceAmount = ambienceAmount
         self.fidelityAmount = fidelityAmount
         self.nightModeAmount = nightModeAmount
+        self.masteringAmount = masteringAmount
         self.hrtfAmount = hrtfAmount
         self.limiterCeilingDB = limiterCeilingDB
         self.limiterLookaheadMS = min(max(limiterLookaheadMS, 0.2), 10)
@@ -556,6 +560,7 @@ public struct DSPPreset: Codable, Equatable, Identifiable, Sendable {
         ambienceAmount: Double? = nil,
         fidelityAmount: Double? = nil,
         nightModeAmount: Double? = nil,
+        masteringAmount: Double? = nil,
         hrtfAmount: Double? = nil,
         limiterCeilingDB: Double? = nil,
         limiterLookaheadMS: Double? = nil,
@@ -574,6 +579,7 @@ public struct DSPPreset: Codable, Equatable, Identifiable, Sendable {
             ambienceAmount: ambienceAmount ?? self.ambienceAmount,
             fidelityAmount: fidelityAmount ?? self.fidelityAmount,
             nightModeAmount: nightModeAmount ?? self.nightModeAmount,
+            masteringAmount: masteringAmount ?? self.masteringAmount,
             hrtfAmount: hrtfAmount ?? self.hrtfAmount,
             limiterCeilingDB: limiterCeilingDB ?? self.limiterCeilingDB,
             limiterLookaheadMS: limiterLookaheadMS ?? self.limiterLookaheadMS,
@@ -587,7 +593,7 @@ public struct DSPPreset: Codable, Equatable, Identifiable, Sendable {
     }
 
     private enum CodingKeys: String, CodingKey {
-        case name, eqBandsDB, inputGainDB, bassAmount, widthAmount, spatialAmount, crossfeedAmount, loudnessAmount, ambienceAmount, fidelityAmount, nightModeAmount, hrtfAmount, limiterCeilingDB, limiterLookaheadMS, limiterReleaseMS, outputGainDB
+        case name, eqBandsDB, inputGainDB, bassAmount, widthAmount, spatialAmount, crossfeedAmount, loudnessAmount, ambienceAmount, fidelityAmount, nightModeAmount, masteringAmount, hrtfAmount, limiterCeilingDB, limiterLookaheadMS, limiterReleaseMS, outputGainDB
     }
 
     public init(from decoder: Decoder) throws {
@@ -604,6 +610,7 @@ public struct DSPPreset: Codable, Equatable, Identifiable, Sendable {
             ambienceAmount: try values.decodeIfPresent(Double.self, forKey: .ambienceAmount) ?? 0,
             fidelityAmount: try values.decodeIfPresent(Double.self, forKey: .fidelityAmount) ?? 0,
             nightModeAmount: try values.decodeIfPresent(Double.self, forKey: .nightModeAmount) ?? 0,
+            masteringAmount: try values.decodeIfPresent(Double.self, forKey: .masteringAmount) ?? 0,
             hrtfAmount: try values.decodeIfPresent(Double.self, forKey: .hrtfAmount) ?? 0,
             limiterCeilingDB: try values.decodeIfPresent(Double.self, forKey: .limiterCeilingDB) ?? -1,
             limiterLookaheadMS: try values.decodeIfPresent(Double.self, forKey: .limiterLookaheadMS) ?? 0.2,
@@ -634,6 +641,7 @@ public extension DSPPreset {
                 crossfeedAmount: min(crossfeedAmount, 0.12),
                 loudnessAmount: min(loudnessAmount, 0.18),
                 ambienceAmount: 0,
+                masteringAmount: min(masteringAmount, 0.12),
                 hrtfAmount: 0,
                 limiterLookaheadMS: 0.2
             )
@@ -656,6 +664,7 @@ public extension DSPPreset {
         spatialAmount: 0.18,
         loudnessAmount: 0.32,
         fidelityAmount: 0.18,
+        masteringAmount: 0.26,
         hrtfAmount: 0.12,
         limiterCeilingDB: -1,
         outputGainDB: 0
@@ -676,6 +685,7 @@ public extension DSPPreset {
         loudnessAmount: 0.28,
         ambienceAmount: 0.05,
         fidelityAmount: 0.08,
+        masteringAmount: 0.22,
         limiterCeilingDB: -1.2,
         outputGainDB: -1
     )
@@ -692,6 +702,7 @@ public extension DSPPreset {
         loudnessAmount: 0.18,
         fidelityAmount: 0.28,
         nightModeAmount: 0.12,
+        masteringAmount: 0.34,
         limiterCeilingDB: -1
     )
     static let tinySpeakers = DSPPreset(
@@ -707,12 +718,13 @@ public extension DSPPreset {
         bassAmount: 0.45,
         loudnessAmount: 0.35,
         fidelityAmount: 0.22,
+        masteringAmount: 0.30,
         limiterCeilingDB: -1.2
     )
-    static let airPods = DSPPreset(name: "AirPods", inputGainDB: 2, bassAmount: 0.28, widthAmount: 0.18, spatialAmount: 0.24, crossfeedAmount: 0.22, loudnessAmount: 0.24, fidelityAmount: 0.14, hrtfAmount: 0.28)
-    static let headphones = DSPPreset(name: "Headphones", inputGainDB: 1.5, bassAmount: 0.2, widthAmount: 0.28, spatialAmount: 0.18, crossfeedAmount: 0.35, loudnessAmount: 0.18, fidelityAmount: 0.12, hrtfAmount: 0.2)
-    static let movies = DSPPreset(name: "Movies", inputGainDB: 2.5, bassAmount: 0.38, widthAmount: 0.42, spatialAmount: 0.62, crossfeedAmount: 0.08, loudnessAmount: 0.26, ambienceAmount: 0.24, fidelityAmount: 0.14, hrtfAmount: 0.54, limiterCeilingDB: -1.1, limiterReleaseMS: 150)
-    static let nightMode = DSPPreset(name: "Night Mode", inputGainDB: 1, bassAmount: 0.05, widthAmount: 0.05, spatialAmount: 0.06, crossfeedAmount: 0.18, loudnessAmount: 0.14, ambienceAmount: 0.02, nightModeAmount: 0.86, hrtfAmount: 0.08, limiterCeilingDB: -4, limiterReleaseMS: 220, outputGainDB: -3)
+    static let airPods = DSPPreset(name: "AirPods", inputGainDB: 2, bassAmount: 0.28, widthAmount: 0.18, spatialAmount: 0.24, crossfeedAmount: 0.22, loudnessAmount: 0.24, fidelityAmount: 0.14, masteringAmount: 0.22, hrtfAmount: 0.28)
+    static let headphones = DSPPreset(name: "Headphones", inputGainDB: 1.5, bassAmount: 0.2, widthAmount: 0.28, spatialAmount: 0.18, crossfeedAmount: 0.35, loudnessAmount: 0.18, fidelityAmount: 0.12, masteringAmount: 0.18, hrtfAmount: 0.2)
+    static let movies = DSPPreset(name: "Movies", inputGainDB: 2.5, bassAmount: 0.38, widthAmount: 0.42, spatialAmount: 0.62, crossfeedAmount: 0.08, loudnessAmount: 0.26, ambienceAmount: 0.24, fidelityAmount: 0.14, masteringAmount: 0.28, hrtfAmount: 0.54, limiterCeilingDB: -1.1, limiterReleaseMS: 150)
+    static let nightMode = DSPPreset(name: "Night Mode", inputGainDB: 1, bassAmount: 0.05, widthAmount: 0.05, spatialAmount: 0.06, crossfeedAmount: 0.18, loudnessAmount: 0.14, ambienceAmount: 0.02, fidelityAmount: 0.08, nightModeAmount: 0.86, masteringAmount: 0.18, hrtfAmount: 0.08, limiterCeilingDB: -4, limiterReleaseMS: 220, outputGainDB: -3)
     static let manual = DSPPreset(name: "Manual")
 }
 

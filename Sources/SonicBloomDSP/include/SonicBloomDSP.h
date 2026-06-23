@@ -27,6 +27,7 @@ typedef struct {
     float ambienceAmount;
     float fidelityAmount;
     float nightModeAmount;
+    float masteringAmount;
     float hrtfAmount;
     float limiterCeilingDB;
     float limiterLookaheadMS;

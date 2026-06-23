@@ -270,6 +270,24 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertLessThanOrEqual(tamed.map { max(abs($0.left), abs($0.right)) }.max() ?? 0, tamerPreset.limiterCeilingLinear + 0.000_1)
     }
 
+    func testMasteringTamesHarshBandWithoutCrushingMids() {
+        let frames = sineMix(lowFrequency: 1_000, lowAmplitude: 0.10, highFrequency: 6_500, highAmplitude: 0.56, count: 4_096)
+        let dryPreset = DSPPreset.manual.with(limiterCeilingDB: -0.1)
+        let masteredPreset = dryPreset.with(masteringAmount: 1)
+
+        let dry = SonicBloomProcessor(sampleRate: 48_000).process(frames, preset: dryPreset, bypass: false).frames
+        let mastered = SonicBloomProcessor(sampleRate: 48_000).process(frames, preset: masteredPreset, bypass: false).frames
+
+        let dryMid = toneMagnitude(dry, frequency: 1_000)
+        let dryHigh = toneMagnitude(dry, frequency: 6_500)
+        let masteredMid = toneMagnitude(mastered, frequency: 1_000)
+        let masteredHigh = toneMagnitude(mastered, frequency: 6_500)
+
+        XCTAssertLessThan(masteredHigh, dryHigh * 0.86)
+        XCTAssertGreaterThan(masteredMid, dryMid * 0.88)
+        XCTAssertLessThanOrEqual(mastered.map { max(abs($0.left), abs($0.right)) }.max() ?? 0, masteredPreset.limiterCeilingLinear + 0.000_1)
+    }
+
     func testAmbienceCreatesLateTail() {
         let frames = [StereoFrame(left: 0.8, right: 0.8)] + Array(repeating: StereoFrame(left: 0, right: 0), count: 2_400)
         let preset = DSPPreset.manual.with(ambienceAmount: 1, limiterCeilingDB: -0.1)
@@ -417,6 +435,7 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertEqual(output.loudnessMatchedBypass, 1)
         XCTAssertEqual(output.ambienceAmount, Float(DSPPreset.movies.ambienceAmount))
         XCTAssertEqual(output.hrtfAmount, Float(DSPPreset.movies.hrtfAmount))
+        XCTAssertEqual(output.masteringAmount, Float(DSPPreset.movies.masteringAmount))
         XCTAssertEqual(output.limiterLookaheadMS, Float(DSPPreset.movies.limiterLookaheadMS))
         XCTAssertEqual(output.limiterReleaseMS, Float(DSPPreset.movies.limiterReleaseMS))
     }
@@ -442,6 +461,7 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertEqual(preset.ambienceAmount, 0)
         XCTAssertEqual(preset.fidelityAmount, 0)
         XCTAssertEqual(preset.nightModeAmount, 0)
+        XCTAssertEqual(preset.masteringAmount, 0)
         XCTAssertEqual(preset.hrtfAmount, 0)
         XCTAssertEqual(preset.limiterLookaheadMS, 0.2)
         XCTAssertEqual(preset.limiterReleaseMS, 120)
