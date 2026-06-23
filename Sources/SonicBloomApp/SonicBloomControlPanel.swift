@@ -558,7 +558,7 @@ private struct RoutingWorkbench: View {
     @ObservedObject var viewModel: SonicBloomViewModel
 
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 10) {
             SignalChain(viewModel: viewModel)
                 .frame(height: 82)
                 .padding(12)
@@ -584,6 +584,7 @@ private struct RoutingWorkbench: View {
                 ConsoleAction(title: viewModel.primaryActionTitle, icon: viewModel.primaryActionIcon, color: SBColor.green) { viewModel.runPrimaryAction() }
                 ConsoleAction(title: "Use Current Output", icon: "checkmark.circle", color: SBColor.yellow) { viewModel.useCurrentOutputAsPreferred() }
             }
+            .padding(.top, 2)
         }
     }
 }
@@ -599,28 +600,42 @@ private struct PerAppMixer: View {
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(SBColor.subtext)
                     Spacer()
+                    Text("\(viewModel.appMixerRules.count) apps")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(SBColor.subtext)
                     Button("Refresh") { viewModel.refreshAppMixerRules() }
                         .font(.caption.weight(.bold))
                         .buttonStyle(.plain)
                         .foregroundStyle(SBColor.blue)
-                }
-                ForEach(Array(viewModel.appMixerRules.prefix(6))) { rule in
-                    PerAppRuleRow(
-                        rule: rule,
-                        presets: viewModel.presets,
-                        setGain: { viewModel.setAppRuleGain(rule, gainDB: $0) },
-                        toggleMute: { viewModel.toggleAppRuleMute(rule) },
-                        setPreset: { viewModel.setAppRulePreset(rule, presetName: $0) },
-                        setSyncMode: { viewModel.setAppRuleSyncMode(rule, syncMode: $0) }
-                    )
                 }
                 if viewModel.appMixerRules.isEmpty {
                     Text("No regular apps detected")
                         .font(.caption)
                         .foregroundStyle(SBColor.subtext)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.top, 6)
+                } else {
+                    ScrollView(.vertical) {
+                        LazyVStack(spacing: 8) {
+                            ForEach(viewModel.appMixerRules) { rule in
+                                PerAppRuleRow(
+                                    rule: rule,
+                                    presets: viewModel.presets,
+                                    setGain: { viewModel.setAppRuleGain(rule, gainDB: $0) },
+                                    toggleMute: { viewModel.toggleAppRuleMute(rule) },
+                                    setPreset: { viewModel.setAppRulePreset(rule, presetName: $0) },
+                                    setSyncMode: { viewModel.setAppRuleSyncMode(rule, syncMode: $0) }
+                                )
+                            }
+                        }
+                        .padding(.trailing, 4)
+                    }
+                    .scrollIndicators(.visible)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipped()
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
     }
 }
