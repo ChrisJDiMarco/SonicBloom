@@ -1,5 +1,6 @@
 import CoreAudio
 import AudioToolbox
+import CryptoKit
 import Foundation
 import XCTest
 import SonicBloomDSP
@@ -2086,6 +2087,32 @@ final class SonicBloomCoreTests: XCTestCase {
         )
     }
 
+    func testUpdateManifestSignatureProtectsReleaseMetadata() throws {
+        let privateKey = Curve25519.Signing.PrivateKey()
+        let publicKeyHex = SonicBloomUpdateManifestSignatureVerifier.hexString(for: privateKey.publicKey.rawRepresentation)
+        var manifest = SonicBloomUpdateManifest(
+            version: "0.2.0",
+            minimumSystemVersion: "13.0",
+            packageURL: URL(string: "https://example.com/SonicBloom-0.2.0.pkg")!,
+            packageSHA256: SonicBloomUpdatePackageVerifier.sha256Hex(for: Data("pkg".utf8))
+        )
+        manifest.manifestSignature = SonicBloomUpdateManifestSignatureVerifier.hexString(
+            for: try privateKey.signature(for: SonicBloomUpdateManifestSignatureVerifier.payload(for: manifest))
+        )
+
+        XCTAssertEqual(
+            SonicBloomUpdater.decision(currentVersion: "0.1.0", currentSystemVersion: "13.0", manifest: manifest, trustedManifestPublicKeyHex: publicKeyHex),
+            .updateAvailable(manifest)
+        )
+
+        var tampered = manifest
+        tampered.packageURL = URL(string: "https://example.com/Other.pkg")!
+        XCTAssertEqual(
+            SonicBloomUpdater.decision(currentVersion: "0.1.0", currentSystemVersion: "13.0", manifest: tampered, trustedManifestPublicKeyHex: publicKeyHex),
+            .invalidManifestSignature(tampered)
+        )
+    }
+
     func testUpdateManifestRequiresValidReleaseVersion() throws {
         let manifest = SonicBloomUpdateManifest(
             version: "1.0/evil",
@@ -2210,6 +2237,8 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertTrue(packageScript.contains("packageSHA256"))
         XCTAssertTrue(packageScript.contains("shasum -a 256"))
         XCTAssertTrue(packageScript.contains("minimumSystemVersion"))
+        XCTAssertTrue(packageScript.contains("SONICBLOOM_UPDATE_MANIFEST_SIGNATURE"))
+        XCTAssertTrue(packageScript.contains("manifestSignature"))
     }
 
     func testPackageReleaseRejectsInsecurePackageURL() throws {

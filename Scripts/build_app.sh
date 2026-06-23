@@ -56,6 +56,10 @@ cat > "$contents/Info.plist" <<'PLIST'
 </plist>
 PLIST
 
+if [[ -n "${SONICBLOOM_UPDATE_MANIFEST_PUBLIC_KEY_HEX:-}" ]]; then
+  /usr/libexec/PlistBuddy -c "Add :SonicBloomUpdateManifestPublicKeyHex string ${SONICBLOOM_UPDATE_MANIFEST_PUBLIC_KEY_HEX}" "$contents/Info.plist"
+fi
+
 printf 'APPL????' > "$contents/PkgInfo"
 codesign_args=(--force --deep --sign "$sign_identity")
 if [[ "$sign_identity" != "-" ]]; then

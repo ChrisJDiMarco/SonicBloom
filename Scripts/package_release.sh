@@ -27,6 +27,7 @@ pkg_dir="dist/release"
 identity="${SONICBLOOM_INSTALLER_IDENTITY:-}"
 app_identity="${SONICBLOOM_APP_IDENTITY:-}"
 notary_profile="${SONICBLOOM_NOTARY_PROFILE:-}"
+manifest_signature="${SONICBLOOM_UPDATE_MANIFEST_SIGNATURE:-}"
 minimum_system_version="13.0"
 
 if [[ -n "$notary_profile" && -z "$identity" ]]; then
@@ -84,6 +85,11 @@ if [[ "$package_url_path_lc" != *.pkg ]]; then
   exit 65
 fi
 
+if [[ -n "$manifest_signature" ]] && { ! [[ "$manifest_signature" =~ ^[0-9A-Fa-f]+$ ]] || (( ${#manifest_signature} % 2 != 0 )); }; then
+  echo "SONICBLOOM_UPDATE_MANIFEST_SIGNATURE must be even-length hex" >&2
+  exit 65
+fi
+
 run mkdir -p "$pkg_dir"
 run cp Scripts/uninstall_sonicbloom.sh "$pkg_dir/SonicBloom-Uninstall.command"
 run cp Scripts/install_recovery_agent.sh "$pkg_dir/SonicBloom-Install-Recovery.command"
@@ -107,7 +113,19 @@ if [[ "$dry_run" == "1" ]]; then
   echo "+ write $manifest"
 else
   package_sha256="$(shasum -a 256 "$pkg" | awk '{print $1}')"
-  cat > "$manifest" <<JSON
+  if [[ -n "$manifest_signature" ]]; then
+    cat > "$manifest" <<JSON
+{
+  "version": "$version",
+  "minimumSystemVersion": "$minimum_system_version",
+  "packageURL": "$package_url",
+  "packageSHA256": "$package_sha256",
+  "notes": "SonicBloom $version",
+  "manifestSignature": "$manifest_signature"
+}
+JSON
+  else
+    cat > "$manifest" <<JSON
 {
   "version": "$version",
   "minimumSystemVersion": "$minimum_system_version",
@@ -116,6 +134,7 @@ else
   "notes": "SonicBloom $version"
 }
 JSON
+  fi
 fi
 
 echo "$PWD/$pkg"

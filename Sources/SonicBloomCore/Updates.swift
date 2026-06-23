@@ -7,13 +7,15 @@ public struct SonicBloomUpdateManifest: Codable, Equatable, Sendable {
     public var packageURL: URL
     public var packageSHA256: String?
     public var notes: String
+    public var manifestSignature: String?
 
-    public init(version: String, minimumSystemVersion: String, packageURL: URL, packageSHA256: String? = nil, notes: String = "") {
+    public init(version: String, minimumSystemVersion: String, packageURL: URL, packageSHA256: String? = nil, notes: String = "", manifestSignature: String? = nil) {
         self.version = version
         self.minimumSystemVersion = minimumSystemVersion
         self.packageURL = packageURL
         self.packageSHA256 = packageSHA256?.isEmpty == false ? packageSHA256 : nil
         self.notes = notes
+        self.manifestSignature = manifestSignature?.isEmpty == false ? manifestSignature : nil
     }
 
     public init(version: String, minimumSystemVersion: String, packageURL: URL, notes: String = "") {
@@ -29,6 +31,7 @@ public enum SonicBloomUpdateDecision: Equatable, Sendable {
     case invalidPackageURL(SonicBloomUpdateManifest)
     case missingChecksum(SonicBloomUpdateManifest)
     case invalidChecksum(SonicBloomUpdateManifest)
+    case invalidManifestSignature(SonicBloomUpdateManifest)
     case upToDate
 }
 
@@ -37,10 +40,15 @@ public enum SonicBloomUpdater {
         decision(currentVersion: currentVersion, currentSystemVersion: currentSystemVersion, manifest: manifest)
     }
 
+    public static func decision(currentVersion: String, manifest: SonicBloomUpdateManifest, trustedManifestPublicKeyHex: String?) -> SonicBloomUpdateDecision {
+        decision(currentVersion: currentVersion, currentSystemVersion: currentSystemVersion, manifest: manifest, trustedManifestPublicKeyHex: trustedManifestPublicKeyHex)
+    }
+
     public static func decision(
         currentVersion: String,
         currentSystemVersion: String,
-        manifest: SonicBloomUpdateManifest
+        manifest: SonicBloomUpdateManifest,
+        trustedManifestPublicKeyHex: String? = nil
     ) -> SonicBloomUpdateDecision {
         guard ReleaseVersion.isValid(manifest.version) else {
             return .invalidVersion(manifest)
@@ -62,6 +70,11 @@ public enum SonicBloomUpdater {
         }
         guard SonicBloomUpdatePackageVerifier.isValidSHA256Hex(manifest.packageSHA256) else {
             return .invalidChecksum(manifest)
+        }
+        if let trustedManifestPublicKeyHex,
+           !trustedManifestPublicKeyHex.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+           !SonicBloomUpdateManifestSignatureVerifier.verify(manifest: manifest, trustedPublicKeyHex: trustedManifestPublicKeyHex) {
+            return .invalidManifestSignature(manifest)
         }
         return .updateAvailable(manifest)
     }
@@ -92,6 +105,46 @@ public enum SonicBloomUpdatePackageVerifier {
     public static func isValidSHA256Hex(_ value: String?) -> Bool {
         guard let value, value.count == 64 else { return false }
         return value.allSatisfy(\.isHexDigit)
+    }
+}
+
+public enum SonicBloomUpdateManifestSignatureVerifier {
+    public static func payload(for manifest: SonicBloomUpdateManifest) -> Data {
+        Data([
+            manifest.version,
+            manifest.minimumSystemVersion,
+            manifest.packageURL.absoluteString,
+            manifest.packageSHA256 ?? "",
+            manifest.notes
+        ].joined(separator: "\n").utf8)
+    }
+
+    public static func verify(manifest: SonicBloomUpdateManifest, trustedPublicKeyHex: String) -> Bool {
+        guard let signatureHex = manifest.manifestSignature,
+              let publicKeyData = data(fromHex: trustedPublicKeyHex),
+              let signatureData = data(fromHex: signatureHex),
+              let publicKey = try? Curve25519.Signing.PublicKey(rawRepresentation: publicKeyData) else {
+            return false
+        }
+        return publicKey.isValidSignature(signatureData, for: payload(for: manifest))
+    }
+
+    public static func hexString(for data: Data) -> String {
+        data.map { String(format: "%02x", $0) }.joined()
+    }
+
+    private static func data(fromHex value: String) -> Data? {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count.isMultiple(of: 2), trimmed.allSatisfy(\.isHexDigit) else { return nil }
+        var data = Data()
+        var index = trimmed.startIndex
+        while index < trimmed.endIndex {
+            let next = trimmed.index(index, offsetBy: 2)
+            guard let byte = UInt8(String(trimmed[index..<next]), radix: 16) else { return nil }
+            data.append(byte)
+            index = next
+        }
+        return data
     }
 }
 

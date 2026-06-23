@@ -33,6 +33,13 @@ final class SonicBloomAppTests: XCTestCase {
         XCTAssertTrue(infoPlistStrings.contains("not to listen to your physical microphone"))
     }
 
+    func testAppBundleCanEmbedTrustedUpdateManifestPublicKey() throws {
+        let buildScript = try String(contentsOf: URL(fileURLWithPath: "Scripts/build_app.sh"))
+
+        XCTAssertTrue(buildScript.contains("SONICBLOOM_UPDATE_MANIFEST_PUBLIC_KEY_HEX"))
+        XCTAssertTrue(buildScript.contains("SonicBloomUpdateManifestPublicKeyHex"))
+    }
+
     @MainActor
     func testSelectedPresetWinsOverSuggestedForegroundAppPreset() {
         let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
@@ -464,6 +471,30 @@ final class SonicBloomAppTests: XCTestCase {
     }
 
     @MainActor
+    func testCheckForUpdatesRejectsUnsignedManifestWhenTrustedKeyIsConfigured() async throws {
+        let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let manifest = SonicBloomUpdateManifest(
+            version: "0.2.0",
+            minimumSystemVersion: "13.0",
+            packageURL: URL(string: "https://example.com/SonicBloom-0.2.0.pkg")!,
+            packageSHA256: SonicBloomUpdatePackageVerifier.sha256Hex(for: Data("pkg".utf8))
+        )
+        let viewModel = SonicBloomViewModel.testInstance(
+            defaults: defaults,
+            currentVersion: "0.1.0",
+            updateManifestLoader: { _ in manifest },
+            trustedUpdateManifestPublicKeyHex: String(repeating: "a", count: 64)
+        )
+
+        await viewModel.checkForUpdates()
+
+        XCTAssertEqual(viewModel.updateStatusText, "Update signature invalid")
+        XCTAssertNil(viewModel.updateDownloadURL)
+    }
+
+    @MainActor
     func testCheckForUpdatesRejectsInvalidPackageChecksum() async throws {
         let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -750,7 +781,8 @@ private extension SonicBloomViewModel {
         updatePackageDirectory: URL = FileManager.default.temporaryDirectory,
         audioUnitEffectLoader: @escaping () -> [AudioUnitEffectDescriptor] = { [] },
         audioUnitEffectPreflight: @escaping (AudioUnitEffectDescriptor) -> Bool = { _ in true },
-        presetStore: PresetStore = PresetStore(directoryURL: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true))
+        presetStore: PresetStore = PresetStore(directoryURL: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)),
+        trustedUpdateManifestPublicKeyHex: String? = nil
     ) -> SonicBloomViewModel {
         SonicBloomViewModel(
             defaults: defaults,
@@ -762,7 +794,8 @@ private extension SonicBloomViewModel {
             updatePackageDirectory: updatePackageDirectory,
             audioUnitEffectLoader: audioUnitEffectLoader,
             audioUnitEffectPreflight: audioUnitEffectPreflight,
-            presetStore: presetStore
+            presetStore: presetStore,
+            trustedUpdateManifestPublicKeyHex: trustedUpdateManifestPublicKeyHex
         )
     }
 }

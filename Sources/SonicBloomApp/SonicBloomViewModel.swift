@@ -66,6 +66,7 @@ final class SonicBloomViewModel: ObservableObject {
     private let updateManifestLoader: UpdateManifestLoader
     private let updatePackageDownloader: UpdatePackageDownloader
     private let updatePackageDirectory: URL
+    private let trustedUpdateManifestPublicKeyHex: String?
     private let audioUnitEffectLoader: AudioUnitEffectLoader
     private let audioUnitEffectPreflight: AudioUnitEffectPreflight
     private let presetStore: PresetStore
@@ -152,7 +153,8 @@ final class SonicBloomViewModel: ObservableObject {
         updatePackageDirectory: URL = FileManager.default.temporaryDirectory,
         audioUnitEffectLoader: @escaping AudioUnitEffectLoader = AudioUnitEffectCatalog.installedEffects,
         audioUnitEffectPreflight: @escaping AudioUnitEffectPreflight = AudioUnitEffectHostPreflight().canLoad,
-        presetStore: PresetStore = PresetStore()
+        presetStore: PresetStore = PresetStore(),
+        trustedUpdateManifestPublicKeyHex: String? = Bundle.main.object(forInfoDictionaryKey: "SonicBloomUpdateManifestPublicKeyHex") as? String
     ) {
         self.defaults = defaults
         self.currentVersion = currentVersion ?? (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.1.0")
@@ -160,6 +162,7 @@ final class SonicBloomViewModel: ObservableObject {
         self.updateManifestLoader = updateManifestLoader
         self.updatePackageDownloader = updatePackageDownloader
         self.updatePackageDirectory = updatePackageDirectory
+        self.trustedUpdateManifestPublicKeyHex = trustedUpdateManifestPublicKeyHex
         self.audioUnitEffectLoader = audioUnitEffectLoader
         self.audioUnitEffectPreflight = audioUnitEffectPreflight
         self.presetStore = presetStore
@@ -248,7 +251,7 @@ final class SonicBloomViewModel: ObservableObject {
 
         do {
             let manifest = try await updateManifestLoader(updateFeedURL)
-            switch SonicBloomUpdater.decision(currentVersion: currentVersion, manifest: manifest) {
+            switch SonicBloomUpdater.decision(currentVersion: currentVersion, manifest: manifest, trustedManifestPublicKeyHex: trustedUpdateManifestPublicKeyHex) {
             case .updateAvailable(let manifest):
                 updateStatusText = "Update \(manifest.version) available"
                 updateDownloadURL = manifest.packageURL
@@ -265,6 +268,8 @@ final class SonicBloomViewModel: ObservableObject {
                 updateStatusText = "Update package checksum missing"
             case .invalidChecksum:
                 updateStatusText = "Update package checksum invalid"
+            case .invalidManifestSignature:
+                updateStatusText = "Update signature invalid"
             case .upToDate:
                 updateStatusText = "SonicBloom is up to date"
             }
