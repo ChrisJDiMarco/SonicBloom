@@ -506,8 +506,14 @@ final class SonicBloomAppTests: XCTestCase {
         viewModel.isBridgeRunning = true
         viewModel.toggleRawCompare()
         XCTAssertTrue(viewModel.isBypassed)
+        XCTAssertEqual(viewModel.routeState.statusMessage, "Raw compare on: hearing unprocessed Mac audio.")
 
         viewModel.toggleRawCompare()
+        XCTAssertFalse(viewModel.isBypassed)
+        XCTAssertEqual(viewModel.routeState.statusMessage, "Enhancement restored: Clean Loud.")
+
+        viewModel.toggleRawCompare()
+        viewModel.isBridgeRunning = false
         XCTAssertFalse(viewModel.isBypassed)
     }
 

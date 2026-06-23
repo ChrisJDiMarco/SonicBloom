@@ -127,7 +127,13 @@ final class SonicBloomViewModel: ObservableObject {
     @Published var isBypassed = false {
         didSet { updateBridgePreset() }
     }
-    @Published var isBridgeRunning = false
+    @Published var isBridgeRunning = false {
+        didSet {
+            if !isBridgeRunning, isBypassed {
+                isBypassed = false
+            }
+        }
+    }
     @Published var isTransitioning = false
     @Published var lastError: String?
     @Published private(set) var cpuUsagePercent = 0.0
@@ -244,6 +250,9 @@ final class SonicBloomViewModel: ObservableObject {
     func toggleRawCompare() {
         guard isBridgeRunning, !isTransitioning else { return }
         isBypassed.toggle()
+        routeState.statusMessage = isBypassed
+            ? "Raw compare on: hearing unprocessed Mac audio."
+            : "Enhancement restored: \(selectedPreset.name)."
     }
 
     func checkForUpdates() async {
