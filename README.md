@@ -12,6 +12,7 @@
   <img alt="macOS 13+" src="https://img.shields.io/badge/macOS-13%2B-0A84FF">
   <img alt="Swift" src="https://img.shields.io/badge/Swift-AppKit%20%2B%20SwiftUI-F05138">
   <img alt="C++ DSP" src="https://img.shields.io/badge/DSP-C%2B%2B-00A86B">
+  <img alt="Public beta" src="https://img.shields.io/badge/status-public%20beta-00A86B">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-111827">
 </p>
 
@@ -95,6 +96,19 @@ What still needs production credentials:
 - Notarized `.pkg`
 - Public release hosting
 - Wider live-device QA before calling it stable for non-developers
+
+## Open source and paid builds
+
+SonicBloom is MIT-licensed. You can read the code, build the app, inspect the driver, fork the repo, and contribute fixes.
+
+The business model is planned around convenience and support, not hiding the source:
+
+- Source code stays open.
+- Public beta builds are free while the app is being hardened.
+- Founder licenses help fund the signed v1 release.
+- Paid official builds will cover the signed/notarized installer, auto-updates, curated presets, support, and release QA.
+
+If you are comfortable building macOS apps from source, the repo is enough. If you want a polished install-and-update experience, the official signed build will be the paid product.
 
 ## Build locally
 
