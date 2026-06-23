@@ -1683,6 +1683,27 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertTrue(packageScript.contains("minimumSystemVersion"))
     }
 
+    func testPackageReleaseRequiresSigningIdentityForNotarization() throws {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        process.arguments = [
+            "SONICBLOOM_NOTARY_PROFILE=test-profile",
+            "Scripts/package_release.sh",
+            "--dry-run",
+            "--skip-build"
+        ]
+        let errorPipe = Pipe()
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = errorPipe
+
+        try process.run()
+        process.waitUntilExit()
+
+        let errorText = String(data: errorPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        XCTAssertNotEqual(process.terminationStatus, 0)
+        XCTAssertTrue(errorText.contains("SONICBLOOM_INSTALLER_IDENTITY"))
+    }
+
     private func rms(_ frames: [StereoFrame]) -> Float {
         guard !frames.isEmpty else { return 0 }
         let sum = frames.reduce(Float(0)) { partial, frame in

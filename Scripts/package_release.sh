@@ -28,6 +28,11 @@ identity="${SONICBLOOM_INSTALLER_IDENTITY:-}"
 notary_profile="${SONICBLOOM_NOTARY_PROFILE:-}"
 minimum_system_version="13.0"
 
+if [[ -n "$notary_profile" && -z "$identity" ]]; then
+  echo "SONICBLOOM_NOTARY_PROFILE requires SONICBLOOM_INSTALLER_IDENTITY so the package can be signed before notarization." >&2
+  exit 65
+fi
+
 quote() {
   printf "%q" "$1"
 }
