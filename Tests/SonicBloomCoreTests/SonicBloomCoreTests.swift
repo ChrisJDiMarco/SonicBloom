@@ -34,6 +34,34 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertTrue(effects.allSatisfy { AudioUnitEffectCatalog.isSupportedEffectType($0.componentType) })
     }
 
+    func testAudioUnitEffectPreflightRequiresFindableInstantiableComponent() {
+        let descriptor = AudioUnitEffectDescriptor(
+            name: "Studio EQ",
+            manufacturerName: "Apple",
+            componentType: kAudioUnitType_Effect,
+            componentSubType: fourCC("eqal"),
+            componentManufacturer: fourCC("appl")
+        )
+        let fakeComponent = AudioComponent(bitPattern: 1)!
+        var inspectedDescription: AudioComponentDescription?
+
+        let passing = AudioUnitEffectHostPreflight(
+            componentFinder: { description in
+                inspectedDescription = description
+                return fakeComponent
+            },
+            instanceChecker: { _ in true }
+        )
+        XCTAssertTrue(passing.canLoad(descriptor))
+        XCTAssertEqual(inspectedDescription?.componentSubType, fourCC("eqal"))
+
+        let missing = AudioUnitEffectHostPreflight(componentFinder: { _ in nil }, instanceChecker: { _ in true })
+        XCTAssertFalse(missing.canLoad(descriptor))
+
+        let broken = AudioUnitEffectHostPreflight(componentFinder: { _ in fakeComponent }, instanceChecker: { _ in false })
+        XCTAssertFalse(broken.canLoad(descriptor))
+    }
+
     func testBuiltInPresetsAreValidAndCodable() throws {
         let presets = PresetCatalog.builtIns
 

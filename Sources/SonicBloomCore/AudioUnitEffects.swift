@@ -38,6 +38,16 @@ public struct AudioUnitEffectDescriptor: Codable, Equatable, Identifiable, Senda
         Self.fourCharacterCode(componentManufacturer)
     }
 
+    public var componentDescription: AudioComponentDescription {
+        AudioComponentDescription(
+            componentType: componentType,
+            componentSubType: componentSubType,
+            componentManufacturer: componentManufacturer,
+            componentFlags: 0,
+            componentFlagsMask: 0
+        )
+    }
+
     public static func fourCharacterCode(_ value: OSType) -> String {
         let bytes = [
             UInt8((value >> 24) & 0xff),
@@ -46,6 +56,36 @@ public struct AudioUnitEffectDescriptor: Codable, Equatable, Identifiable, Senda
             UInt8(value & 0xff)
         ]
         return String(bytes: bytes.map { (32...126).contains($0) ? $0 : 63 }, encoding: .ascii) ?? "????"
+    }
+}
+
+public struct AudioUnitEffectHostPreflight {
+    public typealias ComponentFinder = (inout AudioComponentDescription) -> AudioComponent?
+    public typealias InstanceChecker = (AudioComponent) -> Bool
+
+    private let componentFinder: ComponentFinder
+    private let instanceChecker: InstanceChecker
+
+    public init(
+        componentFinder: @escaping ComponentFinder = { description in AudioComponentFindNext(nil, &description) },
+        instanceChecker: @escaping InstanceChecker = Self.canInstantiate
+    ) {
+        self.componentFinder = componentFinder
+        self.instanceChecker = instanceChecker
+    }
+
+    public func canLoad(_ effect: AudioUnitEffectDescriptor) -> Bool {
+        var description = effect.componentDescription
+        guard let component = componentFinder(&description) else { return false }
+        return instanceChecker(component)
+    }
+
+    public static func canInstantiate(_ component: AudioComponent) -> Bool {
+        var instance: AudioComponentInstance?
+        let status = AudioComponentInstanceNew(component, &instance)
+        guard status == noErr, let instance else { return false }
+        AudioComponentInstanceDispose(instance)
+        return true
     }
 }
 

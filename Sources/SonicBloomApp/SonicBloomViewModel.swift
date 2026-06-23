@@ -32,6 +32,7 @@ private let defaultUpdateFeedURL = URL(string: "https://github.com/ChrisJDiMarco
 typealias UpdateManifestLoader = (URL) async throws -> SonicBloomUpdateManifest
 typealias UpdatePackageDownloader = (URL) async throws -> Data
 typealias AudioUnitEffectLoader = () -> [AudioUnitEffectDescriptor]
+typealias AudioUnitEffectPreflight = (AudioUnitEffectDescriptor) -> Bool
 
 func fetchUpdateManifest(from url: URL) async throws -> SonicBloomUpdateManifest {
     let (data, _) = try await URLSession.shared.data(from: url)
@@ -58,6 +59,7 @@ final class SonicBloomViewModel: ObservableObject {
     private let updatePackageDownloader: UpdatePackageDownloader
     private let updatePackageDirectory: URL
     private let audioUnitEffectLoader: AudioUnitEffectLoader
+    private let audioUnitEffectPreflight: AudioUnitEffectPreflight
     private var cpuSampler = ProcessCPUUsageSampler()
     private var cpuRefreshTask: Task<Void, Never>?
     private var routeRecoveryTask: Task<Void, Never>?
@@ -135,7 +137,8 @@ final class SonicBloomViewModel: ObservableObject {
         updateManifestLoader: @escaping UpdateManifestLoader = fetchUpdateManifest,
         updatePackageDownloader: @escaping UpdatePackageDownloader = fetchUpdatePackage,
         updatePackageDirectory: URL = FileManager.default.temporaryDirectory,
-        audioUnitEffectLoader: @escaping AudioUnitEffectLoader = AudioUnitEffectCatalog.installedEffects
+        audioUnitEffectLoader: @escaping AudioUnitEffectLoader = AudioUnitEffectCatalog.installedEffects,
+        audioUnitEffectPreflight: @escaping AudioUnitEffectPreflight = AudioUnitEffectHostPreflight().canLoad
     ) {
         self.defaults = defaults
         self.currentVersion = currentVersion ?? (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.1.0")
@@ -144,6 +147,7 @@ final class SonicBloomViewModel: ObservableObject {
         self.updatePackageDownloader = updatePackageDownloader
         self.updatePackageDirectory = updatePackageDirectory
         self.audioUnitEffectLoader = audioUnitEffectLoader
+        self.audioUnitEffectPreflight = audioUnitEffectPreflight
         liveContextEnabled = startLiveContext
         profile = Self.load(SonicBloomProfile.self, from: defaults, key: DefaultsKey.profile) ?? .default
         settings = Self.load(SonicBloomSettings.self, from: defaults, key: DefaultsKey.settings) ?? .default
@@ -485,6 +489,11 @@ final class SonicBloomViewModel: ObservableObject {
     }
 
     func addAudioUnitEffect(_ effect: AudioUnitEffectDescriptor) {
+        guard audioUnitEffectPreflight(effect) else {
+            lastError = "\(effect.name) could not be loaded as an Audio Unit effect."
+            return
+        }
+        lastError = nil
         profile.addAudioUnitEffect(AudioUnitEffectSlot(effect: effect))
     }
 

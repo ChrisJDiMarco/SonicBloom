@@ -156,6 +156,29 @@ final class SonicBloomAppTests: XCTestCase {
     }
 
     @MainActor
+    func testViewModelRejectsAudioUnitEffectsThatCannotInstantiate() {
+        let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let effect = AudioUnitEffectDescriptor(
+            name: "Broken Effect",
+            manufacturerName: "Test",
+            componentType: kAudioUnitType_Effect,
+            componentSubType: fourCC("fail"),
+            componentManufacturer: fourCC("test")
+        )
+        let viewModel = SonicBloomViewModel.testInstance(
+            defaults: defaults,
+            audioUnitEffectPreflight: { _ in false }
+        )
+
+        viewModel.addAudioUnitEffect(effect)
+
+        XCTAssertEqual(viewModel.profile.audioUnitEffects, [])
+        XCTAssertEqual(viewModel.lastError, "Broken Effect could not be loaded as an Audio Unit effect.")
+    }
+
+    @MainActor
     func testSmartMeterDoesNotChangeMasterPreset() {
         let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -287,7 +310,8 @@ private extension SonicBloomViewModel {
         },
         updatePackageDownloader: @escaping (URL) async throws -> Data = { _ in Data() },
         updatePackageDirectory: URL = FileManager.default.temporaryDirectory,
-        audioUnitEffectLoader: @escaping () -> [AudioUnitEffectDescriptor] = { [] }
+        audioUnitEffectLoader: @escaping () -> [AudioUnitEffectDescriptor] = { [] },
+        audioUnitEffectPreflight: @escaping (AudioUnitEffectDescriptor) -> Bool = { _ in true }
     ) -> SonicBloomViewModel {
         SonicBloomViewModel(
             defaults: defaults,
@@ -297,7 +321,8 @@ private extension SonicBloomViewModel {
             updateManifestLoader: updateManifestLoader,
             updatePackageDownloader: updatePackageDownloader,
             updatePackageDirectory: updatePackageDirectory,
-            audioUnitEffectLoader: audioUnitEffectLoader
+            audioUnitEffectLoader: audioUnitEffectLoader,
+            audioUnitEffectPreflight: audioUnitEffectPreflight
         )
     }
 }
