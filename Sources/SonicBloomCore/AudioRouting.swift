@@ -172,6 +172,7 @@ public struct AudioRouteState: Codable, Equatable, Sendable {
 
 public enum FirstRunSetupStepID: String, Codable, Equatable, Identifiable, CaseIterable, Sendable {
     case installDriver
+    case recoverOutput
     case chooseOutput
     case testSound
     case turnOnEnhancement
@@ -204,6 +205,13 @@ public enum FirstRunSetupGuide {
                 detail: routeState.isProcessingAvailable ? "Driver is ready." : "Adds the virtual output device SonicBloom needs.",
                 actionTitle: "Install Driver",
                 isComplete: routeState.isProcessingAvailable
+            ),
+            FirstRunSetupStep(
+                id: .recoverOutput,
+                title: "Recover Mac Output",
+                detail: routeState.installHealth == .degraded ? (routeState.recoveryMessage ?? "Restore audio before continuing.") : "Mac output is not stranded.",
+                actionTitle: "Recover Output",
+                isComplete: routeState.installHealth != .degraded
             ),
             FirstRunSetupStep(
                 id: .chooseOutput,

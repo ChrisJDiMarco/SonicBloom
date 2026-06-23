@@ -741,6 +741,8 @@ final class SonicBloomViewModel: ObservableObject {
         switch stepID {
         case .installDriver:
             installVirtualDevice()
+        case .recoverOutput:
+            stopBridgeImmediately()
         case .chooseOutput:
             useCurrentOutputAsPreferred()
         case .testSound:

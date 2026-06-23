@@ -1579,6 +1579,20 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertFalse(FirstRunSetupGuide.isComplete(steps))
     }
 
+    func testFirstRunSetupGuideOffersRecoveryWhenRouteIsDegraded() {
+        let route = AudioRouteState.default.recordingDegradedRecovery("Route degraded: SonicBloom Output unavailable.")
+
+        let steps = FirstRunSetupGuide.steps(
+            routeState: route,
+            isBridgeRunning: false,
+            hasPlayedTestSound: false
+        )
+
+        XCTAssertEqual(steps.map(\.id), [.installDriver, .recoverOutput, .chooseOutput, .testSound, .turnOnEnhancement])
+        XCTAssertEqual(steps[1].actionTitle, "Recover Output")
+        XCTAssertFalse(steps[1].isComplete)
+    }
+
     func testFirstRunSetupGuideCompletesWhenRouteTestAndEnhancementAreReady() {
         let route = AudioRouteState(
             virtualDeviceName: "SonicBloom Output",
@@ -1599,7 +1613,7 @@ final class SonicBloomCoreTests: XCTestCase {
             hasPlayedTestSound: true
         )
 
-        XCTAssertEqual(steps.map(\.id), [.installDriver, .chooseOutput, .testSound, .turnOnEnhancement])
+        XCTAssertEqual(steps.map(\.id), [.installDriver, .recoverOutput, .chooseOutput, .testSound, .turnOnEnhancement])
         XCTAssertTrue(FirstRunSetupGuide.isComplete(steps))
     }
 
