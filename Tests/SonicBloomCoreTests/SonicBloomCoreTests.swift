@@ -2190,6 +2190,27 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertTrue(errorText.contains("SONICBLOOM_PACKAGE_URL must use https://"))
     }
 
+    func testPackageReleaseRejectsNonPackageURL() throws {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        process.arguments = [
+            "SONICBLOOM_PACKAGE_URL=https://example.com/SonicBloom.zip",
+            "Scripts/package_release.sh",
+            "--dry-run",
+            "--skip-build"
+        ]
+        let errorPipe = Pipe()
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = errorPipe
+
+        try process.run()
+        process.waitUntilExit()
+
+        let errorText = String(data: errorPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        XCTAssertNotEqual(process.terminationStatus, 0)
+        XCTAssertTrue(errorText.contains("SONICBLOOM_PACKAGE_URL must end in .pkg"))
+    }
+
     func testQAGateRunsAutomatedReleaseChecks() throws {
         let qaScriptURL = URL(fileURLWithPath: "Scripts/qa_gate.sh")
         let qaScript = try String(contentsOf: qaScriptURL)

@@ -76,6 +76,14 @@ if [[ "$package_url" != https://* ]]; then
   exit 65
 fi
 
+package_url_path="${package_url%%\?*}"
+package_url_path="${package_url_path%%#*}"
+package_url_path_lc="$(printf '%s' "$package_url_path" | tr '[:upper:]' '[:lower:]')"
+if [[ "$package_url_path_lc" != *.pkg ]]; then
+  echo "SONICBLOOM_PACKAGE_URL must end in .pkg" >&2
+  exit 65
+fi
+
 run mkdir -p "$pkg_dir"
 run cp Scripts/uninstall_sonicbloom.sh "$pkg_dir/SonicBloom-Uninstall.command"
 run cp Scripts/install_recovery_agent.sh "$pkg_dir/SonicBloom-Install-Recovery.command"
