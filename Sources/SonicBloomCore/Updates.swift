@@ -61,6 +61,13 @@ public enum SonicBloomUpdatePackageVerifier {
         SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
 
+    public static func safePackageFilename(version: String) -> String {
+        let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-")
+        let sanitized = String(version.unicodeScalars.map { allowed.contains($0) ? Character($0) : "-" })
+            .trimmingCharacters(in: CharacterSet(charactersIn: ".-_"))
+        return "SonicBloom-\(sanitized.isEmpty ? "update" : sanitized).pkg"
+    }
+
     public static func verify(_ data: Data, expectedSHA256: String?) -> Bool {
         guard let expectedSHA256, !expectedSHA256.isEmpty else { return false }
         return sha256Hex(for: data).caseInsensitiveCompare(expectedSHA256) == .orderedSame

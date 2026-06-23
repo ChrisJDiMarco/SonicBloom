@@ -278,7 +278,9 @@ final class SonicBloomViewModel: ObservableObject {
                 return
             }
             try FileManager.default.createDirectory(at: updatePackageDirectory, withIntermediateDirectories: true)
-            let localURL = updatePackageDirectory.appendingPathComponent("SonicBloom-\(manifest.version).pkg")
+            let localURL = updatePackageDirectory.appendingPathComponent(
+                SonicBloomUpdatePackageVerifier.safePackageFilename(version: manifest.version)
+            )
             try data.write(to: localURL, options: .atomic)
             verifiedUpdatePackageURL = localURL
             updateStatusText = "Update package verified"

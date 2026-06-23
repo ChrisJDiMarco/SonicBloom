@@ -1988,6 +1988,12 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertFalse(SonicBloomUpdatePackageVerifier.verify(data, expectedSHA256: nil))
     }
 
+    func testUpdatePackageFilenameIsSafe() {
+        XCTAssertEqual(SonicBloomUpdatePackageVerifier.safePackageFilename(version: "0.2.0"), "SonicBloom-0.2.0.pkg")
+        XCTAssertEqual(SonicBloomUpdatePackageVerifier.safePackageFilename(version: "../evil"), "SonicBloom-evil.pkg")
+        XCTAssertEqual(SonicBloomUpdatePackageVerifier.safePackageFilename(version: ""), "SonicBloom-update.pkg")
+    }
+
     func testPackageReleaseWritesUpdateManifest() throws {
         let packageScript = try String(contentsOf: URL(fileURLWithPath: "Scripts/package_release.sh"))
 
