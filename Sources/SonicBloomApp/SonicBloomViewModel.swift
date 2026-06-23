@@ -258,6 +258,8 @@ final class SonicBloomViewModel: ObservableObject {
                 updateStatusText = "Update package URL must use HTTPS"
             case .missingChecksum:
                 updateStatusText = "Update package checksum missing"
+            case .invalidChecksum:
+                updateStatusText = "Update package checksum invalid"
             case .upToDate:
                 updateStatusText = "SonicBloom is up to date"
             }

@@ -26,6 +26,7 @@ public enum SonicBloomUpdateDecision: Equatable, Sendable {
     case unsupported(SonicBloomUpdateManifest)
     case insecurePackageURL(SonicBloomUpdateManifest)
     case missingChecksum(SonicBloomUpdateManifest)
+    case invalidChecksum(SonicBloomUpdateManifest)
     case upToDate
 }
 
@@ -51,6 +52,9 @@ public enum SonicBloomUpdater {
         guard manifest.packageSHA256?.isEmpty == false else {
             return .missingChecksum(manifest)
         }
+        guard SonicBloomUpdatePackageVerifier.isValidSHA256Hex(manifest.packageSHA256) else {
+            return .invalidChecksum(manifest)
+        }
         return .updateAvailable(manifest)
     }
 
@@ -73,8 +77,13 @@ public enum SonicBloomUpdatePackageVerifier {
     }
 
     public static func verify(_ data: Data, expectedSHA256: String?) -> Bool {
-        guard let expectedSHA256, !expectedSHA256.isEmpty else { return false }
+        guard let expectedSHA256, isValidSHA256Hex(expectedSHA256) else { return false }
         return sha256Hex(for: data).caseInsensitiveCompare(expectedSHA256) == .orderedSame
+    }
+
+    public static func isValidSHA256Hex(_ value: String?) -> Bool {
+        guard let value, value.count == 64 else { return false }
+        return value.allSatisfy(\.isHexDigit)
     }
 }
 

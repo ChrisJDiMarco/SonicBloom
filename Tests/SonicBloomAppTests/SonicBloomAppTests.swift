@@ -319,7 +319,7 @@ final class SonicBloomAppTests: XCTestCase {
             version: "0.2.0",
             minimumSystemVersion: "13.0",
             packageURL: packageURL,
-            packageSHA256: "abc123",
+            packageSHA256: SonicBloomUpdatePackageVerifier.sha256Hex(for: Data("pkg".utf8)),
             notes: "Fixes"
         )
         let viewModel = SonicBloomViewModel.testInstance(
@@ -353,6 +353,29 @@ final class SonicBloomAppTests: XCTestCase {
         await viewModel.checkForUpdates()
 
         XCTAssertEqual(viewModel.updateStatusText, "Update package checksum missing")
+        XCTAssertNil(viewModel.updateDownloadURL)
+    }
+
+    @MainActor
+    func testCheckForUpdatesRejectsInvalidPackageChecksum() async throws {
+        let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let manifest = SonicBloomUpdateManifest(
+            version: "0.2.0",
+            minimumSystemVersion: "13.0",
+            packageURL: URL(string: "https://example.com/SonicBloom-0.2.0.pkg")!,
+            packageSHA256: "abc123"
+        )
+        let viewModel = SonicBloomViewModel.testInstance(
+            defaults: defaults,
+            currentVersion: "0.1.0",
+            updateManifestLoader: { _ in manifest }
+        )
+
+        await viewModel.checkForUpdates()
+
+        XCTAssertEqual(viewModel.updateStatusText, "Update package checksum invalid")
         XCTAssertNil(viewModel.updateDownloadURL)
     }
 

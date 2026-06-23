@@ -1990,18 +1990,19 @@ final class SonicBloomCoreTests: XCTestCase {
     }
 
     func testUpdateManifestReportsAvailableRelease() throws {
+        let checksum = SonicBloomUpdatePackageVerifier.sha256Hex(for: Data("pkg".utf8))
         let data = Data("""
         {
           "version": "0.2.0",
           "minimumSystemVersion": "13.0",
           "packageURL": "https://example.com/SonicBloom-0.2.0.pkg",
-          "packageSHA256": "abc123",
+          "packageSHA256": "\(checksum)",
           "notes": "Stability fixes"
         }
         """.utf8)
         let manifest = try JSONDecoder().decode(SonicBloomUpdateManifest.self, from: data)
 
-        XCTAssertEqual(manifest.packageSHA256, "abc123")
+        XCTAssertEqual(manifest.packageSHA256, checksum)
         XCTAssertEqual(
             SonicBloomUpdater.decision(currentVersion: "0.1.0", manifest: manifest),
             .updateAvailable(manifest)
@@ -2017,7 +2018,7 @@ final class SonicBloomCoreTests: XCTestCase {
             version: "0.2.0",
             minimumSystemVersion: "14.0",
             packageURL: URL(string: "https://example.com/SonicBloom-0.2.0.pkg")!,
-            packageSHA256: "abc123"
+            packageSHA256: SonicBloomUpdatePackageVerifier.sha256Hex(for: Data("pkg".utf8))
         )
 
         XCTAssertEqual(
@@ -2054,6 +2055,20 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertEqual(
             SonicBloomUpdater.decision(currentVersion: "0.1.0", currentSystemVersion: "13.0", manifest: manifest),
             .missingChecksum(manifest)
+        )
+    }
+
+    func testUpdateManifestRequiresValidPackageChecksum() throws {
+        let manifest = SonicBloomUpdateManifest(
+            version: "0.2.0",
+            minimumSystemVersion: "13.0",
+            packageURL: URL(string: "https://example.com/SonicBloom-0.2.0.pkg")!,
+            packageSHA256: "abc123"
+        )
+
+        XCTAssertEqual(
+            SonicBloomUpdater.decision(currentVersion: "0.1.0", currentSystemVersion: "13.0", manifest: manifest),
+            .invalidChecksum(manifest)
         )
     }
 
