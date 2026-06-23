@@ -40,10 +40,8 @@ final class SonicBloomViewModel: ObservableObject {
     private var cpuRefreshTask: Task<Void, Never>?
     private var routeRecoveryTask: Task<Void, Never>?
     private var appActivationObserver: NSObjectProtocol?
-    private var smartPresetStabilizer = SmartPresetStabilizer()
     private var activeProfileOutputName: String?
     private var isApplyingDevicePreset = false
-    private var isApplyingSmartPreset = false
     private var isRememberingSelectedPreset = false
 #if DEBUG
     var profileAudioRefreshCountForTesting = 0
@@ -72,9 +70,6 @@ final class SonicBloomViewModel: ObservableObject {
     @Published var settings: SonicBloomSettings {
         didSet {
             save(settings, forKey: DefaultsKey.settings)
-            if !settings.smartPresetMatching {
-                smartPresetStabilizer.reset()
-            }
             if oldValue.syncMode != settings.syncMode {
                 routeState.bufferSize = Int(processingSyncMode.preferredBufferFrameSize)
                 if isBridgeRunning, !isTransitioning {
@@ -417,7 +412,7 @@ final class SonicBloomViewModel: ObservableObject {
             TrustDiagnostic(title: "Buffer", value: "\(routeState.bufferSize) frames", tint: .blue),
             TrustDiagnostic(title: "App", value: activeAppRule?.displayName ?? "Global", tint: activeAppRule == nil ? .blue : .green),
             TrustDiagnostic(title: "CPU", value: String(format: "%.1f%%", cpuUsagePercent), tint: cpuUsagePercent > 15 ? .orange : .green),
-            TrustDiagnostic(title: "Content", value: smartContentProfile.rawValue.capitalized, tint: settings.smartPresetMatching ? .green : .blue),
+            TrustDiagnostic(title: "Content", value: smartContentProfile.rawValue.capitalized, tint: .blue),
             TrustDiagnostic(title: "Clips", value: "\(meterModel.meter.limitedSamples) protected", tint: meterModel.meter.limitedSamples > 0 ? .orange : .green),
             TrustDiagnostic(title: "Recovery", value: routeState.recoverySummary, tint: lastError == nil ? .green : .orange)
         ]
@@ -450,6 +445,10 @@ final class SonicBloomViewModel: ObservableObject {
         activeAppRule = profile.effectiveAppRule(for: bundleIdentifier)
     }
 
+    func handleMeterForTesting(_ meter: DSPMeter) {
+        handleMeter(meter)
+    }
+
 #endif
 
     private func save<T: Encodable>(_ value: T, forKey key: String) {
@@ -458,8 +457,7 @@ final class SonicBloomViewModel: ObservableObject {
     }
 
     private var processingPreset: DSPPreset {
-        presetApplyingSavedAppRule(basePreset: selectedPreset, for: foregroundAppBundleIdentifier)
-            .optimized(for: processingSyncMode)
+        selectedPreset.optimized(for: processingSyncMode)
     }
 
     private var processingSyncMode: AudioSyncMode {
@@ -470,64 +468,20 @@ final class SonicBloomViewModel: ObservableObject {
         bridge.update(preset: processingPreset, bypass: isBypassed, loudnessMatchedBypass: settings.loudnessMatchedCompare)
     }
 
-    private var perAppBasePreset: DSPPreset {
-        selectedPreset.optimized(for: processingSyncMode)
-    }
-
-    private func presetApplyingSavedAppRule(basePreset: DSPPreset, for bundleIdentifier: String?) -> DSPPreset {
-        guard let rule = profile.appRule(for: bundleIdentifier) else { return basePreset }
-        let preset = rule.presetName.flatMap { name in
-            presets.first { $0.name == name }
-        } ?? basePreset
-        let gain = rule.isMuted ? -60 : min(max(preset.outputGainDB + rule.gainDB, -60), 12)
-        return preset.with(outputGainDB: gain)
-    }
-
     private func restartPerAppTapsIfRunning() {
         guard isBridgeRunning, !isTransitioning else { return }
         startPerAppTaps(sampleRate: routeState.sampleRate)
     }
 
-    private func startPerAppTaps(sampleRate: Double) {
+    private func startPerAppTaps(sampleRate _: Double) {
         perAppTapCoordinator.stop()
+        // ponytail: process taps destabilize the master system route; re-enable behind an explicit per-app toggle later.
         refreshAppMixerRules()
-        let bridge = self.bridge
-        do {
-            try perAppTapCoordinator.start(
-                items: appMixerItems,
-                basePreset: perAppBasePreset,
-                sampleRate: sampleRate,
-                catalog: presets
-            ) { _, frames in
-                bridge.enqueueAppFrames(frames, observedCallbackFrames: frames.count)
-            }
-        } catch {
-            lastError = error.localizedDescription
-        }
     }
 
     private func handleMeter(_ meter: DSPMeter) {
         meterModel.meter = meter
-        let oldSyncMode = processingSyncMode
         smartContentProfile = SmartPresetAdvisor.profile(for: meter)
-        if oldSyncMode != processingSyncMode {
-            routeState.bufferSize = Int(processingSyncMode.preferredBufferFrameSize)
-            if isBridgeRunning, !isTransitioning {
-                startBridge()
-                return
-            }
-        }
-        guard settings.smartPresetMatching,
-              isBridgeRunning,
-              !isBypassed,
-              selectedPreset.name != DSPPreset.manual.name,
-              let suggested = smartPresetStabilizer.observe(smartContentProfile),
-              suggested.name != selectedPreset.name else { return }
-
-        isApplyingSmartPreset = true
-        selectedPreset = suggested
-        isApplyingSmartPreset = false
-        routeState.statusMessage = "Smart preset: \(suggested.name)"
     }
 
     private func applyDevicePresetIfNeeded() {
@@ -540,7 +494,7 @@ final class SonicBloomViewModel: ObservableObject {
     }
 
     private func rememberSelectedPresetForCurrentOutput() {
-        guard !isApplyingDevicePreset, !isApplyingSmartPreset else { return }
+        guard !isApplyingDevicePreset else { return }
         isRememberingSelectedPreset = true
         defer { isRememberingSelectedPreset = false }
         profile.favoritePresetName = selectedPreset.name

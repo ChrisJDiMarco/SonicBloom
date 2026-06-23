@@ -33,6 +33,43 @@ final class SonicBloomAppTests: XCTestCase {
         XCTAssertEqual(viewModel.processingSyncModeForTesting, .music)
     }
 
+    @MainActor
+    func testSavedAppRuleDoesNotOverrideMasterPreset() {
+        let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let viewModel = SonicBloomViewModel(defaults: defaults)
+
+        viewModel.profile.upsert(AppAudioRule(
+            bundleIdentifier: "com.google.Chrome",
+            displayName: "Chrome",
+            isMuted: true,
+            presetName: DSPPreset.spokenVoice.name
+        ))
+        viewModel.setForegroundAppBundleIdentifierForTesting("com.google.Chrome")
+        viewModel.selectedPreset = .deepBass
+
+        XCTAssertEqual(viewModel.processingPresetForTesting.name, DSPPreset.deepBass.name)
+        XCTAssertGreaterThan(viewModel.processingPresetForTesting.outputGainDB, -60)
+    }
+
+    @MainActor
+    func testSmartMeterDoesNotChangeMasterPreset() {
+        let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let viewModel = SonicBloomViewModel(defaults: defaults)
+        viewModel.settings = SonicBloomSettings(smartPresetMatching: true)
+        viewModel.isBridgeRunning = true
+        viewModel.selectedPreset = .deepBass
+
+        for _ in 0..<6 {
+            viewModel.handleMeterForTesting(DSPMeter(lowEnergy: 0.14, midEnergy: 0.20, highEnergy: 0.18))
+        }
+
+        XCTAssertEqual(viewModel.selectedPreset.name, DSPPreset.deepBass.name)
+    }
+
     func testPerAppMixerLeavesRoomForRouteActionTray() {
         XCTAssertGreaterThanOrEqual(
             PerAppMixerLayout.bottomScrollClearance,
