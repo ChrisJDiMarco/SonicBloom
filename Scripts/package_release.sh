@@ -78,6 +78,7 @@ fi
 if [[ -n "$notary_profile" ]]; then
   run xcrun notarytool submit "$pkg" --keychain-profile "$notary_profile" --wait
   run xcrun stapler staple "$pkg"
+  run xcrun stapler validate "$pkg"
 fi
 
 manifest="$pkg_dir/SonicBloom-update.json"

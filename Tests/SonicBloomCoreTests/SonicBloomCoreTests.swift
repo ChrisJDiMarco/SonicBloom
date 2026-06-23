@@ -1845,6 +1845,14 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertTrue(packageScript.contains("minimumSystemVersion"))
     }
 
+    func testPackageReleaseValidatesStapledNotarization() throws {
+        let packageScript = try String(contentsOf: URL(fileURLWithPath: "Scripts/package_release.sh"))
+
+        XCTAssertTrue(packageScript.contains("xcrun notarytool submit"))
+        XCTAssertTrue(packageScript.contains("xcrun stapler staple"))
+        XCTAssertTrue(packageScript.contains("xcrun stapler validate"))
+    }
+
     func testPackageReleaseRequiresSigningIdentityForNotarization() throws {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
