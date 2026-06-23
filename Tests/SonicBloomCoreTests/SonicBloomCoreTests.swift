@@ -457,8 +457,24 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertGreaterThan(profile.calibrationBandsDB[17], 1.5)
     }
 
+    func testAutoEQImporterParsesParametricFilterExport() throws {
+        let text = """
+        Preamp: -6.0 dB
+        Filter 1: ON PK Fc 80 Hz Gain -5.5 dB Q 0.70
+        Filter 2: ON PK Fc 1000 Hz Gain 2.5 dB Q 1.41
+        Filter 3: ON PK Fc 10000 Hz Gain 4.0 dB Q 2.00
+        """
+
+        let profile = try AutoEQProfileImporter.profile(name: "Parametric", manufacturer: "AutoEQ", text: text)
+
+        XCTAssertEqual(profile.id, "autoeq-parametric")
+        XCTAssertLessThan(profile.calibrationBandsDB[6], -4.5)
+        XCTAssertGreaterThan(profile.calibrationBandsDB[17], 2)
+        XCTAssertGreaterThan(profile.calibrationBandsDB[27], 3)
+    }
+
     func testAutoEQImporterRejectsEmptyProfile() {
-        XCTAssertThrowsError(try AutoEQProfileImporter.profile(name: "", manufacturer: "", text: "Filter 1: ON PK Fc 1000 Hz Gain 3 dB Q 1.4"))
+        XCTAssertThrowsError(try AutoEQProfileImporter.profile(name: "", manufacturer: "", text: "Preamp: -6.0 dB"))
     }
 
     func testRealtimeRingBufferDropsOldestAndZeroFillsUnderflow() {

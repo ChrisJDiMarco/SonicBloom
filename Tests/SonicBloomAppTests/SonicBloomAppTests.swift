@@ -137,6 +137,27 @@ final class SonicBloomAppTests: XCTestCase {
     }
 
     @MainActor
+    func testImportedParametricAutoEQProfileAppliesToSelectedPreset() throws {
+        let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let viewModel = SonicBloomViewModel.testInstance(defaults: defaults)
+        viewModel.selectedPreset = .flat
+
+        try viewModel.importAutoEQProfile(
+            name: "Parametric AutoEQ",
+            text: """
+            Filter 1: ON PK Fc 80 Hz Gain -5.0 dB Q 0.70
+            Filter 2: ON PK Fc 1000 Hz Gain 2.5 dB Q 1.41
+            """
+        )
+
+        XCTAssertLessThan(viewModel.selectedPreset.eqBandsDB[6], -4)
+        XCTAssertGreaterThan(viewModel.selectedPreset.eqBandsDB[17], 2)
+        XCTAssertTrue(viewModel.availableHeadphoneProfiles.contains { $0.name == "Parametric AutoEQ" })
+    }
+
+    @MainActor
     func testViewModelRemovesImportedHeadphoneProfiles() throws {
         let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!

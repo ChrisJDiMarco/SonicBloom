@@ -1027,6 +1027,12 @@ public enum AutoEQProfileImporter {
             }.sorted { $0.frequency < $1.frequency }
         }
 
+        let parametric = text.components(separatedBy: .newlines)
+            .compactMap(parametricPoint)
+        if !parametric.isEmpty {
+            return parametric.sorted { $0.frequency < $1.frequency }
+        }
+
         return text.components(separatedBy: .newlines).compactMap { line in
             let values = numbers(in: line)
             guard values.count >= 2 else { return nil }
@@ -1050,6 +1056,17 @@ public enum AutoEQProfileImporter {
     private static func numbers(in line: String) -> [Double] {
         line.split { !$0.isNumber && $0 != "." && $0 != "-" && $0 != "+" }
             .compactMap(Double.init)
+    }
+
+    private static func parametricPoint(in line: String) -> (frequency: Double, gain: Double)? {
+        let lower = line.lowercased()
+        guard lower.contains("filter"),
+              let frequencyRange = lower.range(of: "fc"),
+              let gainRange = lower.range(of: "gain") else { return nil }
+        let frequency = numbers(in: String(line[frequencyRange.upperBound...])).first
+        let gain = numbers(in: String(line[gainRange.upperBound...])).first
+        guard let frequency, let gain, frequency >= 10, frequency <= 30_000 else { return nil }
+        return (frequency, gain)
     }
 
     private static func slug(_ value: String) -> String {
