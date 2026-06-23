@@ -333,12 +333,20 @@ public struct AudioProcessSnapshot: Codable, Equatable, Sendable {
     public var bundleIdentifier: String?
     public var isRunningOutput: Bool
     public var isAudible: Bool
+    public var audioObjectID: UInt32?
 
-    public init(processID: Int32, bundleIdentifier: String?, isRunningOutput: Bool, isAudible: Bool) {
+    public init(
+        processID: Int32,
+        bundleIdentifier: String?,
+        isRunningOutput: Bool,
+        isAudible: Bool,
+        audioObjectID: UInt32? = nil
+    ) {
         self.processID = processID
         self.bundleIdentifier = bundleIdentifier?.isEmpty == false ? bundleIdentifier : nil
         self.isRunningOutput = isRunningOutput
         self.isAudible = isAudible
+        self.audioObjectID = audioObjectID
     }
 }
 
@@ -354,15 +362,21 @@ public struct AppMixerItem: Equatable, Identifiable, Sendable {
     public var id: String { rule.bundleIdentifier }
     public var rule: AppAudioRule
     public var processID: Int32?
+    public var processObjectID: UInt32?
     public var captureStatus: AppCaptureStatus
 
     public var isTapEligible: Bool {
         captureStatus == .ready
     }
 
-    public init(rule: AppAudioRule, processID: Int32? = nil, captureStatus: AppCaptureStatus) {
+    public var canCreateProcessTap: Bool {
+        isTapEligible && processObjectID != nil
+    }
+
+    public init(rule: AppAudioRule, processID: Int32? = nil, processObjectID: UInt32? = nil, captureStatus: AppCaptureStatus) {
         self.rule = rule
         self.processID = processID
+        self.processObjectID = processObjectID
         self.captureStatus = captureStatus
     }
 }
@@ -393,6 +407,7 @@ public enum AppMixerPlanner {
             itemsByBundle[app.bundleIdentifier] = AppMixerItem(
                 rule: rule,
                 processID: process?.processID ?? app.processID,
+                processObjectID: process?.audioObjectID,
                 captureStatus: captureStatus(for: process)
             )
         }

@@ -668,6 +668,15 @@ private struct PerAppRuleRow: View {
                         .padding(.vertical, 2)
                         .background(statusColor.opacity(0.12))
                         .clipShape(Capsule())
+                    if item.canCreateProcessTap {
+                        Text("TAP")
+                            .font(.system(size: 9, weight: .black))
+                            .foregroundStyle(SBColor.blue)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(SBColor.blue.opacity(0.12))
+                            .clipShape(Capsule())
+                    }
                 }
                 Text(rule.bundleIdentifier)
                     .font(.caption2)

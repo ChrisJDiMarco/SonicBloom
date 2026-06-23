@@ -651,6 +651,59 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertFalse(items[0].isTapEligible)
     }
 
+    func testAppMixerPlannerExposesProcessTapReadiness() throws {
+        let apps = [
+            RunningAppSnapshot(bundleIdentifier: "com.spotify.client", displayName: "Spotify", processID: 101)
+        ]
+        let processes = [
+            AudioProcessSnapshot(processID: 101, bundleIdentifier: "com.spotify.client", isRunningOutput: true, isAudible: true, audioObjectID: 9001)
+        ]
+
+        let item = try XCTUnwrap(AppMixerPlanner.items(savedRules: [:], runningApps: apps, audioProcesses: processes, currentBundleIdentifier: nil).first)
+
+        XCTAssertEqual(item.processObjectID, 9001)
+        XCTAssertTrue(item.canCreateProcessTap)
+    }
+
+    func testProcessTapManagerCreatesAndDestroysTap() throws {
+        var createdProcessObjects: [UInt32] = []
+        var destroyedTaps: [UInt32] = []
+        let manager = CoreAudioProcessTapManager(
+            createTap: { ids in
+                createdProcessObjects = ids
+                return 777
+            },
+            destroyTap: { id in
+                destroyedTaps.append(id)
+                return noErr
+            }
+        )
+        let item = AppMixerItem(
+            rule: AppAudioRule(bundleIdentifier: "com.spotify.client", displayName: "Spotify"),
+            processID: 101,
+            processObjectID: 9001,
+            captureStatus: .ready
+        )
+
+        let tap = try manager.createTap(for: item)
+        manager.destroyAll()
+
+        XCTAssertEqual(tap.id, 777)
+        XCTAssertEqual(createdProcessObjects, [9001])
+        XCTAssertEqual(destroyedTaps, [777])
+    }
+
+    func testProcessTapManagerRejectsAppWithoutCoreAudioObjectID() {
+        let manager = CoreAudioProcessTapManager(createTap: { _ in 1 }, destroyTap: { _ in noErr })
+        let item = AppMixerItem(
+            rule: AppAudioRule(bundleIdentifier: "com.apple.TextEdit", displayName: "TextEdit"),
+            processID: 303,
+            captureStatus: .ready
+        )
+
+        XCTAssertThrowsError(try manager.createTap(for: item))
+    }
+
     func testProfileEffectiveAppRuleUsesSuggestionsUntilSavedRuleExists() {
         var profile = SonicBloomProfile.default
 

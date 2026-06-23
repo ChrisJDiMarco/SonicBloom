@@ -644,7 +644,8 @@ public final class CoreAudioProcessInventory {
             processID: processID,
             bundleIdentifier: readBundleIdentifier(processObjectID),
             isRunningOutput: readBool(processObjectID, selector: kAudioProcessPropertyIsRunningOutput, defaultValue: false),
-            isAudible: readBool(processObjectID, selector: kAudioHardwarePropertyProcessIsAudible, defaultValue: true)
+            isAudible: readBool(processObjectID, selector: kAudioHardwarePropertyProcessIsAudible, defaultValue: true),
+            audioObjectID: UInt32(processObjectID)
         )
     }
 
@@ -680,5 +681,79 @@ public final class CoreAudioProcessInventory {
             mScope: kAudioObjectPropertyScopeGlobal,
             mElement: kAudioObjectPropertyElementMain
         )
+    }
+}
+
+public struct CoreAudioProcessTap: Equatable, Sendable {
+    public var id: UInt32
+    public var processObjectIDs: [UInt32]
+
+    public init(id: UInt32, processObjectIDs: [UInt32]) {
+        self.id = id
+        self.processObjectIDs = processObjectIDs
+    }
+}
+
+public final class CoreAudioProcessTapManager: @unchecked Sendable {
+    private let createTap: ([UInt32]) throws -> UInt32
+    private let destroyTap: (UInt32) -> OSStatus
+    private let lock = NSLock()
+    private var activeTapIDs: [UInt32] = []
+
+    public convenience init() {
+        self.init(createTap: Self.systemCreateTap, destroyTap: Self.systemDestroyTap)
+    }
+
+    init(createTap: @escaping ([UInt32]) throws -> UInt32, destroyTap: @escaping (UInt32) -> OSStatus) {
+        self.createTap = createTap
+        self.destroyTap = destroyTap
+    }
+
+    deinit {
+        destroyAll()
+    }
+
+    public func createTap(for item: AppMixerItem) throws -> CoreAudioProcessTap {
+        guard item.isTapEligible, let processObjectID = item.processObjectID else {
+            throw AudioRouteError.bridgeUnavailable("This app is not ready for per-app audio capture yet.")
+        }
+        let tapID = try createTap([processObjectID])
+        lock.lock()
+        activeTapIDs.append(tapID)
+        lock.unlock()
+        return CoreAudioProcessTap(id: tapID, processObjectIDs: [processObjectID])
+    }
+
+    public func destroyAll() {
+        lock.lock()
+        let tapIDs = activeTapIDs
+        activeTapIDs.removeAll()
+        lock.unlock()
+
+        for tapID in tapIDs {
+            _ = destroyTap(tapID)
+        }
+    }
+
+    private static func systemCreateTap(processObjectIDs: [UInt32]) throws -> UInt32 {
+        guard #available(macOS 14.2, *) else {
+            throw AudioRouteError.bridgeUnavailable("Per-app audio capture requires macOS 14.2 or newer.")
+        }
+        let description = CATapDescription(stereoMixdownOfProcesses: processObjectIDs.map { AudioObjectID($0) })
+        description.name = "SonicBloom App Tap"
+        description.isPrivate = true
+        description.muteBehavior = CATapMuteBehavior.muted
+
+        var tapID = AudioObjectID(kAudioObjectUnknown)
+        let status = AudioHardwareCreateProcessTap(description, &tapID)
+        guard status == noErr, tapID != kAudioObjectUnknown else {
+            throw AudioRouteError.coreAudioFailed("Unable to create per-app audio tap.", status)
+        }
+        return UInt32(tapID)
+    }
+
+    private static func systemDestroyTap(_ tapID: UInt32) -> OSStatus {
+        guard #available(macOS 14.2, *) else { return noErr }
+        return AudioHardwareDestroyProcessTap(AudioObjectID(tapID))
     }
 }
