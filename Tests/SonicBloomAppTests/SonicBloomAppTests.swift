@@ -66,6 +66,25 @@ final class SonicBloomAppTests: XCTestCase {
         XCTAssertTrue(controlPanel.contains("SBColor.orange.opacity(0.22)"))
     }
 
+    func testMainUXExposesSetupFeedbackAndTooltips() throws {
+        let controlPanel = try String(contentsOf: URL(fileURLWithPath: "Sources/SonicBloomApp/SonicBloomControlPanel.swift"))
+
+        XCTAssertTrue(controlPanel.contains("FirstRunWizardCard"))
+        XCTAssertTrue(controlPanel.contains("viewModel.nextSetupStep"))
+        XCTAssertTrue(controlPanel.contains("PresetStatusLine"))
+        XCTAssertTrue(controlPanel.contains("controlHelpText"))
+        XCTAssertTrue(controlPanel.contains("Microphone permission is only for SonicBloom Output"))
+    }
+
+    func testMenuBarExposesQuickPresetAndRepairControls() throws {
+        let delegate = try String(contentsOf: URL(fileURLWithPath: "Sources/SonicBloomApp/SonicBloomAppDelegate.swift"))
+
+        XCTAssertTrue(delegate.contains("makePresetMenu()"))
+        XCTAssertTrue(delegate.contains("Repair Audio Route"))
+        XCTAssertTrue(delegate.contains("Optimize For Video Sync"))
+        XCTAssertTrue(delegate.contains("selectPresetFromMenu"))
+    }
+
     @MainActor
     func testSelectedPresetWinsOverSuggestedForegroundAppPreset() {
         let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
@@ -79,6 +98,18 @@ final class SonicBloomAppTests: XCTestCase {
 
         XCTAssertEqual(viewModel.processingPresetForTesting.name, DSPPreset.deepBass.name)
         XCTAssertEqual(viewModel.profileAudioRefreshCountForTesting, 0)
+    }
+
+    @MainActor
+    func testPresetSelectionPublishesAppliedStatus() {
+        let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let viewModel = SonicBloomViewModel.testInstance(defaults: defaults)
+
+        viewModel.selectPreset(.deepBass)
+
+        XCTAssertEqual(viewModel.routeState.statusMessage, "Preset applied: Deep Bass")
     }
 
     @MainActor

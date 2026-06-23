@@ -5,6 +5,7 @@ import SwiftUI
 @MainActor
 final class SonicBloomAppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
+    private var statusMenu: NSMenu?
     private var enhancementMenuItem: NSMenuItem?
     private var bypassMenuItem: NSMenuItem?
     private var window: NSWindow?
@@ -30,17 +31,9 @@ final class SonicBloomAppDelegate: NSObject, NSApplicationDelegate {
 
         let menu = NSMenu()
         menu.delegate = self
-        let enhancementItem = NSMenuItem(title: "Enhance Mac Audio", action: #selector(toggleEnhancement), keyEquivalent: "e")
-        let bypassItem = NSMenuItem(title: "Compare Raw Audio", action: #selector(toggleBypass), keyEquivalent: "b")
-        menu.addItem(NSMenuItem(title: "Open SonicBloom", action: #selector(openControlPanel), keyEquivalent: "o"))
-        menu.addItem(enhancementItem)
-        menu.addItem(bypassItem)
-        menu.addItem(.separator())
-        menu.addItem(NSMenuItem(title: "Quit", action: #selector(quit), keyEquivalent: "q"))
         item.menu = menu
         statusItem = item
-        enhancementMenuItem = enhancementItem
-        bypassMenuItem = bypassItem
+        statusMenu = menu
         refreshStatusMenu()
     }
 
@@ -75,6 +68,23 @@ final class SonicBloomAppDelegate: NSObject, NSApplicationDelegate {
         refreshStatusMenu()
     }
 
+    @objc private func selectPresetFromMenu(_ sender: NSMenuItem) {
+        guard let presetName = sender.representedObject as? String,
+              let preset = viewModel.presets.first(where: { $0.name == presetName }) else { return }
+        viewModel.selectPreset(preset)
+        refreshStatusMenu()
+    }
+
+    @objc private func repairAudioRoute() {
+        viewModel.repairAudioPath()
+        refreshStatusMenu()
+    }
+
+    @objc private func optimizeForVideoSync() {
+        viewModel.optimizeLatencyForVideo()
+        refreshStatusMenu()
+    }
+
     @objc private func quit() {
         NSApp.terminate(nil)
     }
@@ -94,10 +104,58 @@ final class SonicBloomAppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func refreshStatusMenu() {
-        enhancementMenuItem?.title = viewModel.isBridgeRunning ? "Turn Off Enhancement" : viewModel.primaryActionTitle
-        enhancementMenuItem?.isEnabled = !viewModel.isTransitioning
-        bypassMenuItem?.state = viewModel.isBypassed ? .on : .off
-        bypassMenuItem?.isEnabled = viewModel.isBridgeRunning
+        guard let menu = statusMenu else { return }
+        menu.removeAllItems()
+
+        menu.addItem(disabledItem(viewModel.isBridgeRunning ? "Live: \(viewModel.selectedPreset.name)" : "Ready: \(viewModel.selectedPreset.name)"))
+        menu.addItem(disabledItem("Output: \(viewModel.routeState.selectedPhysicalOutputName ?? "No output")"))
+        menu.addItem(.separator())
+        menu.addItem(actionItem("Open SonicBloom", #selector(openControlPanel), "o"))
+
+        let enhancementItem = actionItem(viewModel.isBridgeRunning ? "Turn Off Enhancement" : viewModel.primaryActionTitle, #selector(toggleEnhancement), "e")
+        enhancementItem.isEnabled = !viewModel.isTransitioning
+        menu.addItem(enhancementItem)
+
+        let presetItem = NSMenuItem(title: "Preset: \(viewModel.selectedPreset.name)", action: nil, keyEquivalent: "")
+        presetItem.submenu = makePresetMenu()
+        menu.addItem(presetItem)
+
+        let bypassItem = actionItem("Compare Raw Audio", #selector(toggleBypass), "b")
+        bypassItem.state = viewModel.isBypassed ? .on : .off
+        bypassItem.isEnabled = viewModel.isBridgeRunning
+        menu.addItem(bypassItem)
+
+        menu.addItem(.separator())
+        menu.addItem(actionItem("Repair Audio Route", #selector(repairAudioRoute), "r"))
+        menu.addItem(actionItem("Optimize For Video Sync", #selector(optimizeForVideoSync), "v"))
+        menu.addItem(.separator())
+        menu.addItem(actionItem("Quit", #selector(quit), "q"))
+
+        enhancementMenuItem = enhancementItem
+        bypassMenuItem = bypassItem
+    }
+
+    private func makePresetMenu() -> NSMenu {
+        let menu = NSMenu()
+        for preset in viewModel.presets {
+            let item = actionItem(preset.name, #selector(selectPresetFromMenu(_:)))
+            item.representedObject = preset.name
+            item.state = preset.name == viewModel.selectedPreset.name ? .on : .off
+            menu.addItem(item)
+        }
+        return menu
+    }
+
+    private func actionItem(_ title: String, _ action: Selector, _ key: String = "") -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: action, keyEquivalent: key)
+        item.target = self
+        return item
+    }
+
+    private func disabledItem(_ title: String) -> NSMenuItem {
+        let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
+        item.isEnabled = false
+        return item
     }
 }
 

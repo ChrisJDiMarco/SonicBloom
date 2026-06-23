@@ -63,6 +63,12 @@ struct SonicBloomControlPanel: View {
 
             ProcessingCard(viewModel: viewModel)
 
+            if let step = viewModel.nextSetupStep {
+                FirstRunWizardCard(step: step) {
+                    viewModel.runSetupGuideAction(step.id)
+                }
+            }
+
             Button {
                 viewModel.settings.showAdvancedControls.toggle()
             } label: {
@@ -322,6 +328,7 @@ private struct HeroAnalyzer: View {
                         .lineLimit(1)
                         .truncationMode(.middle)
                         .help(outputLine)
+                    PresetStatusLine(viewModel: viewModel)
                 }
                 .layoutPriority(1)
                 Spacer()
@@ -1339,6 +1346,92 @@ private struct SyncModePicker: View {
     }
 }
 
+private struct FirstRunWizardCard: View {
+    var step: FirstRunSetupStep
+    var action: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            HStack(spacing: 8) {
+                Image(systemName: "checklist")
+                    .foregroundStyle(SBColor.orange)
+                Text("QUICK SETUP")
+                    .font(.caption.weight(.black))
+                    .foregroundStyle(SBColor.orange)
+                Spacer()
+            }
+            Text(step.title)
+                .font(.callout.weight(.bold))
+            Text(step.detail)
+                .font(.caption)
+                .foregroundStyle(SBColor.subtext)
+                .lineLimit(2)
+            Text("Microphone permission is only for SonicBloom Output; it routes Mac audio, not your physical mic.")
+                .font(.caption2)
+                .foregroundStyle(SBColor.subtext)
+                .lineLimit(3)
+            Button(step.actionTitle, action: action)
+                .font(.caption.weight(.bold))
+                .buttonStyle(SonicPressButtonStyle())
+                .foregroundStyle(SBColor.blue)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(SBColor.orange.opacity(0.11))
+        .overlay { RoundedRectangle(cornerRadius: 8).stroke(SBColor.orange.opacity(0.45), lineWidth: 1) }
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Quick setup: \(step.title)")
+        .help("Complete setup: \(step.detail)")
+    }
+}
+
+private struct PresetStatusLine: View {
+    @ObservedObject var viewModel: SonicBloomViewModel
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Circle()
+                .fill(color)
+                .frame(width: 6, height: 6)
+            Text(text)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(color)
+                .lineLimit(1)
+                .truncationMode(.tail)
+            if needsRepairAction {
+                Button("Repair") {
+                    viewModel.repairAudioPath()
+                }
+                .font(.caption.weight(.bold))
+                .buttonStyle(SonicPressButtonStyle())
+                .foregroundStyle(SBColor.blue)
+            }
+        }
+        .help(text)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(text)
+    }
+
+    private var text: String {
+        if let lastError = viewModel.lastError {
+            return "Needs attention: \(lastError)"
+        }
+        if viewModel.audioHealth.needsRepair {
+            return "Audio issue detected. Repair keeps playback routed."
+        }
+        return viewModel.routeState.statusMessage
+    }
+
+    private var color: Color {
+        viewModel.lastError != nil || viewModel.audioHealth.needsRepair ? SBColor.orange : SBColor.green
+    }
+
+    private var needsRepairAction: Bool {
+        viewModel.lastError != nil || viewModel.audioHealth.needsRepair
+    }
+}
+
 private struct ProcessingCard: View {
     @ObservedObject var viewModel: SonicBloomViewModel
 
@@ -1710,6 +1803,7 @@ private struct KnobControl: View {
         .contentShape(Rectangle())
         .onHover { isHovering = $0 }
         .highPriorityGesture(knobDragGesture)
+        .help(controlHelpText(accessibilityTitle))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityTitle)
         .accessibilityValue(label)
@@ -1847,6 +1941,7 @@ private struct MiniSlider: View {
                 .accessibilityValue(String(format: "%.2f", value))
                 .accessibilityHint("Use arrow keys or VoiceOver increment and decrement to adjust.")
         }
+        .help(controlHelpText(title))
     }
 }
 
@@ -2220,6 +2315,41 @@ private enum SBColor {
 
 private func ns(_ red: CGFloat, _ green: CGFloat, _ blue: CGFloat, _ alpha: CGFloat = 1) -> NSColor {
     NSColor(calibratedRed: red, green: green, blue: blue, alpha: alpha)
+}
+
+private func controlHelpText(_ title: String) -> String {
+    switch title.uppercased() {
+    case "INPUT TRIM":
+        return "Sets how hard audio enters SonicBloom before EQ, bass, and limiting."
+    case "BASS BLOOM", "BASS RESPONSE":
+        return "Adds low-end weight while the limiter protects against clipping."
+    case "LOUDNESS", "MAGIC INTENSITY":
+        return "Raises perceived volume with compression and clipping protection."
+    case "MASTERING":
+        return "Balances tone and dynamics for a more finished sound."
+    case "PRESENCE", "CLARITY":
+        return "Adds high-frequency detail without pushing harsh peaks too far."
+    case "NIGHT":
+        return "Tames loud moments and lifts quiet detail for low-volume listening."
+    case "STEREO WIDTH":
+        return "Adjusts left-right spread. Too much can weaken center vocals."
+    case "SPATIAL BLOOM", "HRTF IMAGE", "SPACE":
+        return "Adds depth and room image for a wider headphone soundstage."
+    case "CROSSFEED":
+        return "Blends a little left into right and right into left for less fatiguing headphones."
+    case "AMBIENCE":
+        return "Adds a short room tail around dry audio."
+    case "CEILING":
+        return "Sets the limiter safety ceiling below digital clipping."
+    case "LOOKAHEAD":
+        return "Lets the limiter see peaks slightly early. More lookahead adds latency."
+    case "RELEASE":
+        return "Controls how quickly limiting relaxes after loud peaks."
+    case "WAVEFORM INTENSITY":
+        return "Changes visualizer energy only; it does not change audio."
+    default:
+        return "Drag to adjust. Double-check by listening at normal volume."
+    }
 }
 
 private extension Color {

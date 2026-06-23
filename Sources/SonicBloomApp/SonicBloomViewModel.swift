@@ -481,6 +481,7 @@ final class SonicBloomViewModel: ObservableObject {
         presetUndoState.clear()
         selectedPreset = preset
         try? routeManager.handle(.setPreset(preset))
+        routeState.statusMessage = "Preset applied: \(preset.name)"
     }
 
     var canUndoPresetChange: Bool {
@@ -780,6 +781,10 @@ final class SonicBloomViewModel: ObservableObject {
             isBridgeRunning: isBridgeRunning,
             hasPlayedTestSound: hasPlayedSetupTestSound
         )
+    }
+
+    var nextSetupStep: FirstRunSetupStep? {
+        setupGuideSteps.first { !$0.isComplete }
     }
 
     var isSetupGuideComplete: Bool {
