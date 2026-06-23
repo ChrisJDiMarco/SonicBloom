@@ -2,6 +2,11 @@ import AppKit
 import SonicBloomCore
 import SwiftUI
 
+enum SonicBloomWindowMetrics {
+    static let defaultSize = NSSize(width: 1440, height: 900)
+    static let minimumSize = NSSize(width: 1440, height: 640)
+}
+
 struct SonicBloomControlPanel: View {
     @ObservedObject var viewModel: SonicBloomViewModel
     @State private var tab = ConsoleTab.studio
@@ -18,14 +23,21 @@ struct SonicBloomControlPanel: View {
                         ConsoleTabBar(selection: $tab)
                             .fixedSize(horizontal: false, vertical: true)
                         GeometryReader { viewport in
-                            ScrollView(.vertical) {
+                            if tab == .studio {
                                 tabContent
-                                    .frame(maxWidth: .infinity, alignment: .topLeading)
-                                    .frame(minHeight: viewport.size.height, alignment: .topLeading)
-                                    .padding(.bottom, 10)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                                    .frame(height: viewport.size.height, alignment: .topLeading)
+                                    .clipped()
+                            } else {
+                                ScrollView(.vertical) {
+                                    tabContent
+                                        .frame(maxWidth: .infinity, alignment: .topLeading)
+                                        .frame(minHeight: viewport.size.height, alignment: .topLeading)
+                                        .padding(.bottom, 10)
+                                }
+                                .scrollIndicators(.visible)
+                                .clipped()
                             }
-                            .scrollIndicators(.visible)
-                            .clipped()
                         }
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     } else {
@@ -38,7 +50,11 @@ struct SonicBloomControlPanel: View {
             .padding(20)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
-        .frame(minWidth: 1440, minHeight: 900, alignment: .topLeading)
+        .frame(
+            minWidth: SonicBloomWindowMetrics.minimumSize.width,
+            minHeight: SonicBloomWindowMetrics.minimumSize.height,
+            alignment: .topLeading
+        )
         .background(SBColor.canvas)
         .foregroundStyle(SBColor.text)
         .tint(SBColor.green)
@@ -46,6 +62,23 @@ struct SonicBloomControlPanel: View {
     }
 
     private var sidebar: some View {
+        GeometryReader { viewport in
+            let contentHeight = max(viewport.size.height - 36, 0)
+            ScrollView(.vertical) {
+                sidebarContent
+                    .frame(minHeight: contentHeight, alignment: .topLeading)
+                    .padding(18)
+            }
+            .scrollIndicators(.automatic)
+            .clipped()
+        }
+        .frame(width: 276)
+        .frame(maxHeight: .infinity)
+        .consolePanel()
+        .clipped()
+    }
+
+    private var sidebarContent: some View {
         VStack(alignment: .leading, spacing: 20) {
             HStack(spacing: 12) {
                 SonicLogo(isRunning: viewModel.isBridgeRunning)
@@ -140,10 +173,6 @@ struct SonicBloomControlPanel: View {
             .opacity(viewModel.isTransitioning ? 0.72 : 1)
             .help(viewModel.isBridgeRunning ? "Restore Mac output and stop enhancement" : "Start enhancing Mac audio")
         }
-        .padding(18)
-        .frame(width: 276)
-        .frame(maxHeight: .infinity)
-        .consolePanel()
     }
 
     @ViewBuilder
@@ -435,7 +464,7 @@ private struct ToneEngine: View {
     @ObservedObject var viewModel: SonicBloomViewModel
 
     var body: some View {
-        ConsoleCard(title: "TONE ENGINE", icon: "power", color: SBColor.green) {
+        ConsoleCard(title: "TONE ENGINE", icon: "power", color: SBColor.green, scrollsContent: true) {
             VStack(spacing: 10) {
                 HStack(spacing: 14) {
                     KnobControl(title: "INPUT TRIM", value: binding(\.inputGainDB), range: -12...12, display: "%.1f dB", color: SBColor.green)
@@ -481,7 +510,7 @@ private struct EQConsole: View {
     @ObservedObject var viewModel: SonicBloomViewModel
 
     var body: some View {
-        ConsoleCard(title: "EQ", icon: "power", color: SBColor.green) {
+        ConsoleCard(title: "EQ", icon: "power", color: SBColor.green, scrollsContent: true) {
             VStack(spacing: 10) {
                 EQResponseGraph(bands: viewModel.selectedPreset.eqBandsDB)
                     .frame(height: 120)
@@ -515,7 +544,7 @@ private struct StereoField: View {
     @ObservedObject var viewModel: SonicBloomViewModel
 
     var body: some View {
-        ConsoleCard(title: "STEREO FIELD", icon: "power", color: SBColor.green) {
+        ConsoleCard(title: "STEREO FIELD", icon: "power", color: SBColor.green, scrollsContent: true) {
             VStack(spacing: 12) {
                 StereoVectorscope(meterModel: viewModel.meterModel, width: viewModel.selectedPreset.widthAmount, spatial: viewModel.selectedPreset.spatialAmount)
                     .frame(height: 132)
@@ -2069,6 +2098,7 @@ private struct ConsoleCard<Content: View>: View {
     var title: String
     var icon: String?
     var color: Color
+    var scrollsContent = false
     @ViewBuilder var content: Content
 
     var body: some View {
@@ -2082,11 +2112,26 @@ private struct ConsoleCard<Content: View>: View {
                     .font(.system(size: 13, weight: .bold))
                 Spacer()
             }
-            content
+            cardContent
         }
         .padding(12)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .consolePanel(accent: color.opacity(0.35))
+    }
+
+    @ViewBuilder
+    private var cardContent: some View {
+        if scrollsContent {
+            ScrollView(.vertical) {
+                content
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+            }
+            .scrollIndicators(.automatic)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            .clipped()
+        } else {
+            content
+        }
     }
 }
 

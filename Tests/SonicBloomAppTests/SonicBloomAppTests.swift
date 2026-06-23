@@ -55,7 +55,22 @@ final class SonicBloomAppTests: XCTestCase {
 
         XCTAssertTrue(controlPanel.contains("GeometryReader { viewport in"))
         XCTAssertTrue(controlPanel.contains(".frame(minHeight: viewport.size.height"))
-        XCTAssertFalse(controlPanel.contains(".frame(height: 350)"))
+        XCTAssertTrue(controlPanel.contains("if tab == .studio"))
+        XCTAssertTrue(controlPanel.contains(".frame(height: viewport.size.height"))
+        XCTAssertTrue(controlPanel.contains("scrollsContent: true"))
+        XCTAssertTrue(controlPanel.contains("private var sidebarContent"))
+        XCTAssertTrue(controlPanel.contains(".frame(minHeight: contentHeight"))
+        XCTAssertFalse(controlPanel.contains("minHeight: 900"))
+    }
+
+    func testWindowCanShrinkVerticallyWithoutClippingPanels() throws {
+        let controlPanel = try String(contentsOf: URL(fileURLWithPath: "Sources/SonicBloomApp/SonicBloomControlPanel.swift"))
+        let delegate = try String(contentsOf: URL(fileURLWithPath: "Sources/SonicBloomApp/SonicBloomAppDelegate.swift"))
+
+        XCTAssertTrue(controlPanel.contains("SonicBloomWindowMetrics.minimumSize.height"))
+        XCTAssertTrue(delegate.contains("SonicBloomWindowMetrics.defaultSize"))
+        XCTAssertTrue(delegate.contains("contentMinSize = SonicBloomWindowMetrics.minimumSize"))
+        XCTAssertFalse(delegate.contains("contentMinSize = compactSize"))
     }
 
     func testRawCompareButtonHasObviousActiveState() throws {
