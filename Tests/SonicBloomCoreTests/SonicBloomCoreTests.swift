@@ -1951,6 +1951,20 @@ final class SonicBloomCoreTests: XCTestCase {
         )
     }
 
+    func testUpdateManifestRequiresHTTPSPackageURL() throws {
+        let manifest = SonicBloomUpdateManifest(
+            version: "0.2.0",
+            minimumSystemVersion: "13.0",
+            packageURL: URL(string: "http://example.com/SonicBloom-0.2.0.pkg")!,
+            packageSHA256: "abc123"
+        )
+
+        XCTAssertEqual(
+            SonicBloomUpdater.decision(currentVersion: "0.1.0", currentSystemVersion: "13.0", manifest: manifest),
+            .insecurePackageURL(manifest)
+        )
+    }
+
     func testUpdatePackageVerifierMatchesSHA256() {
         let data = Data("SonicBloom package".utf8)
         let checksum = SonicBloomUpdatePackageVerifier.sha256Hex(for: data)
@@ -1968,6 +1982,27 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertTrue(packageScript.contains("packageSHA256"))
         XCTAssertTrue(packageScript.contains("shasum -a 256"))
         XCTAssertTrue(packageScript.contains("minimumSystemVersion"))
+    }
+
+    func testPackageReleaseRejectsInsecurePackageURL() throws {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        process.arguments = [
+            "SONICBLOOM_PACKAGE_URL=http://example.com/SonicBloom.pkg",
+            "Scripts/package_release.sh",
+            "--dry-run",
+            "--skip-build"
+        ]
+        let errorPipe = Pipe()
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = errorPipe
+
+        try process.run()
+        process.waitUntilExit()
+
+        let errorText = String(data: errorPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        XCTAssertNotEqual(process.terminationStatus, 0)
+        XCTAssertTrue(errorText.contains("SONICBLOOM_PACKAGE_URL must use https://"))
     }
 
     func testQAGateRunsAutomatedReleaseChecks() throws {

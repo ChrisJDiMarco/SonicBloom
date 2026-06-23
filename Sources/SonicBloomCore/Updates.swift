@@ -24,6 +24,7 @@ public struct SonicBloomUpdateManifest: Codable, Equatable, Sendable {
 public enum SonicBloomUpdateDecision: Equatable, Sendable {
     case updateAvailable(SonicBloomUpdateManifest)
     case unsupported(SonicBloomUpdateManifest)
+    case insecurePackageURL(SonicBloomUpdateManifest)
     case upToDate
 }
 
@@ -39,6 +40,9 @@ public enum SonicBloomUpdater {
     ) -> SonicBloomUpdateDecision {
         guard ReleaseVersion(currentSystemVersion) >= ReleaseVersion(manifest.minimumSystemVersion) else {
             return .unsupported(manifest)
+        }
+        guard manifest.packageURL.scheme?.lowercased() == "https" else {
+            return .insecurePackageURL(manifest)
         }
         return ReleaseVersion(manifest.version) > ReleaseVersion(currentVersion) ? .updateAvailable(manifest) : .upToDate
     }

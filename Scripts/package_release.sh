@@ -71,6 +71,11 @@ fi
 pkg="$pkg_dir/SonicBloom-$version.pkg"
 package_url="${SONICBLOOM_PACKAGE_URL:-https://github.com/ChrisJDiMarco/SonicBloom/releases/download/v$version/SonicBloom-$version.pkg}"
 
+if [[ "$package_url" != https://* ]]; then
+  echo "SONICBLOOM_PACKAGE_URL must use https://" >&2
+  exit 65
+fi
+
 run mkdir -p "$pkg_dir"
 run cp Scripts/uninstall_sonicbloom.sh "$pkg_dir/SonicBloom-Uninstall.command"
 run cp Scripts/install_recovery_agent.sh "$pkg_dir/SonicBloom-Install-Recovery.command"
