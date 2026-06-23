@@ -62,6 +62,7 @@ package_url="${SONICBLOOM_PACKAGE_URL:-https://github.com/ChrisJDiMarco/SonicBlo
 
 run mkdir -p "$pkg_dir"
 run cp Scripts/uninstall_sonicbloom.sh "$pkg_dir/SonicBloom-Uninstall.command"
+run cp Docs/Support.md "$pkg_dir/SonicBloom-Support.md"
 run chmod +x "$pkg_dir/SonicBloom-Uninstall.command"
 if [[ -n "$identity" ]]; then
   run productbuild --component "$app" /Applications --identifier com.chrisdimarco.sonicbloom.pkg --version "$version" --sign "$identity" "$pkg"

@@ -1630,6 +1630,17 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertFalse(uninstallScript.contains("Soundflower"))
     }
 
+    func testReleaseShipsSupportGuide() throws {
+        let packageScript = try String(contentsOf: URL(fileURLWithPath: "Scripts/package_release.sh"))
+        let supportGuide = try String(contentsOf: URL(fileURLWithPath: "Docs/Support.md"))
+
+        XCTAssertTrue(packageScript.contains("SonicBloom-Support.md"))
+        XCTAssertTrue(supportGuide.contains("If audio goes silent"))
+        XCTAssertTrue(supportGuide.contains("Reset Mac Output"))
+        XCTAssertTrue(supportGuide.contains("microphone permission"))
+        XCTAssertTrue(supportGuide.contains("diagnostics"))
+    }
+
     func testUpdateManifestReportsAvailableRelease() throws {
         let data = Data("""
         {
