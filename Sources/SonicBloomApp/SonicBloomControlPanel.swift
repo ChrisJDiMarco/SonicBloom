@@ -10,7 +10,7 @@ enum SonicBloomWindowMetrics {
 struct SonicBloomControlPanel: View {
     @ObservedObject var viewModel: SonicBloomViewModel
     @State private var tab = ConsoleTab.studio
-    @State private var isQuickSetupDismissed = false
+    @AppStorage("sonicbloom.quickSetupDismissed") private var isQuickSetupDismissed = false
 
     var body: some View {
         ZStack(alignment: .topLeading) {
