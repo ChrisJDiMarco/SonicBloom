@@ -44,6 +44,14 @@ func fetchUpdatePackage(from url: URL) async throws -> Data {
     return data
 }
 
+private extension JSONEncoder {
+    static var prettyPresetShare: JSONEncoder {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return encoder
+    }
+}
+
 @MainActor
 final class SonicBloomViewModel: ObservableObject {
     let routeManager = CoreAudioRouteManager()
@@ -60,6 +68,7 @@ final class SonicBloomViewModel: ObservableObject {
     private let updatePackageDirectory: URL
     private let audioUnitEffectLoader: AudioUnitEffectLoader
     private let audioUnitEffectPreflight: AudioUnitEffectPreflight
+    private let presetStore: PresetStore
     private var cpuSampler = ProcessCPUUsageSampler()
     private var cpuRefreshTask: Task<Void, Never>?
     private var routeRecoveryTask: Task<Void, Never>?
@@ -73,7 +82,10 @@ final class SonicBloomViewModel: ObservableObject {
     var profileAudioRefreshCountForTesting = 0
 #endif
     let meterModel = SonicBloomMeterModel()
-    let presets = PresetCatalog.builtIns
+    @Published private(set) var customPresets: [DSPPreset] = []
+    var presets: [DSPPreset] {
+        PresetCatalog.builtIns + customPresets
+    }
     @Published var selectedPreset: DSPPreset = .cleanLoud {
         didSet {
             updateBridgePreset()
@@ -138,7 +150,8 @@ final class SonicBloomViewModel: ObservableObject {
         updatePackageDownloader: @escaping UpdatePackageDownloader = fetchUpdatePackage,
         updatePackageDirectory: URL = FileManager.default.temporaryDirectory,
         audioUnitEffectLoader: @escaping AudioUnitEffectLoader = AudioUnitEffectCatalog.installedEffects,
-        audioUnitEffectPreflight: @escaping AudioUnitEffectPreflight = AudioUnitEffectHostPreflight().canLoad
+        audioUnitEffectPreflight: @escaping AudioUnitEffectPreflight = AudioUnitEffectHostPreflight().canLoad,
+        presetStore: PresetStore = PresetStore()
     ) {
         self.defaults = defaults
         self.currentVersion = currentVersion ?? (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.1.0")
@@ -148,6 +161,7 @@ final class SonicBloomViewModel: ObservableObject {
         self.updatePackageDirectory = updatePackageDirectory
         self.audioUnitEffectLoader = audioUnitEffectLoader
         self.audioUnitEffectPreflight = audioUnitEffectPreflight
+        self.presetStore = presetStore
         liveContextEnabled = startLiveContext
         profile = Self.load(SonicBloomProfile.self, from: defaults, key: DefaultsKey.profile) ?? .default
         settings = Self.load(SonicBloomSettings.self, from: defaults, key: DefaultsKey.settings) ?? .default
@@ -155,6 +169,7 @@ final class SonicBloomViewModel: ObservableObject {
         activeProfileOutputName = routeState.selectedPhysicalOutputName
         selectedPreset = presetForOutput(routeState.selectedPhysicalOutputName)
         availableAudioUnitEffects = audioUnitEffectLoader()
+        customPresets = (try? presetStore.loadCustomPresets()) ?? []
         bridge.meterHandler = { [weak self] meter in
             Task { @MainActor in
                 self?.handleMeter(meter)
@@ -445,6 +460,64 @@ final class SonicBloomViewModel: ObservableObject {
     func undoPresetChange() {
         guard let preset = presetUndoState.undo(current: selectedPreset) else { return }
         selectedPreset = preset
+    }
+
+    func saveSelectedPresetAsCustom() throws {
+        try presetStore.saveCustomPreset(selectedPreset)
+        customPresets = try presetStore.loadCustomPresets()
+    }
+
+    func importPreset(from data: Data) throws {
+        let preset = try presetStore.importPreset(from: data)
+        customPresets = try presetStore.loadCustomPresets()
+        selectPreset(preset)
+    }
+
+    func exportSelectedPresetData() throws -> Data {
+        try JSONEncoder.prettyPresetShare.encode(PresetShareDocument(preset: selectedPreset))
+    }
+
+    func saveSelectedPresetAsCustomFromPanel() {
+        do {
+            try saveSelectedPresetAsCustom()
+            lastError = nil
+            routeState.statusMessage = "Saved preset: \(selectedPreset.name)"
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
+    func importPresetFromPanel() {
+        let panel = NSOpenPanel()
+        panel.title = "Import SonicBloom Preset"
+        panel.allowedContentTypes = [.json]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        do {
+            try importPreset(from: Data(contentsOf: url))
+            lastError = nil
+            routeState.statusMessage = "Imported preset: \(selectedPreset.name)"
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
+    func exportSelectedPresetFromPanel() {
+        let panel = NSSavePanel()
+        panel.title = "Export SonicBloom Preset"
+        panel.allowedContentTypes = [.json]
+        panel.nameFieldStringValue = "\(selectedPreset.name.replacingOccurrences(of: "/", with: "-")).sonicbloom-preset.json"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        do {
+            try exportSelectedPresetData().write(to: url, options: .atomic)
+            lastError = nil
+            routeState.statusMessage = "Exported preset: \(selectedPreset.name)"
+        } catch {
+            lastError = error.localizedDescription
+        }
     }
 
     func useCurrentOutputAsPreferred() {

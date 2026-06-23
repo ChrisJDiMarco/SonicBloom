@@ -858,6 +858,23 @@ private struct SettingsWorkbench: View {
                         MiniSlider(title: "WAVEFORM INTENSITY", value: settingsBinding(\.waveformIntensity), range: 0...1, color: SBColor.red)
                     }
                 }
+                ConsoleCard(title: "PRESET LIBRARY", icon: "square.stack.3d.up", color: SBColor.green) {
+                    VStack(spacing: 10) {
+                        Text("\(viewModel.customPresets.count) custom presets")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(SBColor.subtext)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        ConsoleAction(title: "Save Current Preset", icon: "tray.and.arrow.down", color: SBColor.green) {
+                            viewModel.saveSelectedPresetAsCustomFromPanel()
+                        }
+                        ConsoleAction(title: "Import Preset", icon: "square.and.arrow.down", color: SBColor.blue) {
+                            viewModel.importPresetFromPanel()
+                        }
+                        ConsoleAction(title: "Export Selected", icon: "square.and.arrow.up", color: SBColor.orange) {
+                            viewModel.exportSelectedPresetFromPanel()
+                        }
+                    }
+                }
             }
             .frame(width: 340)
 

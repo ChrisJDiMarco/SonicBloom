@@ -231,6 +231,34 @@ final class SonicBloomAppTests: XCTestCase {
     }
 
     @MainActor
+    func testViewModelLoadsSavesImportsAndExportsCustomPresets() throws {
+        let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = PresetStore(directoryURL: directory)
+        let savedPreset = DSPPreset.manual.with(name: "Desk Speakers", bassAmount: 0.45)
+        try store.saveCustomPreset(savedPreset)
+        let viewModel = SonicBloomViewModel.testInstance(defaults: defaults, presetStore: store)
+
+        XCTAssertTrue(viewModel.presets.contains(savedPreset))
+
+        viewModel.selectedPreset = DSPPreset.manual.with(name: "Movie Night", hrtfAmount: 0.5)
+        try viewModel.saveSelectedPresetAsCustom()
+        XCTAssertTrue(viewModel.presets.contains { $0.name == "Movie Night" })
+
+        let exported = try viewModel.exportSelectedPresetData()
+        let importedPreset = DSPPreset.manual.with(name: "Imported Voice", fidelityAmount: 0.4)
+        let importedData = try JSONEncoder().encode(PresetShareDocument(preset: importedPreset))
+        try viewModel.importPreset(from: importedData)
+
+        XCTAssertEqual(try JSONDecoder().decode(PresetShareDocument.self, from: exported).preset.name, "Movie Night")
+        XCTAssertEqual(viewModel.selectedPreset.name, importedPreset.name)
+        XCTAssertTrue(viewModel.presets.contains(importedPreset))
+    }
+
+    @MainActor
     func testCheckForUpdatesPublishesAvailableManifest() async throws {
         let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -328,7 +356,8 @@ private extension SonicBloomViewModel {
         updatePackageDownloader: @escaping (URL) async throws -> Data = { _ in Data() },
         updatePackageDirectory: URL = FileManager.default.temporaryDirectory,
         audioUnitEffectLoader: @escaping () -> [AudioUnitEffectDescriptor] = { [] },
-        audioUnitEffectPreflight: @escaping (AudioUnitEffectDescriptor) -> Bool = { _ in true }
+        audioUnitEffectPreflight: @escaping (AudioUnitEffectDescriptor) -> Bool = { _ in true },
+        presetStore: PresetStore = PresetStore(directoryURL: FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true))
     ) -> SonicBloomViewModel {
         SonicBloomViewModel(
             defaults: defaults,
@@ -339,7 +368,8 @@ private extension SonicBloomViewModel {
             updatePackageDownloader: updatePackageDownloader,
             updatePackageDirectory: updatePackageDirectory,
             audioUnitEffectLoader: audioUnitEffectLoader,
-            audioUnitEffectPreflight: audioUnitEffectPreflight
+            audioUnitEffectPreflight: audioUnitEffectPreflight,
+            presetStore: presetStore
         )
     }
 }
