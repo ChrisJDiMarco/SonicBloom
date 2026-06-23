@@ -22,6 +22,11 @@ if ! [[ "$interval" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
   exit 64
 fi
 
+if ! awk "BEGIN { exit ($interval >= 0.5 ? 0 : 1) }"; then
+  echo "SONICBLOOM_RECOVERY_INTERVAL must be at least 0.5 seconds" >&2
+  exit 64
+fi
+
 xml_escape() {
   printf '%s' "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'
 }

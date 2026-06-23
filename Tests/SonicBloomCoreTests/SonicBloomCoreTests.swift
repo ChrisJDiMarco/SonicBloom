@@ -1978,6 +1978,36 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertTrue(errorText.contains("SONICBLOOM_RECOVERY_INTERVAL must be numeric"))
     }
 
+    func testRecoveryAgentInstallerRejectsTooSmallInterval() throws {
+        let home = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let app = home.appendingPathComponent("SonicBloom.app", isDirectory: true)
+        let helper = app.appendingPathComponent("Contents/MacOS/SonicBloomRecovery")
+        defer { try? FileManager.default.removeItem(at: home) }
+        try FileManager.default.createDirectory(at: helper.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try "#!/bin/sh\n".write(to: helper, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helper.path)
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        process.arguments = [
+            "HOME=\(home.path)",
+            "SONICBLOOM_RECOVERY_INTERVAL=0.1",
+            "Scripts/install_recovery_agent.sh",
+            "--write-only",
+            app.path
+        ]
+        let errorPipe = Pipe()
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = errorPipe
+
+        try process.run()
+        process.waitUntilExit()
+
+        let errorText = String(data: errorPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        XCTAssertNotEqual(process.terminationStatus, 0)
+        XCTAssertTrue(errorText.contains("SONICBLOOM_RECOVERY_INTERVAL must be at least 0.5 seconds"))
+    }
+
     func testReleaseShipsSupportGuide() throws {
         let packageScript = try String(contentsOf: URL(fileURLWithPath: "Scripts/package_release.sh"))
         let supportGuide = try String(contentsOf: URL(fileURLWithPath: "Docs/Support.md"))
