@@ -20,7 +20,7 @@ The app bundle includes `SonicBloomHAL.driver`. Press **Install SonicBloom Outpu
 ```bash
 Scripts/package_release.sh
 SONICBLOOM_INSTALLER_IDENTITY="Developer ID Installer: Your Name (TEAMID)" Scripts/package_release.sh
-SONICBLOOM_INSTALLER_IDENTITY="Developer ID Installer: Your Name (TEAMID)" SONICBLOOM_NOTARY_PROFILE="sonicbloom-notary" Scripts/package_release.sh
+SONICBLOOM_APP_IDENTITY="Developer ID Application: Your Name (TEAMID)" SONICBLOOM_INSTALLER_IDENTITY="Developer ID Installer: Your Name (TEAMID)" SONICBLOOM_NOTARY_PROFILE="sonicbloom-notary" Scripts/package_release.sh
 ```
 
 The package installs `SonicBloom.app` into `/Applications`. Signing and notarization are enabled by environment variables so local development still works without Apple Developer credentials.

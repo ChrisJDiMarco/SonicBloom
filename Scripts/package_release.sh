@@ -25,11 +25,17 @@ app="dist/SonicBloom.app"
 plist="$app/Contents/Info.plist"
 pkg_dir="dist/release"
 identity="${SONICBLOOM_INSTALLER_IDENTITY:-}"
+app_identity="${SONICBLOOM_APP_IDENTITY:-}"
 notary_profile="${SONICBLOOM_NOTARY_PROFILE:-}"
 minimum_system_version="13.0"
 
 if [[ -n "$notary_profile" && -z "$identity" ]]; then
   echo "SONICBLOOM_NOTARY_PROFILE requires SONICBLOOM_INSTALLER_IDENTITY so the package can be signed before notarization." >&2
+  exit 65
+fi
+
+if [[ -n "$notary_profile" && "$skip_build" == "0" && -z "$app_identity" ]]; then
+  echo "SONICBLOOM_NOTARY_PROFILE requires SONICBLOOM_APP_IDENTITY when building the app for notarization." >&2
   exit 65
 fi
 

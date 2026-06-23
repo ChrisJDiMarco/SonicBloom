@@ -5,6 +5,7 @@ cd "$(dirname "$0")/.."
 
 driver="BuildAssets/SonicBloomHAL.driver"
 trace_flag=""
+sign_identity="${SONICBLOOM_APP_IDENTITY:--}"
 if [[ "${SONICBLOOM_HAL_TRACE:-0}" == "1" ]]; then
   trace_flag="-DSONICBLOOM_HAL_TRACE=1"
 fi
@@ -28,5 +29,9 @@ clang \
   Sources/SonicBloomHAL/SonicBloomHAL.c \
   -o "$contents/MacOS/SonicBloomHAL"
 
-codesign --force --sign - "$driver" >/dev/null
+codesign_args=(--force --sign "$sign_identity")
+if [[ "$sign_identity" != "-" ]]; then
+  codesign_args+=(--options runtime --timestamp)
+fi
+codesign "${codesign_args[@]}" "$driver" >/dev/null
 echo "$PWD/$driver"

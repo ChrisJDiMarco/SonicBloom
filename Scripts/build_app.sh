@@ -3,6 +3,8 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+sign_identity="${SONICBLOOM_APP_IDENTITY:--}"
+
 swift build -c release --product SonicBloom
 swift build -c release --product SonicBloomRecovery
 Scripts/build_hal_driver.sh >/dev/null
@@ -55,5 +57,9 @@ cat > "$contents/Info.plist" <<'PLIST'
 PLIST
 
 printf 'APPL????' > "$contents/PkgInfo"
-codesign --force --deep --sign - "$app" >/dev/null
+codesign_args=(--force --deep --sign "$sign_identity")
+if [[ "$sign_identity" != "-" ]]; then
+  codesign_args+=(--options runtime --timestamp)
+fi
+codesign "${codesign_args[@]}" "$app" >/dev/null
 echo "$PWD/$app"

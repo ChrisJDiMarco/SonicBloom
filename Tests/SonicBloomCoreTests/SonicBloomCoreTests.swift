@@ -1981,6 +1981,39 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertTrue(errorText.contains("SONICBLOOM_INSTALLER_IDENTITY"))
     }
 
+    func testPackageReleaseRequiresAppSigningIdentityForBuiltNotarization() throws {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        process.arguments = [
+            "SONICBLOOM_INSTALLER_IDENTITY=Developer ID Installer: Test (TEAMID)",
+            "SONICBLOOM_NOTARY_PROFILE=test-profile",
+            "Scripts/package_release.sh",
+            "--dry-run"
+        ]
+        let errorPipe = Pipe()
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = errorPipe
+
+        try process.run()
+        process.waitUntilExit()
+
+        let errorText = String(data: errorPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        XCTAssertNotEqual(process.terminationStatus, 0)
+        XCTAssertTrue(errorText.contains("SONICBLOOM_APP_IDENTITY"))
+    }
+
+    func testReleaseScriptsSupportDeveloperIDApplicationSigning() throws {
+        let appScript = try String(contentsOf: URL(fileURLWithPath: "Scripts/build_app.sh"))
+        let halScript = try String(contentsOf: URL(fileURLWithPath: "Scripts/build_hal_driver.sh"))
+        let packageScript = try String(contentsOf: URL(fileURLWithPath: "Scripts/package_release.sh"))
+
+        XCTAssertTrue(appScript.contains("SONICBLOOM_APP_IDENTITY"))
+        XCTAssertTrue(appScript.contains("--options runtime"))
+        XCTAssertTrue(appScript.contains("--timestamp"))
+        XCTAssertTrue(halScript.contains("SONICBLOOM_APP_IDENTITY"))
+        XCTAssertTrue(packageScript.contains("SONICBLOOM_APP_IDENTITY"))
+    }
+
     private func rms(_ frames: [StereoFrame]) -> Float {
         guard !frames.isEmpty else { return 0 }
         let sum = frames.reduce(Float(0)) { partial, frame in
