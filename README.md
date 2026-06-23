@@ -24,7 +24,7 @@ SONICBLOOM_APP_IDENTITY="Developer ID Application: Your Name (TEAMID)" SONICBLOO
 ```
 
 The package installs `SonicBloom.app` into `/Applications`. Signing and notarization are enabled by environment variables so local development still works without Apple Developer credentials.
-Set `SONICBLOOM_UPDATE_MANIFEST_PUBLIC_KEY_HEX` while building the app to require signed update manifests, and set `SONICBLOOM_UPDATE_MANIFEST_SIGNATURE` while packaging to publish the matching signature.
+Set `SONICBLOOM_UPDATE_MANIFEST_PUBLIC_KEY_HEX` while building the app to require signed update manifests, then set `SONICBLOOM_UPDATE_MANIFEST_PRIVATE_KEY_HEX` while packaging so the release manifest is signed after the package checksum is known.
 Each release also writes `dist/release/SonicBloom-Uninstall.command`, which removes the app, SonicBloom HAL driver, and recovery LaunchAgent.
 It also writes `dist/release/SonicBloom-update.json` with the package URL and SHA-256; upload that beside the `.pkg` release asset so the in-app updater can detect new builds.
 

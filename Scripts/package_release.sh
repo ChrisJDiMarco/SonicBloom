@@ -28,6 +28,7 @@ identity="${SONICBLOOM_INSTALLER_IDENTITY:-}"
 app_identity="${SONICBLOOM_APP_IDENTITY:-}"
 notary_profile="${SONICBLOOM_NOTARY_PROFILE:-}"
 manifest_signature="${SONICBLOOM_UPDATE_MANIFEST_SIGNATURE:-}"
+manifest_private_key="${SONICBLOOM_UPDATE_MANIFEST_PRIVATE_KEY_HEX:-}"
 minimum_system_version="13.0"
 
 if [[ -n "$notary_profile" && -z "$identity" ]]; then
@@ -90,6 +91,16 @@ if [[ -n "$manifest_signature" ]] && { ! [[ "$manifest_signature" =~ ^[0-9A-Fa-f
   exit 65
 fi
 
+if [[ -n "$manifest_private_key" && -n "$manifest_signature" ]]; then
+  echo "Use SONICBLOOM_UPDATE_MANIFEST_PRIVATE_KEY_HEX or SONICBLOOM_UPDATE_MANIFEST_SIGNATURE, not both." >&2
+  exit 65
+fi
+
+if [[ -n "$manifest_private_key" ]] && { ! [[ "$manifest_private_key" =~ ^[0-9A-Fa-f]+$ ]] || (( ${#manifest_private_key} % 2 != 0 )); }; then
+  echo "SONICBLOOM_UPDATE_MANIFEST_PRIVATE_KEY_HEX must be even-length hex" >&2
+  exit 65
+fi
+
 run mkdir -p "$pkg_dir"
 run cp Scripts/uninstall_sonicbloom.sh "$pkg_dir/SonicBloom-Uninstall.command"
 run cp Scripts/install_recovery_agent.sh "$pkg_dir/SonicBloom-Install-Recovery.command"
@@ -113,6 +124,10 @@ if [[ "$dry_run" == "1" ]]; then
   echo "+ write $manifest"
 else
   package_sha256="$(shasum -a 256 "$pkg" | awk '{print $1}')"
+  notes="SonicBloom $version"
+  if [[ -z "$manifest_signature" && -n "$manifest_private_key" ]]; then
+    manifest_signature="$(SONICBLOOM_UPDATE_MANIFEST_PRIVATE_KEY_HEX="$manifest_private_key" swift run -c release SonicBloomManifestSigner sign "$version" "$minimum_system_version" "$package_url" "$package_sha256" "$notes")"
+  fi
   if [[ -n "$manifest_signature" ]]; then
     cat > "$manifest" <<JSON
 {
@@ -120,7 +135,7 @@ else
   "minimumSystemVersion": "$minimum_system_version",
   "packageURL": "$package_url",
   "packageSHA256": "$package_sha256",
-  "notes": "SonicBloom $version",
+  "notes": "$notes",
   "manifestSignature": "$manifest_signature"
 }
 JSON
@@ -131,7 +146,7 @@ JSON
   "minimumSystemVersion": "$minimum_system_version",
   "packageURL": "$package_url",
   "packageSHA256": "$package_sha256",
-  "notes": "SonicBloom $version"
+  "notes": "$notes"
 }
 JSON
   fi

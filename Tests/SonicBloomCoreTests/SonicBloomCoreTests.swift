@@ -2113,6 +2113,23 @@ final class SonicBloomCoreTests: XCTestCase {
         )
     }
 
+    func testUpdateManifestSignerProducesVerifiableSignature() throws {
+        let privateKey = Curve25519.Signing.PrivateKey()
+        let privateKeyHex = SonicBloomUpdateManifestSignatureVerifier.hexString(for: privateKey.rawRepresentation)
+        let publicKeyHex = SonicBloomUpdateManifestSignatureVerifier.hexString(for: privateKey.publicKey.rawRepresentation)
+        var manifest = SonicBloomUpdateManifest(
+            version: "0.2.0",
+            minimumSystemVersion: "13.0",
+            packageURL: URL(string: "https://example.com/SonicBloom-0.2.0.pkg")!,
+            packageSHA256: SonicBloomUpdatePackageVerifier.sha256Hex(for: Data("pkg".utf8)),
+            notes: "SonicBloom 0.2.0"
+        )
+
+        manifest.manifestSignature = SonicBloomUpdateManifestSignatureVerifier.signatureHex(for: manifest, privateKeyHex: privateKeyHex)
+
+        XCTAssertTrue(SonicBloomUpdateManifestSignatureVerifier.verify(manifest: manifest, trustedPublicKeyHex: publicKeyHex))
+    }
+
     func testUpdateManifestRequiresValidReleaseVersion() throws {
         let manifest = SonicBloomUpdateManifest(
             version: "1.0/evil",
@@ -2238,6 +2255,8 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertTrue(packageScript.contains("shasum -a 256"))
         XCTAssertTrue(packageScript.contains("minimumSystemVersion"))
         XCTAssertTrue(packageScript.contains("SONICBLOOM_UPDATE_MANIFEST_SIGNATURE"))
+        XCTAssertTrue(packageScript.contains("SONICBLOOM_UPDATE_MANIFEST_PRIVATE_KEY_HEX"))
+        XCTAssertTrue(packageScript.contains("SonicBloomManifestSigner"))
         XCTAssertTrue(packageScript.contains("manifestSignature"))
     }
 
@@ -2283,6 +2302,27 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertTrue(errorText.contains("SONICBLOOM_PACKAGE_URL must end in .pkg"))
     }
 
+    func testPackageReleaseRejectsInvalidManifestPrivateKey() throws {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        process.arguments = [
+            "SONICBLOOM_UPDATE_MANIFEST_PRIVATE_KEY_HEX=abc",
+            "Scripts/package_release.sh",
+            "--dry-run",
+            "--skip-build"
+        ]
+        let errorPipe = Pipe()
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = errorPipe
+
+        try process.run()
+        process.waitUntilExit()
+
+        let errorText = String(data: errorPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        XCTAssertNotEqual(process.terminationStatus, 0)
+        XCTAssertTrue(errorText.contains("SONICBLOOM_UPDATE_MANIFEST_PRIVATE_KEY_HEX must be even-length hex"))
+    }
+
     func testQAGateRunsAutomatedReleaseChecks() throws {
         let qaScriptURL = URL(fileURLWithPath: "Scripts/qa_gate.sh")
         let qaScript = try String(contentsOf: qaScriptURL)
@@ -2292,6 +2332,7 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertTrue(qaScript.contains("Scripts/build_app.sh"))
         XCTAssertTrue(qaScript.contains("Scripts/test_hal_bundle.sh"))
         XCTAssertTrue(qaScript.contains("Scripts/package_release.sh --skip-build"))
+        XCTAssertTrue(qaScript.contains("SonicBloomManifestSigner"))
         XCTAssertEqual((permissions?.intValue ?? 0) & 0o111, 0o111)
     }
 

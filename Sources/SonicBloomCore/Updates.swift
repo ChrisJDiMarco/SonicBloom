@@ -119,6 +119,15 @@ public enum SonicBloomUpdateManifestSignatureVerifier {
         ].joined(separator: "\n").utf8)
     }
 
+    public static func signatureHex(for manifest: SonicBloomUpdateManifest, privateKeyHex: String) -> String? {
+        guard let privateKeyData = data(fromHex: privateKeyHex),
+              let privateKey = try? Curve25519.Signing.PrivateKey(rawRepresentation: privateKeyData),
+              let signature = try? privateKey.signature(for: payload(for: manifest)) else {
+            return nil
+        }
+        return hexString(for: signature)
+    }
+
     public static func verify(manifest: SonicBloomUpdateManifest, trustedPublicKeyHex: String) -> Bool {
         guard let signatureHex = manifest.manifestSignature,
               let publicKeyData = data(fromHex: trustedPublicKeyHex),

@@ -11,7 +11,8 @@ let package = Package(
     products: [
         .library(name: "SonicBloomCore", targets: ["SonicBloomCore"]),
         .executable(name: "SonicBloom", targets: ["SonicBloomMain"]),
-        .executable(name: "SonicBloomRecovery", targets: ["SonicBloomRecovery"])
+        .executable(name: "SonicBloomRecovery", targets: ["SonicBloomRecovery"]),
+        .executable(name: "SonicBloomManifestSigner", targets: ["SonicBloomManifestSigner"])
     ],
     targets: [
         .target(
@@ -56,6 +57,11 @@ let package = Package(
             linkerSettings: [
                 .linkedFramework("CoreAudio")
             ]
+        ),
+        .executableTarget(
+            name: "SonicBloomManifestSigner",
+            dependencies: ["SonicBloomCore"],
+            path: "Sources/SonicBloomManifestSigner"
         ),
         .testTarget(
             name: "SonicBloomCoreTests",
