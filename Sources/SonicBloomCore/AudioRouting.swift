@@ -1080,3 +1080,88 @@ public final class PerAppAudioLane {
         }
     }
 }
+
+public final class PerAppTapCoordinator: @unchecked Sendable {
+    public typealias ProcessedFrameHandler = (AppAudioRule, [StereoFrame]) -> Void
+
+    private let createRoute: (AppMixerItem) throws -> CoreAudioProcessTapRoute
+    private let destroyRoutes: () -> Void
+    private let makeSource: (CoreAudioProcessTapRoute, @escaping CoreAudioTapSource.StereoFrameHandler) -> CoreAudioTapSource
+    private let lock = NSLock()
+    private var sourcesByBundle: [String: CoreAudioTapSource] = [:]
+
+    public var activeBundleIdentifiers: [String] {
+        lock.lock()
+        defer { lock.unlock() }
+        return sourcesByBundle.keys.sorted()
+    }
+
+    public convenience init(tapManager: CoreAudioProcessTapManager = CoreAudioProcessTapManager()) {
+        self.init(
+            createRoute: { try tapManager.createReadableTapDevice(for: $0) },
+            destroyRoutes: { tapManager.destroyAll() },
+            makeSource: { route, handler in CoreAudioTapSource(route: route, stereoFrameHandler: handler) }
+        )
+    }
+
+    init(
+        createRoute: @escaping (AppMixerItem) throws -> CoreAudioProcessTapRoute,
+        destroyRoutes: @escaping () -> Void,
+        makeSource: @escaping (CoreAudioProcessTapRoute, @escaping CoreAudioTapSource.StereoFrameHandler) -> CoreAudioTapSource
+    ) {
+        self.createRoute = createRoute
+        self.destroyRoutes = destroyRoutes
+        self.makeSource = makeSource
+    }
+
+    deinit {
+        stop()
+    }
+
+    public func start(
+        items: [AppMixerItem],
+        basePreset: DSPPreset,
+        sampleRate: Double = 48_000,
+        catalog: [DSPPreset] = PresetCatalog.builtIns,
+        frameHandler: @escaping ProcessedFrameHandler
+    ) throws {
+        stop()
+        var startedSources: [String: CoreAudioTapSource] = [:]
+        do {
+            for item in items where item.canCreateProcessTap {
+                let lane = PerAppAudioLane(rule: item.rule, basePreset: basePreset, sampleRate: sampleRate, catalog: catalog)
+                let source = makeSource(try createRoute(item)) { buffer in
+                    let frames = lane.process(buffer)
+                    if !frames.isEmpty {
+                        frameHandler(item.rule, frames)
+                    }
+                }
+                try source.start()
+                startedSources[item.rule.bundleIdentifier] = source
+            }
+        } catch {
+            for source in startedSources.values {
+                source.stop()
+            }
+            destroyRoutes()
+            throw error
+        }
+
+        lock.lock()
+        sourcesByBundle = startedSources
+        lock.unlock()
+    }
+
+    public func stop() {
+        lock.lock()
+        let sources = sourcesByBundle.values
+        sourcesByBundle.removeAll()
+        lock.unlock()
+
+        guard !sources.isEmpty else { return }
+        for source in sources {
+            source.stop()
+        }
+        destroyRoutes()
+    }
+}

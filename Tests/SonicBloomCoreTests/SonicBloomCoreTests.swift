@@ -929,6 +929,91 @@ final class SonicBloomCoreTests: XCTestCase {
         ])
     }
 
+    func testPerAppTapCoordinatorStartsLaneAndEmitsProcessedFrames() throws {
+        let ioProc: AudioDeviceIOProcID = { _, _, _, _, _, _, _ in noErr }
+        var events: [String] = []
+        var emittedRule: AppAudioRule?
+        var emittedFrames: [StereoFrame] = []
+        let item = AppMixerItem(
+            rule: AppAudioRule(bundleIdentifier: "com.spotify.client", displayName: "Spotify", gainDB: 6),
+            processID: 101,
+            processObjectID: 9001,
+            captureStatus: .ready
+        )
+        let coordinator = PerAppTapCoordinator(
+            createRoute: { item in
+                events.append("route \(item.rule.bundleIdentifier)")
+                return CoreAudioProcessTapRoute(
+                    tap: CoreAudioProcessTap(id: 777, processObjectIDs: [item.processObjectID ?? 0]),
+                    aggregateDeviceID: 888,
+                    aggregateUID: "tap-device"
+                )
+            },
+            destroyRoutes: { events.append("destroy routes") },
+            makeSource: { route, handler in
+                CoreAudioTapSource(
+                    route: route,
+                    stereoFrameHandler: handler,
+                    createIOProc: { source, deviceID in
+                        events.append("create \(deviceID)")
+                        var samples = Array(repeating: Float(0), count: 128)
+                        for index in stride(from: 0, to: samples.count, by: 2) {
+                            samples[index] = 0.05
+                            samples[index + 1] = -0.05
+                        }
+                        let byteSize = UInt32(samples.count * MemoryLayout<Float>.size)
+                        samples.withUnsafeMutableBufferPointer { pointer in
+                            let buffer = AudioBuffer(mNumberChannels: 2, mDataByteSize: byteSize, mData: pointer.baseAddress)
+                            var list = AudioBufferList(mNumberBuffers: 1, mBuffers: buffer)
+                            withUnsafePointer(to: &list) { source.handleInputData($0) }
+                        }
+                        return ioProc
+                    },
+                    startDevice: { deviceID, _ in events.append("start \(deviceID)") },
+                    stopDevice: { deviceID, _ in events.append("stop \(deviceID)") },
+                    destroyIOProc: { deviceID, _ in events.append("destroy \(deviceID)") }
+                )
+            }
+        )
+
+        try coordinator.start(items: [item], basePreset: .flat) { rule, frames in
+            emittedRule = rule
+            emittedFrames = frames
+        }
+
+        XCTAssertEqual(coordinator.activeBundleIdentifiers, ["com.spotify.client"])
+        XCTAssertEqual(emittedRule?.bundleIdentifier, "com.spotify.client")
+        XCTAssertGreaterThan(emittedFrames.map { abs($0.left) }.max() ?? 0, 0.09)
+
+        coordinator.stop()
+
+        XCTAssertEqual(events, ["route com.spotify.client", "create 888", "start 888", "stop 888", "destroy 888", "destroy routes"])
+    }
+
+    func testPerAppTapCoordinatorSkipsAppsWithoutTapObject() throws {
+        var routeRequests = 0
+        let coordinator = PerAppTapCoordinator(
+            createRoute: { item in
+                routeRequests += 1
+                return CoreAudioProcessTapRoute(
+                    tap: CoreAudioProcessTap(id: 777, processObjectIDs: [item.processObjectID ?? 0]),
+                    aggregateDeviceID: 888,
+                    aggregateUID: "tap-device"
+                )
+            },
+            destroyRoutes: {},
+            makeSource: { route, handler in CoreAudioTapSource(route: route, stereoFrameHandler: handler) }
+        )
+
+        try coordinator.start(
+            items: [AppMixerItem(rule: AppAudioRule(bundleIdentifier: "com.apple.TextEdit", displayName: "TextEdit"), processID: 303, captureStatus: .ready)],
+            basePreset: .flat
+        ) { _, _ in }
+
+        XCTAssertEqual(routeRequests, 0)
+        XCTAssertTrue(coordinator.activeBundleIdentifiers.isEmpty)
+    }
+
     func testProfileEffectiveAppRuleUsesSuggestionsUntilSavedRuleExists() {
         var profile = SonicBloomProfile.default
 
