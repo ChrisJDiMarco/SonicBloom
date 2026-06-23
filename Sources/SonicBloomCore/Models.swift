@@ -971,24 +971,42 @@ public struct HeadphoneProfile: Codable, Equatable, Identifiable, Sendable {
     public var manufacturer: String
     public var name: String
     public var calibrationBandsDB: [Double]
+    public var preampDB: Double
 
     public init(
         id: String,
         manufacturer: String,
         name: String,
-        calibrationBandsDB: [Double]
+        calibrationBandsDB: [Double],
+        preampDB: Double = 0
     ) {
         self.id = id
         self.manufacturer = manufacturer
         self.name = name
         self.calibrationBandsDB = Array((calibrationBandsDB + Array(repeating: 0, count: DSPPreset.bandCount)).prefix(DSPPreset.bandCount))
+        self.preampDB = min(max(preampDB, -24), 24)
     }
 
     public func applying(to preset: DSPPreset) -> DSPPreset {
         let calibrated = zip(preset.eqBandsDB, calibrationBandsDB).map { band, correction in
             min(max(band + correction, -12), 12)
         }
-        return preset.with(eqBandsDB: calibrated)
+        return preset.with(eqBandsDB: calibrated, outputGainDB: min(max(preset.outputGainDB + preampDB, -60), 12))
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, manufacturer, name, calibrationBandsDB, preampDB
+    }
+
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            id: try values.decode(String.self, forKey: .id),
+            manufacturer: try values.decode(String.self, forKey: .manufacturer),
+            name: try values.decode(String.self, forKey: .name),
+            calibrationBandsDB: try values.decode([Double].self, forKey: .calibrationBandsDB),
+            preampDB: try values.decodeIfPresent(Double.self, forKey: .preampDB) ?? 0
+        )
     }
 }
 
@@ -1013,7 +1031,8 @@ public enum AutoEQProfileImporter {
             id: slug("\(profileManufacturer) \(profileName)"),
             manufacturer: profileManufacturer,
             name: profileName,
-            calibrationBandsDB: DSPPreset.graphicEQBandFrequencies.map { gain(at: $0, points: points) }
+            calibrationBandsDB: DSPPreset.graphicEQBandFrequencies.map { gain(at: $0, points: points) },
+            preampDB: preamp(in: text) ?? 0
         )
     }
 
@@ -1067,6 +1086,12 @@ public enum AutoEQProfileImporter {
         let gain = numbers(in: String(line[gainRange.upperBound...])).first
         guard let frequency, let gain, frequency >= 10, frequency <= 30_000 else { return nil }
         return (frequency, gain)
+    }
+
+    private static func preamp(in text: String) -> Double? {
+        text.components(separatedBy: .newlines).first { line in
+            line.range(of: "Preamp:", options: .caseInsensitive) != nil
+        }.flatMap { numbers(in: $0).first }
     }
 
     private static func slug(_ value: String) -> String {

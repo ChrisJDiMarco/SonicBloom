@@ -468,9 +468,29 @@ final class SonicBloomCoreTests: XCTestCase {
         let profile = try AutoEQProfileImporter.profile(name: "Parametric", manufacturer: "AutoEQ", text: text)
 
         XCTAssertEqual(profile.id, "autoeq-parametric")
+        XCTAssertEqual(profile.preampDB, -6)
         XCTAssertLessThan(profile.calibrationBandsDB[6], -4.5)
         XCTAssertGreaterThan(profile.calibrationBandsDB[17], 2)
         XCTAssertGreaterThan(profile.calibrationBandsDB[27], 3)
+
+        let applied = profile.applying(to: .cleanLoud)
+        XCTAssertEqual(applied.outputGainDB, DSPPreset.cleanLoud.outputGainDB - 6)
+    }
+
+    func testOlderHeadphoneProfileJSONDefaultsPreamp() throws {
+        let data = """
+        {
+          "id": "legacy",
+          "manufacturer": "Imported",
+          "name": "Legacy AutoEQ",
+          "calibrationBandsDB": [1, 2, 3]
+        }
+        """.data(using: .utf8)!
+
+        let profile = try JSONDecoder().decode(HeadphoneProfile.self, from: data)
+
+        XCTAssertEqual(profile.preampDB, 0)
+        XCTAssertEqual(profile.calibrationBandsDB.count, DSPPreset.bandCount)
     }
 
     func testAutoEQImporterRejectsEmptyProfile() {

@@ -147,6 +147,7 @@ final class SonicBloomAppTests: XCTestCase {
         try viewModel.importAutoEQProfile(
             name: "Parametric AutoEQ",
             text: """
+            Preamp: -4.0 dB
             Filter 1: ON PK Fc 80 Hz Gain -5.0 dB Q 0.70
             Filter 2: ON PK Fc 1000 Hz Gain 2.5 dB Q 1.41
             """
@@ -154,6 +155,7 @@ final class SonicBloomAppTests: XCTestCase {
 
         XCTAssertLessThan(viewModel.selectedPreset.eqBandsDB[6], -4)
         XCTAssertGreaterThan(viewModel.selectedPreset.eqBandsDB[17], 2)
+        XCTAssertEqual(viewModel.selectedPreset.outputGainDB, -4)
         XCTAssertTrue(viewModel.availableHeadphoneProfiles.contains { $0.name == "Parametric AutoEQ" })
     }
 
