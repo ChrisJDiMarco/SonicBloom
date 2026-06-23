@@ -478,6 +478,12 @@ final class SonicBloomViewModel: ObservableObject {
         selectedPreset = preset
     }
 
+    func resetSelectedPresetToSafeDefault() {
+        let resetPreset = PresetCatalog.builtIns.first { $0.name == selectedPreset.name } ?? .cleanLoud
+        selectPreset(resetPreset)
+        routeState.statusMessage = "Reset preset: \(resetPreset.name)"
+    }
+
     func saveSelectedPresetAsCustom() throws {
         try presetStore.saveCustomPreset(selectedPreset)
         customPresets = try presetStore.loadCustomPresets()

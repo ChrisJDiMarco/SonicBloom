@@ -401,6 +401,22 @@ final class SonicBloomAppTests: XCTestCase {
     }
 
     @MainActor
+    func testViewModelResetsPresetToSafeDefault() {
+        let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let viewModel = SonicBloomViewModel.testInstance(defaults: defaults)
+
+        viewModel.selectedPreset = DSPPreset.deepBass.with(bassAmount: 1, outputGainDB: 10)
+        viewModel.resetSelectedPresetToSafeDefault()
+        XCTAssertEqual(viewModel.selectedPreset, DSPPreset.deepBass)
+
+        viewModel.selectedPreset = DSPPreset.manual.with(name: "Imported Chaos", outputGainDB: 10)
+        viewModel.resetSelectedPresetToSafeDefault()
+        XCTAssertEqual(viewModel.selectedPreset, DSPPreset.cleanLoud)
+    }
+
+    @MainActor
     func testCheckForUpdatesPublishesAvailableManifest() async throws {
         let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!

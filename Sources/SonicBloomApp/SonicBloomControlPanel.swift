@@ -873,6 +873,9 @@ private struct SettingsWorkbench: View {
                         ConsoleAction(title: "Export Selected", icon: "square.and.arrow.up", color: SBColor.orange) {
                             viewModel.exportSelectedPresetFromPanel()
                         }
+                        ConsoleAction(title: "Reset To Safe Default", icon: "arrow.counterclockwise", color: SBColor.yellow) {
+                            viewModel.resetSelectedPresetToSafeDefault()
+                        }
                     }
                 }
             }
