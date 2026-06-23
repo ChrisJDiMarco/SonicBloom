@@ -54,6 +54,41 @@ final class SonicBloomAppTests: XCTestCase {
     }
 
     @MainActor
+    func testAppProfileCanApplyToForegroundAppWhenEnabled() {
+        let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let viewModel = SonicBloomViewModel(defaults: defaults)
+
+        viewModel.profile.upsert(AppAudioRule(
+            bundleIdentifier: "com.google.Chrome",
+            displayName: "Chrome",
+            gainDB: -3,
+            presetName: DSPPreset.spokenVoice.name
+        ))
+        viewModel.settings = SonicBloomSettings(applyAppProfilesAutomatically: true)
+        viewModel.setForegroundAppBundleIdentifierForTesting("com.google.Chrome")
+        viewModel.selectedPreset = .deepBass
+
+        XCTAssertEqual(viewModel.processingPresetForTesting.name, DSPPreset.spokenVoice.name)
+        XCTAssertLessThan(viewModel.processingPresetForTesting.outputGainDB, DSPPreset.spokenVoice.outputGainDB)
+    }
+
+    @MainActor
+    func testAutomaticAppProfilesIgnoreUnsavedSuggestions() {
+        let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let viewModel = SonicBloomViewModel(defaults: defaults)
+
+        viewModel.settings = SonicBloomSettings(applyAppProfilesAutomatically: true)
+        viewModel.setForegroundAppBundleIdentifierForTesting("com.google.Chrome")
+        viewModel.selectedPreset = .deepBass
+
+        XCTAssertEqual(viewModel.processingPresetForTesting.name, DSPPreset.deepBass.name)
+    }
+
+    @MainActor
     func testSmartMeterDoesNotChangeMasterPreset() {
         let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!

@@ -220,6 +220,19 @@ public enum AudioRoutePlanner {
         return preferredPhysicalOutput(devices: devices, defaultOutputDeviceID: defaultOutputDeviceID)
     }
 
+    public static func abandonedBridgeRecoveryOutput(
+        devices: [AudioDeviceSnapshot],
+        defaultOutputDeviceID: UInt32?,
+        appIsRunning: Bool
+    ) -> AudioDeviceSnapshot? {
+        guard !appIsRunning,
+              let defaultOutputDeviceID,
+              devices.contains(where: { $0.id == defaultOutputDeviceID && $0.isSonicBloomBridge }) else {
+            return nil
+        }
+        return preferredPhysicalOutput(devices: devices, defaultOutputDeviceID: defaultOutputDeviceID)
+    }
+
     private static func preferredPhysicalOutput(devices: [AudioDeviceSnapshot], defaultOutputDeviceID: UInt32?) -> AudioDeviceSnapshot? {
         if let defaultOutputDeviceID,
            let defaultOutput = devices.first(where: { $0.id == defaultOutputDeviceID && $0.isUsablePhysicalOutput }) {
@@ -265,6 +278,7 @@ public protocol AudioRouteManaging {
     func installVirtualOutputDevice() throws
     func uninstallVirtualOutputDevice() throws
     func restorePreviousSystemOutput() throws
+    func restoreAbandonedBridgeSystemOutput(appIsRunning: Bool) throws -> Bool
     func handle(_ command: AudioEngineCommand) throws
 }
 
@@ -342,6 +356,18 @@ public final class CoreAudioRouteManager: AudioRouteManaging, @unchecked Sendabl
         lock.lock()
         self.previousOutputDeviceID = nil
         lock.unlock()
+    }
+
+    public func restoreAbandonedBridgeSystemOutput(appIsRunning: Bool) throws -> Bool {
+        guard let output = AudioRoutePlanner.abandonedBridgeRecoveryOutput(
+            devices: inventory.devices(),
+            defaultOutputDeviceID: inventory.defaultOutputDeviceID(),
+            appIsRunning: appIsRunning
+        ) else {
+            return false
+        }
+        try inventory.setDefaultOutputDeviceID(output.id)
+        return true
     }
 
     public func handle(_ command: AudioEngineCommand) throws {

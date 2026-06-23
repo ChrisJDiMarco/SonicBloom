@@ -1160,6 +1160,7 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertEqual(SonicBloomSettings.default.syncMode, .auto)
         XCTAssertTrue(SonicBloomSettings.default.smartPresetMatching)
         XCTAssertFalse(SonicBloomSettings.default.showAdvancedControls)
+        XCTAssertFalse(SonicBloomSettings.default.applyAppProfilesAutomatically)
 
         let studio = SonicBloomSettings(showAdvancedControls: true)
         let data = try JSONEncoder().encode(studio)
@@ -1174,6 +1175,7 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertEqual(settings.syncMode, .music)
         XCTAssertTrue(settings.loudnessMatchedCompare)
         XCTAssertFalse(settings.smartPresetMatching)
+        XCTAssertFalse(settings.applyAppProfilesAutomatically)
     }
 
     func testSyncModeOptimizesSpatialLatencyCost() {
@@ -1495,6 +1497,19 @@ final class SonicBloomCoreTests: XCTestCase {
         )
 
         XCTAssertEqual(output?.id, 1)
+    }
+
+    func testRoutePlannerRecoversAbandonedSonicBloomOutputOnlyWhenAppIsGone() {
+        let devices = [
+            AudioDeviceSnapshot(id: 1, name: "MacBook Speakers", inputChannels: 0, outputChannels: 2, sampleRate: 48_000, isVirtual: false),
+            AudioDeviceSnapshot(id: 9, name: "SonicBloom Output", inputChannels: 2, outputChannels: 2, sampleRate: 48_000, isVirtual: true)
+        ]
+
+        XCTAssertNil(AudioRoutePlanner.abandonedBridgeRecoveryOutput(devices: devices, defaultOutputDeviceID: 9, appIsRunning: true))
+        XCTAssertEqual(
+            AudioRoutePlanner.abandonedBridgeRecoveryOutput(devices: devices, defaultOutputDeviceID: 9, appIsRunning: false)?.id,
+            1
+        )
     }
 
     func testHALInstallerScriptInstallsSonicBloomDriver() {

@@ -73,7 +73,8 @@ struct SonicBloomControlPanel: View {
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                     .contentShape(RoundedRectangle(cornerRadius: 8))
             }
-            .buttonStyle(.plain)
+            .buttonStyle(SonicPressButtonStyle())
+            .help(viewModel.settings.showAdvancedControls ? "Switch to simple controls" : "Switch to studio controls")
 
             Text("PRESETS")
                 .font(.caption.weight(.semibold))
@@ -96,18 +97,12 @@ struct SonicBloomControlPanel: View {
             Button {
                 viewModel.runPrimaryAction()
             } label: {
-                Label(viewModel.isBridgeRunning ? "TURN OFF" : "ENHANCE", systemImage: viewModel.primaryActionIcon)
-                    .font(.system(size: 14, weight: .bold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .foregroundStyle(viewModel.isBridgeRunning ? SBColor.orange : .white)
-                    .background(viewModel.isBridgeRunning ? SBColor.orange.opacity(0.22) : SBColor.green.opacity(0.80))
-                    .overlay { RoundedRectangle(cornerRadius: 8).stroke(viewModel.isBridgeRunning ? SBColor.orange : SBColor.green, lineWidth: 1) }
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                    .contentShape(RoundedRectangle(cornerRadius: 8))
+                PrimaryActionLabel(viewModel: viewModel)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(SonicPressButtonStyle())
             .disabled(viewModel.isTransitioning)
+            .opacity(viewModel.isTransitioning ? 0.72 : 1)
+            .help(viewModel.isBridgeRunning ? "Restore Mac output and stop enhancement" : "Start enhancing Mac audio")
         }
         .padding(18)
         .frame(width: 276)
@@ -191,17 +186,12 @@ private struct SimpleModePanel: View {
                             Button {
                                 viewModel.runPrimaryAction()
                             } label: {
-                                Label(viewModel.isBridgeRunning ? "TURN OFF" : "ENHANCE", systemImage: viewModel.primaryActionIcon)
-                                    .font(.system(size: 15, weight: .bold))
-                                    .padding(.horizontal, 24)
-                                    .padding(.vertical, 12)
-                                    .foregroundStyle(viewModel.isBridgeRunning ? SBColor.orange : .white)
-                                    .background(viewModel.isBridgeRunning ? SBColor.orange.opacity(0.22) : SBColor.green.opacity(0.86))
-                                    .overlay { RoundedRectangle(cornerRadius: 8).stroke(viewModel.isBridgeRunning ? SBColor.orange : SBColor.green, lineWidth: 1) }
-                                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                                PrimaryActionLabel(viewModel: viewModel)
+                                    .frame(width: 170)
                             }
-                            .buttonStyle(.plain)
+                            .buttonStyle(SonicPressButtonStyle())
                             .disabled(viewModel.isTransitioning)
+                            .opacity(viewModel.isTransitioning ? 0.72 : 1)
                         }
 
                         HStack(spacing: 12) {
@@ -300,6 +290,8 @@ private struct HeroAnalyzer: View {
                         .font(.system(size: 16, weight: .medium))
                         .foregroundStyle(SBColor.subtext)
                         .lineLimit(1)
+                        .truncationMode(.middle)
+                        .help(outputLine)
                 }
                 .layoutPriority(1)
                 Spacer()
@@ -375,7 +367,7 @@ private struct ConsoleTabBar: View {
                         .foregroundStyle(selected ? SBColor.green : SBColor.subtext)
                         .contentShape(RoundedRectangle(cornerRadius: 8))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(SonicPressButtonStyle())
                 .accessibilityLabel(tab.rawValue)
             }
         }
@@ -625,10 +617,10 @@ private struct PerAppMixer: View {
     @ObservedObject var viewModel: SonicBloomViewModel
 
     var body: some View {
-        ConsoleCard(title: "PER-APP RULES", icon: "app.connected.to.app.below.fill", color: SBColor.green) {
+        ConsoleCard(title: "APP PROFILES", icon: "app.connected.to.app.below.fill", color: SBColor.green) {
             VStack(spacing: 8) {
                 HStack {
-                    Text("APP")
+                    Text(viewModel.settings.applyAppProfilesAutomatically ? "AUTO-APPLIES TO FRONTMOST APP" : "SAVED PROFILES")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(SBColor.subtext)
                     Spacer()
@@ -637,8 +629,14 @@ private struct PerAppMixer: View {
                         .foregroundStyle(SBColor.subtext)
                     Button("Refresh") { viewModel.refreshAppMixerRules() }
                         .font(.caption.weight(.bold))
-                        .buttonStyle(.plain)
+                        .buttonStyle(SonicPressButtonStyle())
                         .foregroundStyle(SBColor.blue)
+                }
+                if !viewModel.settings.applyAppProfilesAutomatically {
+                    Text("Saved here only. Enable automatic apply in Settings when you want foreground-app profiles to affect live audio.")
+                        .font(.caption)
+                        .foregroundStyle(SBColor.subtext)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 if viewModel.appMixerItems.isEmpty {
                     Text("No regular apps detected")
@@ -688,7 +686,7 @@ private struct PerAppRuleRow: View {
                     .foregroundStyle(rule.isMuted ? SBColor.orange : statusColor)
                     .frame(width: 24)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(SonicPressButtonStyle())
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(rule.displayName)
@@ -806,6 +804,7 @@ private struct SettingsWorkbench: View {
                     SyncModePicker(selection: settingsBinding(\.syncMode))
                     ToggleRow(title: "Auto-enhance on launch", subtitle: "Start processing when SonicBloom opens.", isOn: settingsBinding(\.autoEnhanceOnLaunch))
                     ToggleRow(title: "Smart preset matching", subtitle: "Suggest stable presets from content energy.", isOn: settingsBinding(\.smartPresetMatching))
+                    ToggleRow(title: "Apply App Profiles Automatically", subtitle: "Use saved foreground-app profiles when that app is active.", isOn: settingsBinding(\.applyAppProfilesAutomatically))
                     ToggleRow(title: "Loudness-matched compare", subtitle: "Keep raw A/B checks at the enhanced level.", isOn: settingsBinding(\.loudnessMatchedCompare))
                     ToggleRow(title: "Advanced controls", subtitle: "Expose spatial, HRTF, and crossfeed controls.", isOn: settingsBinding(\.showAdvancedControls))
                     ToggleRow(title: "Reduce motion", subtitle: "Calm scopes and moving meters.", isOn: settingsBinding(\.reduceMotion))
@@ -906,8 +905,10 @@ private struct CalibrationWizard: View {
                             .padding(8)
                             .background(SBColor.panel2)
                             .overlay { RoundedRectangle(cornerRadius: 7).stroke(SBColor.line, lineWidth: 1) }
+                            .clipShape(RoundedRectangle(cornerRadius: 7))
+                            .contentShape(RoundedRectangle(cornerRadius: 7))
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(SonicPressButtonStyle())
                     }
                 }
             }
@@ -1085,6 +1086,8 @@ private struct ProcessingCard: View {
                 .font(.caption)
                 .foregroundStyle(SBColor.text)
                 .lineLimit(2)
+                .truncationMode(.middle)
+                .help(routeText)
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -1095,6 +1098,33 @@ private struct ProcessingCard: View {
 
     private var routeText: String {
         "\(viewModel.routeState.bridgeInputDeviceName ?? "Output") -> \(viewModel.routeState.selectedPhysicalOutputName ?? "No output")"
+    }
+}
+
+private struct PrimaryActionLabel: View {
+    @ObservedObject var viewModel: SonicBloomViewModel
+
+    var body: some View {
+        HStack(spacing: 8) {
+            if viewModel.isTransitioning {
+                ProgressView()
+                    .controlSize(.small)
+                    .scaleEffect(0.72)
+                    .tint(viewModel.isBridgeRunning ? SBColor.orange : .white)
+                Text("WORKING")
+            } else {
+                Image(systemName: viewModel.primaryActionIcon)
+                Text(viewModel.isBridgeRunning ? "TURN OFF" : "ENHANCE")
+            }
+        }
+        .font(.system(size: 14, weight: .bold))
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 12)
+        .foregroundStyle(viewModel.isBridgeRunning ? SBColor.orange : .white)
+        .background(viewModel.isBridgeRunning ? SBColor.orange.opacity(0.22) : SBColor.green.opacity(0.84))
+        .overlay { RoundedRectangle(cornerRadius: 8).stroke(viewModel.isBridgeRunning ? SBColor.orange : SBColor.green, lineWidth: 1) }
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .contentShape(RoundedRectangle(cornerRadius: 8))
     }
 }
 
@@ -1132,7 +1162,8 @@ private struct PresetButton: View {
             .clipShape(RoundedRectangle(cornerRadius: 8))
             .contentShape(RoundedRectangle(cornerRadius: 8))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(SonicPressButtonStyle())
+        .help("Use \(preset.name)")
     }
 
     private var icon: String {
@@ -1371,6 +1402,8 @@ private struct KnobControl: View {
     var display: String
     var color: Color
     @State private var dragStart: Double?
+    @State private var isHovering = false
+    @State private var isDragging = false
 
     init(title: String, value: Binding<Double>, range: ClosedRange<Double>, display: String, color: Color) {
         self.title = title
@@ -1398,7 +1431,7 @@ private struct KnobControl: View {
                     .font(.system(size: 9, weight: .bold))
                     .lineLimit(1)
             }
-            CircularKnob(value: normalized, color: color)
+            CircularKnob(value: normalized, color: color, isActive: isHovering || isDragging)
                 .frame(width: 66, height: 66)
                 .accessibilityLabel(title.isEmpty ? "EQ gain" : title)
                 .accessibilityValue(label)
@@ -1407,6 +1440,7 @@ private struct KnobControl: View {
                 .foregroundStyle(SBColor.subtext)
         }
         .contentShape(Rectangle())
+        .onHover { isHovering = $0 }
         .highPriorityGesture(knobDragGesture)
     }
 
@@ -1429,15 +1463,20 @@ private struct KnobControl: View {
             .onChanged { gesture in
                 let start = dragStart ?? normalized
                 dragStart = start
+                isDragging = true
                 setNormalized(start - gesture.translation.height / 140 + gesture.translation.width / 280)
             }
-            .onEnded { _ in dragStart = nil }
+            .onEnded { _ in
+                dragStart = nil
+                isDragging = false
+            }
     }
 }
 
 private struct CircularKnob: View {
     var value: Double
     var color: Color
+    var isActive = false
 
     var body: some View {
         Canvas { context, size in
@@ -1469,6 +1508,10 @@ private struct CircularKnob: View {
         }
         .background(SBColor.panel2)
         .clipShape(Circle())
+        .overlay { Circle().stroke(color.opacity(isActive ? 0.35 : 0.0), lineWidth: 2) }
+        .scaleEffect(isActive ? 1.035 : 1)
+        .shadow(color: color.opacity(isActive ? 0.18 : 0.06), radius: isActive ? 7 : 2, x: 0, y: isActive ? 3 : 1)
+        .animation(.easeOut(duration: 0.12), value: isActive)
     }
 }
 
@@ -1755,7 +1798,7 @@ private struct ConsoleAction: View {
                 .clipShape(RoundedRectangle(cornerRadius: 8))
                 .contentShape(RoundedRectangle(cornerRadius: 8))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(SonicPressButtonStyle())
     }
 }
 
@@ -1777,8 +1820,10 @@ private struct PresetApplyButton: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(SBColor.panel2)
             .overlay { RoundedRectangle(cornerRadius: 8).stroke(SBColor.line, lineWidth: 1) }
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .contentShape(RoundedRectangle(cornerRadius: 8))
         }
-        .buttonStyle(.plain)
+        .buttonStyle(SonicPressButtonStyle())
     }
 }
 
@@ -1819,6 +1864,15 @@ private struct ConsoleBackdrop: View {
         .background(SBColor.canvas)
         .ignoresSafeArea()
         .allowsHitTesting(false)
+    }
+}
+
+private struct SonicPressButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.985 : 1)
+            .opacity(configuration.isPressed ? 0.82 : 1)
+            .animation(.easeOut(duration: 0.10), value: configuration.isPressed)
     }
 }
 

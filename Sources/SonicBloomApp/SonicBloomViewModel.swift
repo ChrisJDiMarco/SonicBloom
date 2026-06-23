@@ -465,7 +465,15 @@ final class SonicBloomViewModel: ObservableObject {
     }
 
     private var processingPreset: DSPPreset {
-        selectedPreset.optimized(for: processingSyncMode)
+        guard settings.applyAppProfilesAutomatically else {
+            return selectedPreset.optimized(for: processingSyncMode)
+        }
+        guard let rule = profile.appRule(for: foregroundAppBundleIdentifier) else {
+            return selectedPreset.optimized(for: processingSyncMode)
+        }
+        let preset = rule.presetName.flatMap { name in presets.first { $0.name == name } } ?? selectedPreset
+        let gain = rule.isMuted ? -60 : min(max(preset.outputGainDB + rule.gainDB, -60), 12)
+        return preset.with(outputGainDB: gain).optimized(for: rule.syncMode ?? processingSyncMode)
     }
 
     private var processingSyncMode: AudioSyncMode {
@@ -483,7 +491,7 @@ final class SonicBloomViewModel: ObservableObject {
 
     private func startPerAppTaps(sampleRate _: Double) {
         perAppTapCoordinator.stop()
-        // ponytail: process taps destabilize the master system route; re-enable behind an explicit per-app toggle later.
+        // ponytail: process taps destabilize the master route; App Profiles stay foreground-only until real taps are worth the risk.
         refreshAppMixerRules()
     }
 

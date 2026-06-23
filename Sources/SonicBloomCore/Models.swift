@@ -555,6 +555,7 @@ public struct SonicBloomSettings: Codable, Equatable, Sendable {
     public var syncMode: AudioSyncMode
     public var loudnessMatchedCompare: Bool
     public var smartPresetMatching: Bool
+    public var applyAppProfilesAutomatically: Bool
 
     public init(
         autoEnhanceOnLaunch: Bool = false,
@@ -563,7 +564,8 @@ public struct SonicBloomSettings: Codable, Equatable, Sendable {
         showAdvancedControls: Bool = false,
         syncMode: AudioSyncMode = .auto,
         loudnessMatchedCompare: Bool = true,
-        smartPresetMatching: Bool = true
+        smartPresetMatching: Bool = true,
+        applyAppProfilesAutomatically: Bool = false
     ) {
         self.autoEnhanceOnLaunch = autoEnhanceOnLaunch
         self.reduceMotion = reduceMotion
@@ -572,12 +574,13 @@ public struct SonicBloomSettings: Codable, Equatable, Sendable {
         self.syncMode = syncMode
         self.loudnessMatchedCompare = loudnessMatchedCompare
         self.smartPresetMatching = smartPresetMatching
+        self.applyAppProfilesAutomatically = applyAppProfilesAutomatically
     }
 
     public static let `default` = SonicBloomSettings()
 
     private enum CodingKeys: String, CodingKey {
-        case autoEnhanceOnLaunch, reduceMotion, waveformIntensity, showAdvancedControls, syncMode, loudnessMatchedCompare, smartPresetMatching
+        case autoEnhanceOnLaunch, reduceMotion, waveformIntensity, showAdvancedControls, syncMode, loudnessMatchedCompare, smartPresetMatching, applyAppProfilesAutomatically
     }
 
     public init(from decoder: Decoder) throws {
@@ -589,7 +592,8 @@ public struct SonicBloomSettings: Codable, Equatable, Sendable {
             showAdvancedControls: try values.decodeIfPresent(Bool.self, forKey: .showAdvancedControls) ?? false,
             syncMode: try values.decodeIfPresent(AudioSyncMode.self, forKey: .syncMode) ?? .music,
             loudnessMatchedCompare: try values.decodeIfPresent(Bool.self, forKey: .loudnessMatchedCompare) ?? true,
-            smartPresetMatching: try values.decodeIfPresent(Bool.self, forKey: .smartPresetMatching) ?? false
+            smartPresetMatching: try values.decodeIfPresent(Bool.self, forKey: .smartPresetMatching) ?? false,
+            applyAppProfilesAutomatically: try values.decodeIfPresent(Bool.self, forKey: .applyAppProfilesAutomatically) ?? false
         )
     }
 }

@@ -3,7 +3,8 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-swift build -c release
+swift build -c release --product SonicBloom
+swift build -c release --product SonicBloomRecovery
 Scripts/build_hal_driver.sh >/dev/null
 
 app="dist/SonicBloom.app"
@@ -12,6 +13,7 @@ rm -rf "$app"
 mkdir -p "$contents/MacOS" "$contents/Resources"
 
 cp .build/release/SonicBloom "$contents/MacOS/SonicBloom"
+cp .build/release/SonicBloomRecovery "$contents/MacOS/SonicBloomRecovery"
 cp Sources/SonicBloomApp/Resources/SonicBloom.icns "$contents/Resources/SonicBloom.icns"
 ditto BuildAssets/SonicBloomHAL.driver "$contents/Resources/SonicBloomHAL.driver"
 
