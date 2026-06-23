@@ -254,11 +254,11 @@ final class SonicBloomAppTests: XCTestCase {
             componentSubType: fourCC("eqal"),
             componentManufacturer: fourCC("appl")
         )
-        let delay = AudioUnitEffectDescriptor(
-            name: "Delay",
+        let broken = AudioUnitEffectDescriptor(
+            name: "Broken",
             manufacturerName: "Apple",
             componentType: kAudioUnitType_Effect,
-            componentSubType: fourCC("dely"),
+            componentSubType: fourCC("fail"),
             componentManufacturer: fourCC("appl")
         )
         let output = AudioUnitEffectDescriptor(
@@ -270,6 +270,7 @@ final class SonicBloomAppTests: XCTestCase {
         )
         var loaded: [String] = []
         let chain = AudioUnitEffectHostChain(loader: { effect, _ in
+            guard effect.id != broken.id else { return nil }
             loaded.append(effect.id)
             return NSObject()
         })
@@ -277,7 +278,7 @@ final class SonicBloomAppTests: XCTestCase {
         chain.update(
             slots: [
                 AudioUnitEffectSlot(effect: eq),
-                AudioUnitEffectSlot(effect: delay, isEnabled: false),
+                AudioUnitEffectSlot(effect: broken),
                 AudioUnitEffectSlot(effect: output)
             ],
             sampleRate: 48_000
@@ -285,6 +286,7 @@ final class SonicBloomAppTests: XCTestCase {
 
         XCTAssertEqual(loaded, [eq.id])
         XCTAssertEqual(chain.activeEffectIDs, [eq.id])
+        XCTAssertEqual(chain.failedEffectIDs, [broken.id])
     }
 
     func testAudioBridgeOwnsAudioUnitHostChain() {
@@ -298,9 +300,11 @@ final class SonicBloomAppTests: XCTestCase {
         let chain = AudioUnitEffectHostChain(loader: { _, _ in NSObject() })
         let bridge = SonicBloomAudioBridge(audioUnitHost: chain)
 
-        bridge.updateAudioUnitEffects([AudioUnitEffectSlot(effect: effect)])
+        let failed = bridge.updateAudioUnitEffects([AudioUnitEffectSlot(effect: effect)])
 
+        XCTAssertEqual(failed, [])
         XCTAssertEqual(bridge.activeAudioUnitEffectIDsForTesting, [effect.id])
+        XCTAssertEqual(bridge.failedAudioUnitEffectIDsForTesting, [])
     }
 
     @MainActor

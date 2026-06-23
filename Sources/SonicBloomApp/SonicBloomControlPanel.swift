@@ -1191,6 +1191,10 @@ private struct AudioUnitEffectRow: View {
     var slot: AudioUnitEffectSlot
     @ObservedObject var viewModel: SonicBloomViewModel
 
+    private var failed: Bool {
+        viewModel.failedAudioUnitEffectIDs.contains(slot.id)
+    }
+
     var body: some View {
         HStack(spacing: 8) {
             Button {
@@ -1206,9 +1210,9 @@ private struct AudioUnitEffectRow: View {
                 Text(slot.effect.name)
                     .font(.caption.weight(.bold))
                     .lineLimit(1)
-                Text(slot.effect.manufacturerName)
+                Text(failed ? "Could not load" : slot.effect.manufacturerName)
                     .font(.caption2)
-                    .foregroundStyle(SBColor.subtext)
+                    .foregroundStyle(failed ? SBColor.orange : SBColor.subtext)
                     .lineLimit(1)
             }
             Spacer(minLength: 4)
@@ -1222,8 +1226,8 @@ private struct AudioUnitEffectRow: View {
             .buttonStyle(SonicPressButtonStyle())
         }
         .padding(8)
-        .background(slot.isEnabled ? SBColor.blue.opacity(0.10) : SBColor.panel2)
-        .overlay { RoundedRectangle(cornerRadius: 7).stroke(slot.isEnabled ? SBColor.blue.opacity(0.32) : SBColor.line, lineWidth: 1) }
+        .background(failed ? SBColor.orange.opacity(0.10) : (slot.isEnabled ? SBColor.blue.opacity(0.10) : SBColor.panel2))
+        .overlay { RoundedRectangle(cornerRadius: 7).stroke(failed ? SBColor.orange.opacity(0.42) : (slot.isEnabled ? SBColor.blue.opacity(0.32) : SBColor.line), lineWidth: 1) }
         .clipShape(RoundedRectangle(cornerRadius: 7))
     }
 }

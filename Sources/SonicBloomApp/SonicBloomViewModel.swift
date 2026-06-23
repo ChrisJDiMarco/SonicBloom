@@ -138,6 +138,7 @@ final class SonicBloomViewModel: ObservableObject {
     @Published private(set) var updateDownloadURL: URL?
     @Published private(set) var verifiedUpdatePackageURL: URL?
     @Published private(set) var availableAudioUnitEffects: [AudioUnitEffectDescriptor] = []
+    @Published private(set) var failedAudioUnitEffectIDs: [String] = []
     private var availableUpdateManifest: SonicBloomUpdateManifest?
 
     init(
@@ -804,7 +805,7 @@ final class SonicBloomViewModel: ObservableObject {
 
     private func updateBridgeAudioUnitEffects() {
         guard isBridgeRunning || isTransitioning else { return }
-        bridge.updateAudioUnitEffects(profile.audioUnitEffects)
+        failedAudioUnitEffectIDs = bridge.updateAudioUnitEffects(profile.audioUnitEffects)
     }
 
     private func restartPerAppTapsIfRunning() {

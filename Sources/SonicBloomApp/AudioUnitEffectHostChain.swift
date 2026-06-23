@@ -8,6 +8,7 @@ final class AudioUnitEffectHostChain {
     private let loader: Loader
     private var loadedEffects: [AnyObject] = []
     private(set) var activeEffectIDs: [String] = []
+    private(set) var failedEffectIDs: [String] = []
 
     init(loader: @escaping Loader = AudioUnitEffectHostChain.loadEffect) {
         self.loader = loader
@@ -21,19 +22,25 @@ final class AudioUnitEffectHostChain {
 
         var nextLoaded: [AnyObject] = []
         var nextIDs: [String] = []
+        var nextFailedIDs: [String] = []
         for effect in effects {
-            guard let loaded = loader(effect, sampleRate) else { continue }
+            guard let loaded = loader(effect, sampleRate) else {
+                nextFailedIDs.append(effect.id)
+                continue
+            }
             nextLoaded.append(loaded)
             nextIDs.append(effect.id)
         }
 
         loadedEffects = nextLoaded
         activeEffectIDs = nextIDs
+        failedEffectIDs = nextFailedIDs
     }
 
     func reset() {
         loadedEffects = []
         activeEffectIDs = []
+        failedEffectIDs = []
     }
 
     private static func loadEffect(_ effect: AudioUnitEffectDescriptor, sampleRate: Double) -> AnyObject? {

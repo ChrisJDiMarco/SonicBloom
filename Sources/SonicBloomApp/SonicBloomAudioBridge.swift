@@ -72,8 +72,10 @@ final class SonicBloomAudioBridge: @unchecked Sendable {
         }
     }
 
-    func updateAudioUnitEffects(_ slots: [AudioUnitEffectSlot]) {
+    @discardableResult
+    func updateAudioUnitEffects(_ slots: [AudioUnitEffectSlot]) -> [String] {
         audioUnitHost.update(slots: slots, sampleRate: sampleRate)
+        return audioUnitHost.failedEffectIDs
     }
 
     func start(
@@ -452,6 +454,10 @@ final class SonicBloomAudioBridge: @unchecked Sendable {
 
     var activeAudioUnitEffectIDsForTesting: [String] {
         audioUnitHost.activeEffectIDs
+    }
+
+    var failedAudioUnitEffectIDsForTesting: [String] {
+        audioUnitHost.failedEffectIDs
     }
 #endif
 }
