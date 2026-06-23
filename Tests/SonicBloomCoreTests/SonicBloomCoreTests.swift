@@ -1629,6 +1629,35 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertFalse(uninstallScript.contains("Soundflower"))
     }
 
+    func testUpdateManifestReportsAvailableRelease() throws {
+        let data = Data("""
+        {
+          "version": "0.2.0",
+          "minimumSystemVersion": "13.0",
+          "packageURL": "https://example.com/SonicBloom-0.2.0.pkg",
+          "notes": "Stability fixes"
+        }
+        """.utf8)
+        let manifest = try JSONDecoder().decode(SonicBloomUpdateManifest.self, from: data)
+
+        XCTAssertEqual(
+            SonicBloomUpdater.decision(currentVersion: "0.1.0", manifest: manifest),
+            .updateAvailable(manifest)
+        )
+        XCTAssertEqual(
+            SonicBloomUpdater.decision(currentVersion: "0.2.0", manifest: manifest),
+            .upToDate
+        )
+    }
+
+    func testPackageReleaseWritesUpdateManifest() throws {
+        let packageScript = try String(contentsOf: URL(fileURLWithPath: "Scripts/package_release.sh"))
+
+        XCTAssertTrue(packageScript.contains("SonicBloom-update.json"))
+        XCTAssertTrue(packageScript.contains("packageURL"))
+        XCTAssertTrue(packageScript.contains("minimumSystemVersion"))
+    }
+
     private func rms(_ frames: [StereoFrame]) -> Float {
         guard !frames.isEmpty else { return 0 }
         let sum = frames.reduce(Float(0)) { partial, frame in

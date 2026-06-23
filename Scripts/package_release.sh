@@ -26,6 +26,7 @@ plist="$app/Contents/Info.plist"
 pkg_dir="dist/release"
 identity="${SONICBLOOM_INSTALLER_IDENTITY:-}"
 notary_profile="${SONICBLOOM_NOTARY_PROFILE:-}"
+minimum_system_version="13.0"
 
 quote() {
   printf "%q" "$1"
@@ -57,6 +58,7 @@ if [[ "$dry_run" == "0" ]]; then
   version="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$plist")"
 fi
 pkg="$pkg_dir/SonicBloom-$version.pkg"
+package_url="${SONICBLOOM_PACKAGE_URL:-https://github.com/ChrisJDiMarco/SonicBloom/releases/download/v$version/SonicBloom-$version.pkg}"
 
 run mkdir -p "$pkg_dir"
 run cp Scripts/uninstall_sonicbloom.sh "$pkg_dir/SonicBloom-Uninstall.command"
@@ -70,6 +72,20 @@ fi
 if [[ -n "$notary_profile" ]]; then
   run xcrun notarytool submit "$pkg" --keychain-profile "$notary_profile" --wait
   run xcrun stapler staple "$pkg"
+fi
+
+manifest="$pkg_dir/SonicBloom-update.json"
+if [[ "$dry_run" == "1" ]]; then
+  echo "+ write $manifest"
+else
+  cat > "$manifest" <<JSON
+{
+  "version": "$version",
+  "minimumSystemVersion": "$minimum_system_version",
+  "packageURL": "$package_url",
+  "notes": "SonicBloom $version"
+}
+JSON
 fi
 
 echo "$PWD/$pkg"

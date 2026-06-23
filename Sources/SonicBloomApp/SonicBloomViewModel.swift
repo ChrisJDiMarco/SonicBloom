@@ -28,6 +28,14 @@ enum CalibrationSound {
     case noise
 }
 
+private let defaultUpdateFeedURL = URL(string: "https://github.com/ChrisJDiMarco/SonicBloom/releases/latest/download/SonicBloom-update.json")!
+typealias UpdateManifestLoader = (URL) async throws -> SonicBloomUpdateManifest
+
+func fetchUpdateManifest(from url: URL) async throws -> SonicBloomUpdateManifest {
+    let (data, _) = try await URLSession.shared.data(from: url)
+    return try JSONDecoder().decode(SonicBloomUpdateManifest.self, from: data)
+}
+
 @MainActor
 final class SonicBloomViewModel: ObservableObject {
     let routeManager = CoreAudioRouteManager()
@@ -37,6 +45,9 @@ final class SonicBloomViewModel: ObservableObject {
     private lazy var calibrationTonePlayer = CalibrationTonePlayer()
     private let audioControlQueue = DispatchQueue(label: "com.chrisdimarco.sonicbloom.audio-control")
     private let defaults: UserDefaults
+    private let currentVersion: String
+    private let updateFeedURL: URL
+    private let updateManifestLoader: UpdateManifestLoader
     private var cpuSampler = ProcessCPUUsageSampler()
     private var cpuRefreshTask: Task<Void, Never>?
     private var routeRecoveryTask: Task<Void, Never>?
@@ -97,9 +108,22 @@ final class SonicBloomViewModel: ObservableObject {
     @Published private(set) var foregroundAppBundleIdentifier: String?
     @Published private(set) var activeAppRule: AppAudioRule?
     @Published private(set) var hasPlayedSetupTestSound = false
+    @Published private(set) var isCheckingForUpdates = false
+    @Published private(set) var updateStatusText = "Updates not checked"
+    @Published private(set) var updateDownloadURL: URL?
 
-    init(defaults: UserDefaults = .standard, routeState initialRouteState: AudioRouteState? = nil, startLiveContext: Bool = true) {
+    init(
+        defaults: UserDefaults = .standard,
+        routeState initialRouteState: AudioRouteState? = nil,
+        startLiveContext: Bool = true,
+        currentVersion: String? = nil,
+        updateFeedURL: URL = defaultUpdateFeedURL,
+        updateManifestLoader: @escaping UpdateManifestLoader = fetchUpdateManifest
+    ) {
         self.defaults = defaults
+        self.currentVersion = currentVersion ?? (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.1.0")
+        self.updateFeedURL = updateFeedURL
+        self.updateManifestLoader = updateManifestLoader
         liveContextEnabled = startLiveContext
         profile = Self.load(SonicBloomProfile.self, from: defaults, key: DefaultsKey.profile) ?? .default
         settings = Self.load(SonicBloomSettings.self, from: defaults, key: DefaultsKey.settings) ?? .default
@@ -170,6 +194,32 @@ final class SonicBloomViewModel: ObservableObject {
     func toggleRawCompare() {
         guard isBridgeRunning, !isTransitioning else { return }
         isBypassed.toggle()
+    }
+
+    func checkForUpdates() async {
+        guard !isCheckingForUpdates else { return }
+        isCheckingForUpdates = true
+        updateStatusText = "Checking for updates..."
+        updateDownloadURL = nil
+        defer { isCheckingForUpdates = false }
+
+        do {
+            let manifest = try await updateManifestLoader(updateFeedURL)
+            switch SonicBloomUpdater.decision(currentVersion: currentVersion, manifest: manifest) {
+            case .updateAvailable(let manifest):
+                updateStatusText = "Update \(manifest.version) available"
+                updateDownloadURL = manifest.packageURL
+            case .upToDate:
+                updateStatusText = "SonicBloom is up to date"
+            }
+        } catch {
+            updateStatusText = "Could not check for updates"
+        }
+    }
+
+    func openUpdateDownload() {
+        guard let updateDownloadURL else { return }
+        NSWorkspace.shared.open(updateDownloadURL)
     }
 
     var primaryActionTitle: String {

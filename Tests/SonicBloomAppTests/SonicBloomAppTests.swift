@@ -141,6 +141,30 @@ final class SonicBloomAppTests: XCTestCase {
         XCTAssertFalse(viewModel.isBypassed)
     }
 
+    @MainActor
+    func testCheckForUpdatesPublishesAvailableManifest() async throws {
+        let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let packageURL = try XCTUnwrap(URL(string: "https://example.com/SonicBloom-0.2.0.pkg"))
+        let manifest = SonicBloomUpdateManifest(
+            version: "0.2.0",
+            minimumSystemVersion: "13.0",
+            packageURL: packageURL,
+            notes: "Fixes"
+        )
+        let viewModel = SonicBloomViewModel.testInstance(
+            defaults: defaults,
+            currentVersion: "0.1.0",
+            updateManifestLoader: { _ in manifest }
+        )
+
+        await viewModel.checkForUpdates()
+
+        XCTAssertEqual(viewModel.updateStatusText, "Update 0.2.0 available")
+        XCTAssertEqual(viewModel.updateDownloadURL, packageURL)
+    }
+
     func testPerAppMixerLeavesRoomForRouteActionTray() {
         XCTAssertGreaterThanOrEqual(
             PerAppMixerLayout.bottomScrollClearance,
@@ -167,8 +191,24 @@ final class SonicBloomAppTests: XCTestCase {
 
 private extension SonicBloomViewModel {
     @MainActor
-    static func testInstance(defaults: UserDefaults) -> SonicBloomViewModel {
-        SonicBloomViewModel(defaults: defaults, routeState: .testReady, startLiveContext: false)
+    static func testInstance(
+        defaults: UserDefaults,
+        currentVersion: String = "0.1.0",
+        updateManifestLoader: @escaping (URL) async throws -> SonicBloomUpdateManifest = { _ in
+            SonicBloomUpdateManifest(
+                version: "0.1.0",
+                minimumSystemVersion: "13.0",
+                packageURL: URL(string: "https://example.com/SonicBloom.pkg")!
+            )
+        }
+    ) -> SonicBloomViewModel {
+        SonicBloomViewModel(
+            defaults: defaults,
+            routeState: .testReady,
+            startLiveContext: false,
+            currentVersion: currentVersion,
+            updateManifestLoader: updateManifestLoader
+        )
     }
 }
 

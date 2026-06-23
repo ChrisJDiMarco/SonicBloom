@@ -869,6 +869,16 @@ private struct SettingsWorkbench: View {
                 TrustPanel(viewModel: viewModel)
                 ConsoleCard(title: "MAINTENANCE", icon: "wrench.and.screwdriver", color: SBColor.yellow) {
                     VStack(spacing: 10) {
+                        Text(viewModel.updateStatusText)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(SBColor.subtext)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        ConsoleAction(title: viewModel.isCheckingForUpdates ? "Checking..." : "Check for Updates", icon: "arrow.down.circle", color: SBColor.blue) {
+                            Task { await viewModel.checkForUpdates() }
+                        }
+                        if viewModel.updateDownloadURL != nil {
+                            ConsoleAction(title: "Download Update", icon: "square.and.arrow.down", color: SBColor.green) { viewModel.openUpdateDownload() }
+                        }
                         ConsoleAction(title: "Install Driver", icon: "arrow.down.circle", color: SBColor.green) { viewModel.installVirtualDevice() }
                         ConsoleAction(title: "Uninstall Driver", icon: "trash", color: SBColor.red) { viewModel.uninstallVirtualDevice() }
                         ConsoleAction(title: "Refresh Route", icon: "arrow.clockwise", color: SBColor.blue) { viewModel.refreshRoute() }
