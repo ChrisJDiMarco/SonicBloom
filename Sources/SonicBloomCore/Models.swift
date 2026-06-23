@@ -555,6 +555,10 @@ public struct SonicBloomProfile: Codable, Equatable, Sendable {
         customHeadphoneProfiles.append(headphoneProfile)
     }
 
+    public mutating func removeCustomHeadphoneProfile(_ id: String) {
+        customHeadphoneProfiles.removeAll { $0.id == id }
+    }
+
     private enum CodingKeys: String, CodingKey {
         case displayName, listeningMode, favoritePresetName, preferredOutputName, devicePresets, appRules, audioUnitEffects, customHeadphoneProfiles
     }

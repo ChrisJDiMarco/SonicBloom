@@ -1006,25 +1006,38 @@ private struct CalibrationWizard: View {
 
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 160), spacing: 8)], spacing: 8) {
                     ForEach(viewModel.availableHeadphoneProfiles) { profile in
-                        Button {
-                            viewModel.applyHeadphoneProfile(profile)
-                        } label: {
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(profile.name)
-                                    .font(.caption.weight(.bold))
-                                    .lineLimit(1)
-                                Text(profile.manufacturer)
-                                    .font(.caption2)
-                                    .foregroundStyle(SBColor.subtext)
+                        HStack(spacing: 6) {
+                            Button {
+                                viewModel.applyHeadphoneProfile(profile)
+                            } label: {
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(profile.name)
+                                        .font(.caption.weight(.bold))
+                                        .lineLimit(1)
+                                    Text(profile.manufacturer)
+                                        .font(.caption2)
+                                        .foregroundStyle(SBColor.subtext)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(8)
+                                .background(SBColor.panel2)
+                                .overlay { RoundedRectangle(cornerRadius: 7).stroke(SBColor.line, lineWidth: 1) }
+                                .clipShape(RoundedRectangle(cornerRadius: 7))
+                                .contentShape(RoundedRectangle(cornerRadius: 7))
                             }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(8)
-                            .background(SBColor.panel2)
-                            .overlay { RoundedRectangle(cornerRadius: 7).stroke(SBColor.line, lineWidth: 1) }
-                            .clipShape(RoundedRectangle(cornerRadius: 7))
-                            .contentShape(RoundedRectangle(cornerRadius: 7))
+                            .buttonStyle(SonicPressButtonStyle())
+
+                            if isCustomProfile(profile) {
+                                Button {
+                                    viewModel.removeCustomHeadphoneProfile(profile.id)
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundStyle(SBColor.subtext)
+                                        .frame(width: 24, height: 24)
+                                }
+                                .buttonStyle(SonicPressButtonStyle())
+                            }
                         }
-                        .buttonStyle(SonicPressButtonStyle())
                     }
                 }
             }
@@ -1043,6 +1056,10 @@ private struct CalibrationWizard: View {
             get: { tuning[keyPath: keyPath] },
             set: { tuning[keyPath: keyPath] = min(max($0, 0), 1) }
         )
+    }
+
+    private func isCustomProfile(_ profile: HeadphoneProfile) -> Bool {
+        viewModel.profile.customHeadphoneProfiles.contains { $0.id == profile.id }
     }
 }
 

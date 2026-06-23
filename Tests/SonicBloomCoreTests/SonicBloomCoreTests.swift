@@ -646,8 +646,14 @@ final class SonicBloomCoreTests: XCTestCase {
 
         profile.addCustomHeadphoneProfile(headphoneProfile)
         profile.addCustomHeadphoneProfile(headphoneProfile)
+        profile.removeCustomHeadphoneProfile("missing")
 
         XCTAssertEqual(profile.customHeadphoneProfiles, [headphoneProfile])
+
+        profile.removeCustomHeadphoneProfile(headphoneProfile.id)
+        XCTAssertEqual(profile.customHeadphoneProfiles, [])
+
+        profile.addCustomHeadphoneProfile(headphoneProfile)
 
         let data = try JSONEncoder().encode(profile)
         XCTAssertEqual(try JSONDecoder().decode(SonicBloomProfile.self, from: data), profile)

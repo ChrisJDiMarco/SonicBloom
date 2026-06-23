@@ -523,6 +523,10 @@ final class SonicBloomViewModel: ObservableObject {
         HeadphoneProfileCatalog.builtIns + profile.customHeadphoneProfiles
     }
 
+    func removeCustomHeadphoneProfile(_ id: String) {
+        profile.removeCustomHeadphoneProfile(id)
+    }
+
     func playCalibrationSound(_ sound: CalibrationSound) {
         hasPlayedSetupTestSound = true
         calibrationTonePlayer.play(sound)

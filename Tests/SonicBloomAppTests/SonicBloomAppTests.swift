@@ -109,6 +109,22 @@ final class SonicBloomAppTests: XCTestCase {
     }
 
     @MainActor
+    func testViewModelRemovesImportedHeadphoneProfiles() throws {
+        let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let viewModel = SonicBloomViewModel.testInstance(defaults: defaults)
+
+        try viewModel.importAutoEQProfile(
+            name: "HD 650 AutoEQ",
+            text: "GraphicEQ: 20 -4; 1000 2; 20000 3"
+        )
+        viewModel.removeCustomHeadphoneProfile("imported-hd-650-autoeq")
+
+        XCTAssertFalse(viewModel.availableHeadphoneProfiles.contains { $0.name == "HD 650 AutoEQ" })
+    }
+
+    @MainActor
     func testViewModelStoresAudioUnitEffectsInProfile() {
         let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
