@@ -1,0 +1,2 @@
+"CFBundleDisplayName" = "SonicBloom";
+"NSMicrophoneUsageDescription" = "macOS labels SonicBloom Output as an input device. SonicBloom uses it to enhance system audio from apps like Spotify and YouTube, not to listen to your physical microphone.";

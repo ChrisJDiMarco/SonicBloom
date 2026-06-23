@@ -23,6 +23,15 @@ final class SonicBloomAppTests: XCTestCase {
         XCTAssertTrue(buildScript.contains("$contents/Resources/install_recovery_agent.sh"))
     }
 
+    func testAppBundleShipsLocalizedPermissionCopy() throws {
+        let buildScript = try String(contentsOf: URL(fileURLWithPath: "Scripts/build_app.sh"))
+        let infoPlistStrings = try String(contentsOf: URL(fileURLWithPath: "Sources/SonicBloomApp/Resources/en.lproj/InfoPlist.strings"))
+
+        XCTAssertTrue(buildScript.contains("Sources/SonicBloomApp/Resources/en.lproj"))
+        XCTAssertTrue(infoPlistStrings.contains("NSMicrophoneUsageDescription"))
+        XCTAssertTrue(infoPlistStrings.contains("not to listen to your physical microphone"))
+    }
+
     @MainActor
     func testSelectedPresetWinsOverSuggestedForegroundAppPreset() {
         let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
