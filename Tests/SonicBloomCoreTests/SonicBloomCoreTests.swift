@@ -1788,6 +1788,12 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertTrue(uninstallScript.contains("\"$app/Contents/MacOS/SonicBloomRecovery\" --once"))
         XCTAssertTrue(uninstallScript.contains("/Library/Audio/Plug-Ins/HAL/SonicBloomHAL.driver"))
         XCTAssertTrue(uninstallScript.contains("com.chrisdimarco.sonicbloom.recovery.plist"))
+        XCTAssertTrue(uninstallScript.contains("Library/Application Support/SonicBloom"))
+        XCTAssertTrue(uninstallScript.contains("Library/Preferences/com.chrisdimarco.sonicbloom.plist"))
+        XCTAssertTrue(uninstallScript.contains("Library/Caches/com.chrisdimarco.sonicbloom"))
+        XCTAssertTrue(uninstallScript.contains("Library/Saved Application State/com.chrisdimarco.sonicbloom.savedState"))
+        XCTAssertTrue(uninstallScript.contains("/tmp/SonicBloomHAL.log"))
+        XCTAssertTrue(uninstallScript.contains("/tmp/SonicBloomRecovery.log"))
         XCTAssertFalse(uninstallScript.contains("BlackHole"))
         XCTAssertFalse(uninstallScript.contains("Soundflower"))
     }

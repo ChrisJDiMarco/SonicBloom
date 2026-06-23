@@ -27,7 +27,7 @@ macOS may show a microphone permission prompt because virtual system-audio devic
 
 - Install: open `SonicBloom.pkg`, then open SonicBloom and install `SonicBloom Output` when prompted.
 - Update: use Settings > Maintenance > Check for Updates. SonicBloom verifies the package checksum before opening the installer.
-- Uninstall: run `SonicBloom-Uninstall.command`. It quits SonicBloom, restores Mac output, removes the app, removes `SonicBloomHAL.driver`, and unloads the recovery agent.
+- Uninstall: run `SonicBloom-Uninstall.command`. It quits SonicBloom, restores Mac output, removes the app, removes `SonicBloomHAL.driver`, unloads the recovery agent, and deletes SonicBloom preferences/support files.
 
 ## Diagnostics
 
