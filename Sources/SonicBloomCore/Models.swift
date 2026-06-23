@@ -888,6 +888,63 @@ public extension DSPPreset {
         }
     }
 
+    func fieldTested(for outputName: String?, syncMode: AudioSyncMode) -> DSPPreset {
+        let tuned = optimized(for: syncMode)
+        let kind = DeviceProfileAdvisor.outputKind(for: outputName)
+        let knownConsumerOutput = DeviceProfileAdvisor.preset(for: outputName) != nil
+        guard kind != .speakers || knownConsumerOutput else { return tuned }
+
+        switch kind {
+        case .tinySpeakers:
+            var bands = tuned.eqBandsDB
+            for index in 0...7 where bands.indices.contains(index) {
+                bands[index] = min(bands[index], 0.75)
+            }
+            for index in 27...30 where bands.indices.contains(index) {
+                bands[index] = min(bands[index], 1.0)
+            }
+            return tuned.with(
+                eqBandsDB: bands,
+                inputGainDB: min(tuned.inputGainDB, 2.5),
+                bassAmount: min(tuned.bassAmount, 0.36),
+                widthAmount: min(tuned.widthAmount, 0.18),
+                spatialAmount: min(tuned.spatialAmount, 0.18),
+                loudnessAmount: min(tuned.loudnessAmount, 0.42),
+                ambienceAmount: min(tuned.ambienceAmount, 0.04),
+                hrtfAmount: min(tuned.hrtfAmount, 0.12),
+                limiterCeilingDB: min(tuned.limiterCeilingDB, -1.8),
+                outputGainDB: min(tuned.outputGainDB, 0)
+            )
+        case .airPods:
+            let videoLike = syncMode == .auto || syncMode == .video || syncMode == .gaming
+            return tuned.with(
+                bassAmount: min(tuned.bassAmount, 0.48),
+                spatialAmount: min(tuned.spatialAmount, videoLike ? 0.28 : 0.42),
+                crossfeedAmount: min(tuned.crossfeedAmount, 0.28),
+                ambienceAmount: min(tuned.ambienceAmount, videoLike ? 0.06 : 0.12),
+                fidelityAmount: min(tuned.fidelityAmount, 0.32),
+                hrtfAmount: min(tuned.hrtfAmount, videoLike ? 0.24 : 0.44),
+                limiterCeilingDB: min(tuned.limiterCeilingDB, -1.2),
+                outputGainDB: min(tuned.outputGainDB, 0)
+            )
+        case .headphones:
+            return tuned.with(
+                bassAmount: min(tuned.bassAmount, 0.58),
+                ambienceAmount: min(tuned.ambienceAmount, 0.14),
+                hrtfAmount: min(tuned.hrtfAmount, 0.44),
+                limiterCeilingDB: min(tuned.limiterCeilingDB, -1.0)
+            )
+        case .speakers:
+            return tuned.with(
+                bassAmount: min(tuned.bassAmount, 0.55),
+                spatialAmount: min(tuned.spatialAmount, 0.34),
+                hrtfAmount: min(tuned.hrtfAmount, 0.22),
+                limiterCeilingDB: min(tuned.limiterCeilingDB, -1.2),
+                outputGainDB: min(tuned.outputGainDB, 1)
+            )
+        }
+    }
+
     static let flat = DSPPreset(name: "Flat")
     static let cleanLoud = DSPPreset(
         name: "Clean Loud",

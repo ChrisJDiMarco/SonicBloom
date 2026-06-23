@@ -904,14 +904,15 @@ final class SonicBloomViewModel: ObservableObject {
 
     private var processingPreset: DSPPreset {
         guard settings.applyAppProfilesAutomatically else {
-            return selectedPreset.optimized(for: processingSyncMode)
+            return selectedPreset.fieldTested(for: routeState.selectedPhysicalOutputName, syncMode: processingSyncMode)
         }
         guard let rule = profile.appRule(for: foregroundAppBundleIdentifier) else {
-            return selectedPreset.optimized(for: processingSyncMode)
+            return selectedPreset.fieldTested(for: routeState.selectedPhysicalOutputName, syncMode: processingSyncMode)
         }
         let preset = rule.presetName.flatMap { name in presets.first { $0.name == name } } ?? selectedPreset
+        let syncMode = rule.syncMode ?? processingSyncMode
         let gain = rule.isMuted ? -60 : min(max(preset.outputGainDB + rule.gainDB, -60), 12)
-        return preset.with(outputGainDB: gain).optimized(for: rule.syncMode ?? processingSyncMode)
+        return preset.with(outputGainDB: gain).fieldTested(for: routeState.selectedPhysicalOutputName, syncMode: syncMode)
     }
 
     private var processingSyncMode: AudioSyncMode {

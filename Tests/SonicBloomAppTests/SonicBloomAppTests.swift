@@ -202,6 +202,22 @@ final class SonicBloomAppTests: XCTestCase {
     }
 
     @MainActor
+    func testProcessingPresetAppliesFieldSafetyForCurrentOutput() {
+        let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let viewModel = SonicBloomViewModel.testInstance(defaults: defaults)
+
+        viewModel.routeState.selectedPhysicalOutputName = "MacBook Pro Speakers"
+        viewModel.settings = SonicBloomSettings(syncMode: .music)
+        viewModel.selectedPreset = DSPPreset.deepBass.with(inputGainDB: 6, outputGainDB: 3)
+
+        XCTAssertLessThanOrEqual(viewModel.processingPresetForTesting.inputGainDB, 2.5)
+        XCTAssertLessThanOrEqual(viewModel.processingPresetForTesting.bassAmount, 0.36)
+        XCTAssertLessThanOrEqual(viewModel.processingPresetForTesting.outputGainDB, 0)
+    }
+
+    @MainActor
     func testImportedAutoEQProfileAppliesToSelectedPreset() throws {
         let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!

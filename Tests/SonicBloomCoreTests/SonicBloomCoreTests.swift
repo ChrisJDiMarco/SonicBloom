@@ -1626,6 +1626,33 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertEqual(gaming.limiterLookaheadMS, 0.2)
     }
 
+    func testFieldTuningProtectsTinySpeakersFromBassRattle() {
+        let aggressive = DSPPreset.deepBass.with(inputGainDB: 6, spatialAmount: 0.8, hrtfAmount: 0.6, outputGainDB: 3)
+
+        let tuned = aggressive.fieldTested(for: "MacBook Pro Speakers", syncMode: .music)
+
+        XCTAssertLessThanOrEqual(tuned.inputGainDB, 2.5)
+        XCTAssertLessThanOrEqual(tuned.bassAmount, 0.36)
+        XCTAssertLessThanOrEqual(tuned.spatialAmount, 0.18)
+        XCTAssertLessThanOrEqual(tuned.hrtfAmount, 0.12)
+        XCTAssertLessThanOrEqual(tuned.eqBandsDB[0...7].max() ?? 0, 0.75)
+        XCTAssertLessThanOrEqual(tuned.limiterCeilingDB, -1.8)
+        XCTAssertLessThanOrEqual(tuned.outputGainDB, 0)
+    }
+
+    func testFieldTuningLeavesUnknownAudioInterfacesUntouchedInMusicMode() {
+        XCTAssertEqual(DSPPreset.cleanLoud.fieldTested(for: "AudioBox USB", syncMode: .music), DSPPreset.cleanLoud)
+    }
+
+    func testFieldTuningKeepsAirPodsVideoSpatialCostLow() {
+        let tuned = DSPPreset.movies.fieldTested(for: "Chris AirPods Pro", syncMode: .video)
+
+        XCTAssertLessThanOrEqual(tuned.ambienceAmount, 0.06)
+        XCTAssertLessThanOrEqual(tuned.hrtfAmount, 0.24)
+        XCTAssertLessThanOrEqual(tuned.outputGainDB, 0)
+        XCTAssertEqual(tuned.limiterLookaheadMS, 0.2)
+    }
+
     func testSyncModeChoosesHardwareBufferFrameSize() {
         XCTAssertEqual(AudioSyncMode.auto.preferredBufferFrameSize, 64)
         XCTAssertEqual(AudioSyncMode.music.preferredBufferFrameSize, 128)
