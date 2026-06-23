@@ -44,6 +44,10 @@ final class SonicBloomViewModel: ObservableObject {
     private var activeProfileOutputName: String?
     private var isApplyingDevicePreset = false
     private var isApplyingSmartPreset = false
+    private var isRememberingSelectedPreset = false
+#if DEBUG
+    var profileAudioRefreshCountForTesting = 0
+#endif
     let meterModel = SonicBloomMeterModel()
     let presets = PresetCatalog.builtIns
     @Published var selectedPreset: DSPPreset = .cleanLoud {
@@ -55,6 +59,10 @@ final class SonicBloomViewModel: ObservableObject {
     @Published var profile: SonicBloomProfile {
         didSet {
             save(profile, forKey: DefaultsKey.profile)
+            guard !isRememberingSelectedPreset else { return }
+#if DEBUG
+            profileAudioRefreshCountForTesting += 1
+#endif
             refreshAppMixerRules()
             activeAppRule = profile.effectiveAppRule(for: foregroundAppBundleIdentifier)
             if oldValue.effectiveSyncMode(for: foregroundAppBundleIdentifier, default: settings.syncMode, contentProfile: smartContentProfile) != processingSyncMode {
@@ -540,6 +548,8 @@ final class SonicBloomViewModel: ObservableObject {
 
     private func rememberSelectedPresetForCurrentOutput() {
         guard !isApplyingDevicePreset, !isApplyingSmartPreset else { return }
+        isRememberingSelectedPreset = true
+        defer { isRememberingSelectedPreset = false }
         profile.favoritePresetName = selectedPreset.name
         profile.remember(selectedPreset, for: routeState.selectedPhysicalOutputName)
     }

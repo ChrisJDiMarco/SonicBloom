@@ -11,9 +11,11 @@ final class SonicBloomAppTests: XCTestCase {
         let viewModel = SonicBloomViewModel(defaults: defaults)
 
         viewModel.setForegroundAppBundleIdentifierForTesting("com.google.Chrome")
+        viewModel.profileAudioRefreshCountForTesting = 0
         viewModel.selectedPreset = .deepBass
 
         XCTAssertEqual(viewModel.processingPresetForTesting.name, DSPPreset.deepBass.name)
+        XCTAssertEqual(viewModel.profileAudioRefreshCountForTesting, 0)
     }
 
     func testPerAppMixerLeavesRoomForRouteActionTray() {
