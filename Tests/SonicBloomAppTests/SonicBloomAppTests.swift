@@ -133,6 +133,29 @@ final class SonicBloomAppTests: XCTestCase {
     }
 
     @MainActor
+    func testViewModelPublishesAvailableAudioUnitEffects() {
+        let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let effect = AudioUnitEffectDescriptor(
+            name: "Studio EQ",
+            manufacturerName: "Apple",
+            componentType: kAudioUnitType_Effect,
+            componentSubType: fourCC("eqal"),
+            componentManufacturer: fourCC("appl")
+        )
+        let viewModel = SonicBloomViewModel.testInstance(
+            defaults: defaults,
+            audioUnitEffectLoader: { [effect] }
+        )
+
+        XCTAssertEqual(viewModel.availableAudioUnitEffects, [effect])
+
+        viewModel.addAudioUnitEffect(effect)
+        XCTAssertEqual(viewModel.profile.audioUnitEffects.map(\.effect), [effect])
+    }
+
+    @MainActor
     func testSmartMeterDoesNotChangeMasterPreset() {
         let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -263,7 +286,8 @@ private extension SonicBloomViewModel {
             )
         },
         updatePackageDownloader: @escaping (URL) async throws -> Data = { _ in Data() },
-        updatePackageDirectory: URL = FileManager.default.temporaryDirectory
+        updatePackageDirectory: URL = FileManager.default.temporaryDirectory,
+        audioUnitEffectLoader: @escaping () -> [AudioUnitEffectDescriptor] = { [] }
     ) -> SonicBloomViewModel {
         SonicBloomViewModel(
             defaults: defaults,
@@ -272,7 +296,8 @@ private extension SonicBloomViewModel {
             currentVersion: currentVersion,
             updateManifestLoader: updateManifestLoader,
             updatePackageDownloader: updatePackageDownloader,
-            updatePackageDirectory: updatePackageDirectory
+            updatePackageDirectory: updatePackageDirectory,
+            audioUnitEffectLoader: audioUnitEffectLoader
         )
     }
 }

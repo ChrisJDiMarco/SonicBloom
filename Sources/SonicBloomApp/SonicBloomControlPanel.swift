@@ -867,6 +867,7 @@ private struct SettingsWorkbench: View {
 
             VStack(spacing: 12) {
                 TrustPanel(viewModel: viewModel)
+                AudioUnitEffectsCard(viewModel: viewModel)
                 ConsoleCard(title: "MAINTENANCE", icon: "wrench.and.screwdriver", color: SBColor.yellow) {
                     VStack(spacing: 10) {
                         Text(viewModel.updateStatusText)
@@ -1092,6 +1093,103 @@ private struct TrustPanel: View {
                 }
             }
         }
+    }
+}
+
+private struct AudioUnitEffectsCard: View {
+    @ObservedObject var viewModel: SonicBloomViewModel
+
+    private var addableEffects: [AudioUnitEffectDescriptor] {
+        let selectedIDs = Set(viewModel.profile.audioUnitEffects.map(\.id))
+        return viewModel.availableAudioUnitEffects.filter { !selectedIDs.contains($0.id) }
+    }
+
+    var body: some View {
+        ConsoleCard(title: "AUDIO UNITS", icon: "puzzlepiece.extension", color: SBColor.blue) {
+            VStack(spacing: 8) {
+                if viewModel.profile.audioUnitEffects.isEmpty {
+                    Text("No pro effects inserted.")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(SBColor.subtext)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(9)
+                        .background(SBColor.panel2)
+                        .clipShape(RoundedRectangle(cornerRadius: 7))
+                } else {
+                    ForEach(viewModel.profile.audioUnitEffects) { slot in
+                        AudioUnitEffectRow(slot: slot, viewModel: viewModel)
+                    }
+                }
+
+                HStack(spacing: 8) {
+                    Menu {
+                        if addableEffects.isEmpty {
+                            Text("No available effects")
+                        } else {
+                            ForEach(Array(addableEffects.prefix(20))) { effect in
+                                Button(effect.name) { viewModel.addAudioUnitEffect(effect) }
+                            }
+                        }
+                    } label: {
+                        Label("Add Effect", systemImage: "plus.circle")
+                            .font(.caption.weight(.bold))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 9)
+                    }
+                    .menuStyle(.button)
+
+                    Button {
+                        viewModel.refreshAudioUnitEffects()
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.caption.weight(.bold))
+                            .frame(width: 34, height: 34)
+                    }
+                    .buttonStyle(SonicPressButtonStyle())
+                }
+            }
+        }
+    }
+}
+
+private struct AudioUnitEffectRow: View {
+    var slot: AudioUnitEffectSlot
+    @ObservedObject var viewModel: SonicBloomViewModel
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Button {
+                viewModel.setAudioUnitEffectEnabled(slot.id, !slot.isEnabled)
+            } label: {
+                Image(systemName: slot.isEnabled ? "power.circle.fill" : "power.circle")
+                    .foregroundStyle(slot.isEnabled ? SBColor.green : SBColor.subtext)
+                    .frame(width: 22, height: 22)
+            }
+            .buttonStyle(SonicPressButtonStyle())
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(slot.effect.name)
+                    .font(.caption.weight(.bold))
+                    .lineLimit(1)
+                Text(slot.effect.manufacturerName)
+                    .font(.caption2)
+                    .foregroundStyle(SBColor.subtext)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 4)
+            Button {
+                viewModel.removeAudioUnitEffect(slot.id)
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundStyle(SBColor.subtext)
+                    .frame(width: 22, height: 22)
+            }
+            .buttonStyle(SonicPressButtonStyle())
+        }
+        .padding(8)
+        .background(slot.isEnabled ? SBColor.blue.opacity(0.10) : SBColor.panel2)
+        .overlay { RoundedRectangle(cornerRadius: 7).stroke(slot.isEnabled ? SBColor.blue.opacity(0.32) : SBColor.line, lineWidth: 1) }
+        .clipShape(RoundedRectangle(cornerRadius: 7))
     }
 }
 

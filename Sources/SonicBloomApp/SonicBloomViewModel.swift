@@ -31,6 +31,7 @@ enum CalibrationSound {
 private let defaultUpdateFeedURL = URL(string: "https://github.com/ChrisJDiMarco/SonicBloom/releases/latest/download/SonicBloom-update.json")!
 typealias UpdateManifestLoader = (URL) async throws -> SonicBloomUpdateManifest
 typealias UpdatePackageDownloader = (URL) async throws -> Data
+typealias AudioUnitEffectLoader = () -> [AudioUnitEffectDescriptor]
 
 func fetchUpdateManifest(from url: URL) async throws -> SonicBloomUpdateManifest {
     let (data, _) = try await URLSession.shared.data(from: url)
@@ -56,6 +57,7 @@ final class SonicBloomViewModel: ObservableObject {
     private let updateManifestLoader: UpdateManifestLoader
     private let updatePackageDownloader: UpdatePackageDownloader
     private let updatePackageDirectory: URL
+    private let audioUnitEffectLoader: AudioUnitEffectLoader
     private var cpuSampler = ProcessCPUUsageSampler()
     private var cpuRefreshTask: Task<Void, Never>?
     private var routeRecoveryTask: Task<Void, Never>?
@@ -121,6 +123,7 @@ final class SonicBloomViewModel: ObservableObject {
     @Published private(set) var updateStatusText = "Updates not checked"
     @Published private(set) var updateDownloadURL: URL?
     @Published private(set) var verifiedUpdatePackageURL: URL?
+    @Published private(set) var availableAudioUnitEffects: [AudioUnitEffectDescriptor] = []
     private var availableUpdateManifest: SonicBloomUpdateManifest?
 
     init(
@@ -131,7 +134,8 @@ final class SonicBloomViewModel: ObservableObject {
         updateFeedURL: URL = defaultUpdateFeedURL,
         updateManifestLoader: @escaping UpdateManifestLoader = fetchUpdateManifest,
         updatePackageDownloader: @escaping UpdatePackageDownloader = fetchUpdatePackage,
-        updatePackageDirectory: URL = FileManager.default.temporaryDirectory
+        updatePackageDirectory: URL = FileManager.default.temporaryDirectory,
+        audioUnitEffectLoader: @escaping AudioUnitEffectLoader = AudioUnitEffectCatalog.installedEffects
     ) {
         self.defaults = defaults
         self.currentVersion = currentVersion ?? (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.1.0")
@@ -139,12 +143,14 @@ final class SonicBloomViewModel: ObservableObject {
         self.updateManifestLoader = updateManifestLoader
         self.updatePackageDownloader = updatePackageDownloader
         self.updatePackageDirectory = updatePackageDirectory
+        self.audioUnitEffectLoader = audioUnitEffectLoader
         liveContextEnabled = startLiveContext
         profile = Self.load(SonicBloomProfile.self, from: defaults, key: DefaultsKey.profile) ?? .default
         settings = Self.load(SonicBloomSettings.self, from: defaults, key: DefaultsKey.settings) ?? .default
         routeState = initialRouteState ?? routeManager.currentState()
         activeProfileOutputName = routeState.selectedPhysicalOutputName
         selectedPreset = presetForOutput(routeState.selectedPhysicalOutputName)
+        availableAudioUnitEffects = audioUnitEffectLoader()
         bridge.meterHandler = { [weak self] meter in
             Task { @MainActor in
                 self?.handleMeter(meter)
@@ -480,6 +486,10 @@ final class SonicBloomViewModel: ObservableObject {
 
     func addAudioUnitEffect(_ effect: AudioUnitEffectDescriptor) {
         profile.addAudioUnitEffect(AudioUnitEffectSlot(effect: effect))
+    }
+
+    func refreshAudioUnitEffects() {
+        availableAudioUnitEffects = audioUnitEffectLoader()
     }
 
     func removeAudioUnitEffect(_ id: String) {
