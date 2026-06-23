@@ -259,6 +259,8 @@ final class SonicBloomAppTests: XCTestCase {
         XCTAssertEqual(viewModel.selectedPreset.name, DSPPreset.manual.name)
         XCTAssertGreaterThan(viewModel.selectedPreset.hrtfAmount, DSPPreset.headphones.hrtfAmount)
         XCTAssertTrue(viewModel.availableHeadphoneProfiles.contains { $0.name == "Room BRIR" })
+        XCTAssertEqual(viewModel.profile.activeSpatialImpulseProfile()?.name, "Room BRIR")
+        XCTAssertTrue(viewModel.diagnosticsReport.contains("Spatial Profile: Room BRIR"))
     }
 
     @MainActor

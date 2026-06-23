@@ -365,6 +365,7 @@ final class SonicBloomViewModel: ObservableObject {
                 preset: processingPreset,
                 bypass: isBypassed,
                 loudnessMatchedBypass: false,
+                spatialImpulseProfile: activeSpatialImpulseProfile,
                 preferredBufferFrameSize: processingSyncMode.preferredBufferFrameSize
             )
             updateBridgeAudioUnitEffects()
@@ -601,6 +602,7 @@ final class SonicBloomViewModel: ObservableObject {
     func importSpatialImpulseProfile(name: String, manufacturer: String = "Imported BRIR", text: String) throws {
         let spatialProfile = try SpatialImpulseProfileImporter.profile(name: name, manufacturer: manufacturer, text: text)
         let headphoneProfile = spatialProfile.headphoneProfile()
+        profile.addSpatialImpulseProfile(spatialProfile)
         profile.addCustomHeadphoneProfile(headphoneProfile)
         applyHeadphoneProfile(headphoneProfile)
     }
@@ -800,6 +802,7 @@ final class SonicBloomViewModel: ObservableObject {
             TrustDiagnostic(title: "Latency", value: String(format: "%.1f ms", routeState.estimatedLatencyMS), tint: .green),
             TrustDiagnostic(title: "Buffer", value: "\(routeState.bufferSize) frames", tint: .blue),
             TrustDiagnostic(title: "App", value: activeAppRule?.displayName ?? "Global", tint: activeAppRule == nil ? .blue : .green),
+            TrustDiagnostic(title: "Spatial", value: activeSpatialImpulseProfile?.name ?? "Synthetic", tint: activeSpatialImpulseProfile == nil ? .blue : .green),
             TrustDiagnostic(title: "CPU", value: String(format: "%.1f%%", cpuUsagePercent), tint: cpuUsagePercent > 15 ? .orange : .green),
             TrustDiagnostic(title: "Audio", value: audioHealth.needsRepair ? "Repair" : "Stable", tint: audioHealth.needsRepair ? .orange : .green),
             TrustDiagnostic(title: "Content", value: smartContentProfile.rawValue.capitalized, tint: .blue),
@@ -856,6 +859,8 @@ final class SonicBloomViewModel: ObservableObject {
             cpuUsagePercent: cpuUsagePercent,
             selectedPresetName: selectedPreset.name,
             syncMode: processingSyncMode,
+            activeSpatialProfileName: activeSpatialImpulseProfile?.name,
+            perAppCaptureSummary: perAppCaptureSummary,
             settings: settings,
             audioHealth: audioHealth,
             lastError: lastError
@@ -913,8 +918,23 @@ final class SonicBloomViewModel: ObservableObject {
         settings.syncMode == .auto ? .video : settings.syncMode
     }
 
+    private var activeSpatialImpulseProfile: SpatialImpulseProfile? {
+        profile.activeSpatialImpulseProfile()
+    }
+
+    private var perAppCaptureSummary: String {
+        guard settings.applyAppProfilesAutomatically else { return "Saved profiles manual" }
+        let readyCount = appMixerItems.filter { $0.captureStatus == .ready }.count
+        return "Foreground profiles auto; \(readyCount) ready taps"
+    }
+
     private func updateBridgePreset() {
-        bridge.update(preset: processingPreset, bypass: isBypassed, loudnessMatchedBypass: false)
+        bridge.update(
+            preset: processingPreset,
+            bypass: isBypassed,
+            loudnessMatchedBypass: false,
+            spatialImpulseProfile: activeSpatialImpulseProfile
+        )
     }
 
     private func updateBridgeAudioUnitEffects() {

@@ -49,6 +49,8 @@ public enum SonicBloomDiagnosticsReport {
         cpuUsagePercent: Double,
         selectedPresetName: String,
         syncMode: AudioSyncMode,
+        activeSpatialProfileName: String? = nil,
+        perAppCaptureSummary: String = "Global route",
         settings: SonicBloomSettings = .default,
         audioHealth: AudioStreamHealth = AudioStreamHealth(),
         lastError: String?
@@ -57,6 +59,8 @@ public enum SonicBloomDiagnosticsReport {
             "SonicBloom Diagnostics",
             "Preset: \(selectedPresetName)",
             "Sync Mode: \(syncMode.rawValue)",
+            "Spatial Profile: \(activeSpatialProfileName ?? "Synthetic HRTF")",
+            "Per-App Capture: \(perAppCaptureSummary)",
             "Smart Matching: \(settings.smartPresetMatching ? "On" : "Off")",
             "App Profiles: \(settings.applyAppProfilesAutomatically ? "Auto" : "Manual")",
             "Reduce Motion: \(settings.reduceMotion ? "On" : "Off")",

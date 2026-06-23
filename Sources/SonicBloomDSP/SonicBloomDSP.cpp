@@ -14,7 +14,7 @@ constexpr size_t crossfeedDelayBufferSize = 128;
 constexpr size_t spatialDelayBufferSize = 96;
 constexpr size_t lookaheadBufferSize = 512;
 constexpr size_t ambienceBufferSize = 4096;
-constexpr size_t hrtfTapCount = 128;
+constexpr size_t hrtfTapCount = SonicBloomDSPHRTFTapCount;
 constexpr std::array<float, SonicBloomDSPBandCount> bandCenters = {
     20.0f, 25.0f, 31.5f, 40.0f, 50.0f, 63.0f, 80.0f, 100.0f,
     125.0f, 160.0f, 200.0f, 250.0f, 315.0f, 400.0f, 500.0f,
@@ -422,11 +422,22 @@ struct SonicBloomDSPConfigBuffer {
     std::atomic<int> bypass { 0 };
     std::atomic<int> loudnessMatchedBypass { 0 };
     std::array<std::atomic<float>, SonicBloomDSPBandCount> eqBandsDB;
+    std::atomic<int> hrtfKernelTapCount { 0 };
+    std::array<std::atomic<float>, hrtfTapCount> hrtfNearEar;
+    std::array<std::atomic<float>, hrtfTapCount> hrtfFarEar;
+    std::array<std::atomic<float>, hrtfTapCount> hrtfRoomNear;
+    std::array<std::atomic<float>, hrtfTapCount> hrtfRoomFar;
     std::atomic<bool> hasConfig { false };
 
     SonicBloomDSPConfigBuffer() {
         for (auto &band : eqBandsDB) {
             band.store(0.0f, std::memory_order_relaxed);
+        }
+        for (size_t index = 0; index < hrtfTapCount; ++index) {
+            hrtfNearEar[index].store(0.0f, std::memory_order_relaxed);
+            hrtfFarEar[index].store(0.0f, std::memory_order_relaxed);
+            hrtfRoomNear[index].store(0.0f, std::memory_order_relaxed);
+            hrtfRoomFar[index].store(0.0f, std::memory_order_relaxed);
         }
     }
 };
@@ -505,6 +516,9 @@ SonicBloomDSPMeter SonicBloomDSPProcess(
     const float nightModeAmount = clamp(config->nightModeAmount, 0.0f, 1.0f);
     const float masteringAmount = clamp(config->masteringAmount, 0.0f, 1.0f);
     const float hrtfAmount = clamp(config->hrtfAmount, 0.0f, 1.0f);
+    const int importedHRTFTapCount = std::max(0, std::min(config->hrtfKernelTapCount, static_cast<int>(hrtfTapCount)));
+    const bool usesImportedHRTF = importedHRTFTapCount > 0;
+    const size_t activeHRTFTaps = usesImportedHRTF ? static_cast<size_t>(importedHRTFTapCount) : hrtfTapCount;
     const float limiterCeiling = clamp(dbToGain(config->limiterCeilingDB), 0.05f, 1.0f);
     const bool matchedBypass = config->bypass && config->loudnessMatchedBypass;
     const float dcR = 0.995f;
@@ -647,12 +661,16 @@ SonicBloomDSPMeter SonicBloomDSPProcess(
             float convolvedL = 0.0f;
             float convolvedR = 0.0f;
             const float brirAmount = clamp(ambienceAmount * 0.45f + spatialAmount * 0.25f, 0.0f, 0.75f);
-            for (size_t tap = 0; tap < hrtfTapCount; ++tap) {
+            for (size_t tap = 0; tap < activeHRTFTaps; ++tap) {
                 const size_t historyIndex = (handle->hrtfIndex + hrtfTapCount - tap) % hrtfTapCount;
                 const float historyL = handle->hrtfHistoryL[historyIndex];
                 const float historyR = handle->hrtfHistoryR[historyIndex];
-                const float nearTap = handle->hrtfKernels.nearEar[tap] + handle->hrtfKernels.roomNear[tap] * brirAmount;
-                const float farTap = handle->hrtfKernels.farEar[tap] + handle->hrtfKernels.roomFar[tap] * brirAmount;
+                const float nearBase = usesImportedHRTF ? config->hrtfNearEar[tap] : handle->hrtfKernels.nearEar[tap];
+                const float farBase = usesImportedHRTF ? config->hrtfFarEar[tap] : handle->hrtfKernels.farEar[tap];
+                const float roomNear = usesImportedHRTF ? config->hrtfRoomNear[tap] : handle->hrtfKernels.roomNear[tap];
+                const float roomFar = usesImportedHRTF ? config->hrtfRoomFar[tap] : handle->hrtfKernels.roomFar[tap];
+                const float nearTap = nearBase + roomNear * brirAmount;
+                const float farTap = farBase + roomFar * brirAmount;
                 convolvedL += nearTap * historyL + farTap * historyR;
                 convolvedR += nearTap * historyR + farTap * historyL;
             }
@@ -938,6 +956,15 @@ void SonicBloomDSPConfigBufferWrite(SonicBloomDSPConfigBuffer *buffer, const Son
     for (size_t index = 0; index < SonicBloomDSPBandCount; ++index) {
         buffer->eqBandsDB[index].store(config->eqBandsDB[index], std::memory_order_relaxed);
     }
+    const int kernelTapCount = std::max(0, std::min(config->hrtfKernelTapCount, static_cast<int>(hrtfTapCount)));
+    buffer->hrtfKernelTapCount.store(kernelTapCount, std::memory_order_relaxed);
+    for (size_t index = 0; index < hrtfTapCount; ++index) {
+        const bool activeTap = index < static_cast<size_t>(kernelTapCount);
+        buffer->hrtfNearEar[index].store(activeTap ? config->hrtfNearEar[index] : 0.0f, std::memory_order_relaxed);
+        buffer->hrtfFarEar[index].store(activeTap ? config->hrtfFarEar[index] : 0.0f, std::memory_order_relaxed);
+        buffer->hrtfRoomNear[index].store(activeTap ? config->hrtfRoomNear[index] : 0.0f, std::memory_order_relaxed);
+        buffer->hrtfRoomFar[index].store(activeTap ? config->hrtfRoomFar[index] : 0.0f, std::memory_order_relaxed);
+    }
     buffer->hasConfig.store(true, std::memory_order_release);
 }
 
@@ -966,6 +993,13 @@ int SonicBloomDSPConfigBufferRead(const SonicBloomDSPConfigBuffer *buffer, Sonic
     config->loudnessMatchedBypass = buffer->loudnessMatchedBypass.load(std::memory_order_relaxed);
     for (size_t index = 0; index < SonicBloomDSPBandCount; ++index) {
         config->eqBandsDB[index] = buffer->eqBandsDB[index].load(std::memory_order_relaxed);
+    }
+    config->hrtfKernelTapCount = buffer->hrtfKernelTapCount.load(std::memory_order_relaxed);
+    for (size_t index = 0; index < hrtfTapCount; ++index) {
+        config->hrtfNearEar[index] = buffer->hrtfNearEar[index].load(std::memory_order_relaxed);
+        config->hrtfFarEar[index] = buffer->hrtfFarEar[index].load(std::memory_order_relaxed);
+        config->hrtfRoomNear[index] = buffer->hrtfRoomNear[index].load(std::memory_order_relaxed);
+        config->hrtfRoomFar[index] = buffer->hrtfRoomFar[index].load(std::memory_order_relaxed);
     }
     return 1;
 }

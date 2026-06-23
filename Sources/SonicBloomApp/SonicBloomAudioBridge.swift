@@ -31,6 +31,7 @@ final class SonicBloomAudioBridge: @unchecked Sendable {
     private var configBuffer: OpaquePointer?
     private var sampleRate = 48_000.0
     private var preset = DSPPreset.cleanLoud
+    private var spatialImpulseProfile: SpatialImpulseProfile?
     private var bypass = false
     private var loudnessMatchedBypass = false
     private var syncMode = AudioSyncMode.video
@@ -57,9 +58,15 @@ final class SonicBloomAudioBridge: @unchecked Sendable {
         self.audioUnitHost = audioUnitHost
     }
 
-    func update(preset: DSPPreset, bypass: Bool, loudnessMatchedBypass: Bool = false) {
+    func update(
+        preset: DSPPreset,
+        bypass: Bool,
+        loudnessMatchedBypass: Bool = false,
+        spatialImpulseProfile: SpatialImpulseProfile? = nil
+    ) {
         settingsLock.lock()
         self.preset = preset
+        self.spatialImpulseProfile = spatialImpulseProfile
         self.bypass = bypass
         self.loudnessMatchedBypass = loudnessMatchedBypass
         let currentSampleRate = sampleRate
@@ -67,7 +74,12 @@ final class SonicBloomAudioBridge: @unchecked Sendable {
         settingsLock.unlock()
 
         if let buffer {
-            var config = preset.makeDSPConfig(sampleRate: currentSampleRate, bypass: bypass, loudnessMatchedBypass: loudnessMatchedBypass)
+            var config = preset.makeDSPConfig(
+                sampleRate: currentSampleRate,
+                bypass: bypass,
+                loudnessMatchedBypass: loudnessMatchedBypass,
+                spatialImpulseProfile: spatialImpulseProfile
+            )
             SonicBloomDSPConfigBufferWrite(buffer, &config)
         }
     }
@@ -98,6 +110,7 @@ final class SonicBloomAudioBridge: @unchecked Sendable {
         preset: DSPPreset,
         bypass: Bool,
         loudnessMatchedBypass: Bool,
+        spatialImpulseProfile: SpatialImpulseProfile?,
         preferredBufferFrameSize: UInt32
     ) throws {
         stop()
@@ -114,7 +127,12 @@ final class SonicBloomAudioBridge: @unchecked Sendable {
         configBuffer = SonicBloomDSPConfigBufferCreate()
         prewarmRealtimeBuffers()
         resetRing()
-        update(preset: preset, bypass: bypass, loudnessMatchedBypass: loudnessMatchedBypass)
+        update(
+            preset: preset,
+            bypass: bypass,
+            loudnessMatchedBypass: loudnessMatchedBypass,
+            spatialImpulseProfile: spatialImpulseProfile
+        )
 
         do {
             try startPlayback(deviceID: outputID)

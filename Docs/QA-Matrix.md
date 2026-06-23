@@ -35,6 +35,8 @@ Attach the generated `dist/stability/SonicBloom-stability-*.log` to any dropout,
 | Video apps | YouTube, Netflix, Zoom | Video mode stays lip-synced |  |
 | Music apps | Spotify, Music, browser audio | Music mode sounds clean, no clipping |  |
 | Games | Full-screen game audio | No persistent underruns or route loss |  |
+| Spatial import | Import SOFA-style BRIR JSON, enable Movies/Headphones | Diagnostics shows imported Spatial Profile, sound changes, no clipping |  |
+| Per-app profiles | Save a browser/app profile, enable automatic app profiles | Only eligible running audio apps create taps; master preset remains stable |  |
 | Quit/crash | Force quit SonicBloom while active | Recovery helper restores the physical output |  |
 | Uninstall | Run release uninstaller | App, HAL driver, and recovery agent are removed |  |
 

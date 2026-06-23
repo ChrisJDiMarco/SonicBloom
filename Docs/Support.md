@@ -37,5 +37,16 @@ When reporting an issue, include:
 - macOS version and Mac model
 - output device name
 - SonicBloom preset and sync mode
+- Spatial Profile from diagnostics, especially after importing BRIR / SOFA JSON
 - whether the issue happens in YouTube, Spotify, Zoom, games, or all apps
 - the Trust & Health diagnostics: output, latency, buffer, CPU, content, and clips
+
+## BRIR / SOFA Imports
+
+SonicBloom imports BRIR/HRTF profiles from JSON or SOFA-style JSON exports. Binary `.sofa` files are HDF5 containers; convert them to JSON first with your SOFA/HDF5 toolchain, then import the JSON from the Calibration Wizard.
+
+After import, Copy Diagnostics should show `Spatial Profile: <profile name>`. If it still says `Synthetic HRTF`, the imported profile is not active.
+
+## Per-App Profiles
+
+Per-app processing uses macOS process taps when an app exposes a running audio process. If a row says waiting, silent, or unavailable, keep the master preset as the source of truth and use Refresh Route after the app starts playing audio.

@@ -8,7 +8,8 @@ extern "C" {
 #endif
 
 enum {
-    SonicBloomDSPBandCount = 31
+    SonicBloomDSPBandCount = 31,
+    SonicBloomDSPHRTFTapCount = 128
 };
 
 typedef struct SonicBloomDSPHandle SonicBloomDSPHandle;
@@ -35,6 +36,11 @@ typedef struct {
     int bypass;
     int loudnessMatchedBypass;
     float eqBandsDB[SonicBloomDSPBandCount];
+    int hrtfKernelTapCount;
+    float hrtfNearEar[SonicBloomDSPHRTFTapCount];
+    float hrtfFarEar[SonicBloomDSPHRTFTapCount];
+    float hrtfRoomNear[SonicBloomDSPHRTFTapCount];
+    float hrtfRoomFar[SonicBloomDSPHRTFTapCount];
 } SonicBloomDSPConfig;
 
 typedef struct {

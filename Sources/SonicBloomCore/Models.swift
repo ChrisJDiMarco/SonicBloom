@@ -496,6 +496,8 @@ public struct SonicBloomProfile: Codable, Equatable, Sendable {
     public var appRules: [String: AppAudioRule]
     public var audioUnitEffects: [AudioUnitEffectSlot]
     public var customHeadphoneProfiles: [HeadphoneProfile]
+    public var customSpatialImpulseProfiles: [SpatialImpulseProfile]
+    public var activeSpatialImpulseProfileID: String?
 
     public init(
         displayName: String = "Chris",
@@ -505,7 +507,9 @@ public struct SonicBloomProfile: Codable, Equatable, Sendable {
         devicePresets: [String: DSPPreset] = [:],
         appRules: [String: AppAudioRule] = [:],
         audioUnitEffects: [AudioUnitEffectSlot] = [],
-        customHeadphoneProfiles: [HeadphoneProfile] = []
+        customHeadphoneProfiles: [HeadphoneProfile] = [],
+        customSpatialImpulseProfiles: [SpatialImpulseProfile] = [],
+        activeSpatialImpulseProfileID: String? = nil
     ) {
         self.displayName = displayName.isEmpty ? "Chris" : displayName
         self.listeningMode = listeningMode
@@ -515,6 +519,8 @@ public struct SonicBloomProfile: Codable, Equatable, Sendable {
         self.appRules = appRules
         self.audioUnitEffects = []
         self.customHeadphoneProfiles = customHeadphoneProfiles
+        self.customSpatialImpulseProfiles = customSpatialImpulseProfiles
+        self.activeSpatialImpulseProfileID = activeSpatialImpulseProfileID
         for slot in audioUnitEffects {
             addAudioUnitEffect(slot)
         }
@@ -614,8 +620,19 @@ public struct SonicBloomProfile: Codable, Equatable, Sendable {
         customHeadphoneProfiles.removeAll { $0.id == id }
     }
 
+    public mutating func addSpatialImpulseProfile(_ spatialProfile: SpatialImpulseProfile) {
+        customSpatialImpulseProfiles.removeAll { $0.id == spatialProfile.id }
+        customSpatialImpulseProfiles.append(spatialProfile)
+        activeSpatialImpulseProfileID = spatialProfile.id
+    }
+
+    public func activeSpatialImpulseProfile() -> SpatialImpulseProfile? {
+        guard let activeSpatialImpulseProfileID else { return nil }
+        return customSpatialImpulseProfiles.first { $0.id == activeSpatialImpulseProfileID }
+    }
+
     private enum CodingKeys: String, CodingKey {
-        case displayName, listeningMode, favoritePresetName, preferredOutputName, devicePresets, appRules, audioUnitEffects, customHeadphoneProfiles
+        case displayName, listeningMode, favoritePresetName, preferredOutputName, devicePresets, appRules, audioUnitEffects, customHeadphoneProfiles, customSpatialImpulseProfiles, activeSpatialImpulseProfileID
     }
 
     public init(from decoder: Decoder) throws {
@@ -628,7 +645,9 @@ public struct SonicBloomProfile: Codable, Equatable, Sendable {
             devicePresets: try values.decodeIfPresent([String: DSPPreset].self, forKey: .devicePresets) ?? [:],
             appRules: try values.decodeIfPresent([String: AppAudioRule].self, forKey: .appRules) ?? [:],
             audioUnitEffects: try values.decodeIfPresent([AudioUnitEffectSlot].self, forKey: .audioUnitEffects) ?? [],
-            customHeadphoneProfiles: try values.decodeIfPresent([HeadphoneProfile].self, forKey: .customHeadphoneProfiles) ?? []
+            customHeadphoneProfiles: try values.decodeIfPresent([HeadphoneProfile].self, forKey: .customHeadphoneProfiles) ?? [],
+            customSpatialImpulseProfiles: try values.decodeIfPresent([SpatialImpulseProfile].self, forKey: .customSpatialImpulseProfiles) ?? [],
+            activeSpatialImpulseProfileID: try values.decodeIfPresent(String.self, forKey: .activeSpatialImpulseProfileID)
         )
     }
 }

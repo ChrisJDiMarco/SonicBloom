@@ -480,6 +480,57 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertGreaterThan(headphoneProfile.spatialTrim, 0)
     }
 
+    func testSpatialImpulseProfilePopulatesDSPKernelConfig() throws {
+        let profile = SpatialImpulseProfile(
+            id: "test-brir",
+            manufacturer: "SonicBloom",
+            name: "Test BRIR",
+            sampleRate: 48_000,
+            nearEar: [1, 0.25],
+            farEar: [0, 0, 0.5],
+            roomNear: [0, 0, 0, 0.125],
+            roomFar: [0, 0, 0, 0, 0.0625]
+        )
+
+        let config = DSPPreset.manual
+            .with(hrtfAmount: 1, limiterCeilingDB: -0.1)
+            .makeDSPConfig(sampleRate: 48_000, bypass: false, spatialImpulseProfile: profile)
+
+        XCTAssertEqual(config.hrtfKernelTapCount, 128)
+        XCTAssertEqual(config.hrtfNearEar.0, 1, accuracy: 0.000_01)
+        XCTAssertEqual(config.hrtfFarEar.2, 0.5, accuracy: 0.000_01)
+        XCTAssertEqual(config.hrtfRoomNear.3, 0.125, accuracy: 0.000_01)
+        XCTAssertEqual(config.hrtfRoomFar.4, 0.0625, accuracy: 0.000_01)
+    }
+
+    func testImportedBRIRConfigAffectsRealtimeHRTFPath() throws {
+        let profile = SpatialImpulseProfile(
+            id: "test-brir",
+            manufacturer: "SonicBloom",
+            name: "Test BRIR",
+            sampleRate: 48_000,
+            nearEar: [1],
+            farEar: [0, 0, 0.45]
+        )
+        let input = [StereoFrame(left: 1, right: 0)] + Array(repeating: StereoFrame(left: 0, right: 0), count: 256)
+        let config = DSPPreset.manual
+            .with(hrtfAmount: 1, limiterCeilingDB: -0.1)
+            .makeDSPConfig(sampleRate: 48_000, bypass: false, spatialImpulseProfile: profile)
+        var outputLeft: [Float] = []
+        var outputRight: [Float] = []
+
+        _ = SonicBloomProcessor(sampleRate: 48_000).process(
+            left: input.map(\.left),
+            right: input.map(\.right),
+            outputLeft: &outputLeft,
+            outputRight: &outputRight,
+            config: config
+        )
+
+        XCTAssertGreaterThan(outputLeft.map(abs).max() ?? 0, 0.1)
+        XCTAssertGreaterThan(outputRight.map(abs).max() ?? 0, 0.02)
+    }
+
     func testHeadphoneProfilesApplyCalibrationBands() throws {
         let profile = try XCTUnwrap(HeadphoneProfileCatalog.builtIns.first { $0.id == "airpods-pro" })
         let calibrated = profile.applying(to: .flat)
@@ -1904,6 +1955,8 @@ final class SonicBloomCoreTests: XCTestCase {
             cpuUsagePercent: 7.25,
             selectedPresetName: "Clean Loud",
             syncMode: .video,
+            activeSpatialProfileName: "Studio BRIR",
+            perAppCaptureSummary: "Foreground profiles auto; 2 ready taps",
             settings: SonicBloomSettings(
                 reduceMotion: true,
                 waveformIntensity: 0.25,
@@ -1917,6 +1970,8 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertTrue(report.contains("SonicBloom Diagnostics"))
         XCTAssertTrue(report.contains("Preset: Clean Loud"))
         XCTAssertTrue(report.contains("Sync Mode: Video"))
+        XCTAssertTrue(report.contains("Spatial Profile: Studio BRIR"))
+        XCTAssertTrue(report.contains("Per-App Capture: Foreground profiles auto; 2 ready taps"))
         XCTAssertTrue(report.contains("Input: SonicBloom Output"))
         XCTAssertTrue(report.contains("Output: AirPods Pro"))
         XCTAssertTrue(report.contains("Sample Rate: 44100 Hz"))
@@ -2184,6 +2239,8 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertTrue(supportGuide.contains("Reset Mac Output"))
         XCTAssertTrue(supportGuide.contains("microphone permission"))
         XCTAssertTrue(supportGuide.contains("diagnostics"))
+        XCTAssertTrue(supportGuide.contains("BRIR / SOFA Imports"))
+        XCTAssertTrue(supportGuide.contains("Per-App Profiles"))
     }
 
     func testUpdateManifestReportsAvailableRelease() throws {

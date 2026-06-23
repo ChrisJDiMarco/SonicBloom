@@ -70,8 +70,33 @@ public struct SpatialImpulseProfile: Codable, Equatable, Identifiable, Sendable 
         )
     }
 
+    public func dspKernels(tapCount: Int = 128) -> SpatialImpulseKernels {
+        let near = Self.kernelSamples(nearEar, tapCount: tapCount)
+        let far = Self.kernelSamples(farEar, tapCount: tapCount)
+        let roomNear = Self.kernelSamples(roomNear, tapCount: tapCount)
+        let roomFar = Self.kernelSamples(roomFar, tapCount: tapCount)
+        let peak = max(
+            near.map(abs).max() ?? 0,
+            far.map(abs).max() ?? 0,
+            roomNear.map(abs).max() ?? 0,
+            roomFar.map(abs).max() ?? 0
+        )
+        let gain = peak > 1 ? 1 / peak : 1
+        return SpatialImpulseKernels(
+            nearEar: near.map { $0 * gain },
+            farEar: far.map { $0 * gain },
+            roomNear: roomNear.map { $0 * gain },
+            roomFar: roomFar.map { $0 * gain }
+        )
+    }
+
     private static func clean(_ samples: [Float]) -> [Float] {
         Array(samples.prefix(8192).map { $0.isFinite ? $0 : 0 })
+    }
+
+    private static func kernelSamples(_ samples: [Float], tapCount: Int) -> [Float] {
+        let safeTapCount = max(tapCount, 0)
+        return Array((samples + Array(repeating: 0, count: safeTapCount)).prefix(safeTapCount))
     }
 
     private static func energyRatio(near: [Float], far: [Float]) -> Double {
@@ -83,6 +108,13 @@ public struct SpatialImpulseProfile: Codable, Equatable, Identifiable, Sendable 
     private static func clamp(_ value: Double, _ lower: Double, _ upper: Double) -> Double {
         min(max(value, lower), upper)
     }
+}
+
+public struct SpatialImpulseKernels: Equatable, Sendable {
+    public var nearEar: [Float]
+    public var farEar: [Float]
+    public var roomNear: [Float]
+    public var roomFar: [Float]
 }
 
 public enum SpatialImpulseProfileImporter {

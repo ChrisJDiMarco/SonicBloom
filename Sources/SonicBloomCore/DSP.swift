@@ -2,7 +2,12 @@ import Foundation
 import SonicBloomDSP
 
 public extension DSPPreset {
-    func makeDSPConfig(sampleRate: Double, bypass: Bool, loudnessMatchedBypass: Bool = false) -> SonicBloomDSPConfig {
+    func makeDSPConfig(
+        sampleRate: Double,
+        bypass: Bool,
+        loudnessMatchedBypass: Bool = false,
+        spatialImpulseProfile: SpatialImpulseProfile? = nil
+    ) -> SonicBloomDSPConfig {
         var config = SonicBloomDSPConfig()
         config.sampleRate = Float(sampleRate)
         config.inputGainDB = Float(inputGainDB)
@@ -28,7 +33,24 @@ public extension DSPPreset {
                 bands[index] = Float(eqBandsDB[index])
             }
         }
+        if let spatialImpulseProfile {
+            let kernels = spatialImpulseProfile.dspKernels(tapCount: Int(SonicBloomDSPHRTFTapCount))
+            config.hrtfKernelTapCount = Int32(SonicBloomDSPHRTFTapCount)
+            write(kernels.nearEar, to: &config.hrtfNearEar)
+            write(kernels.farEar, to: &config.hrtfFarEar)
+            write(kernels.roomNear, to: &config.hrtfRoomNear)
+            write(kernels.roomFar, to: &config.hrtfRoomFar)
+        }
         return config
+    }
+
+    private func write<T>(_ samples: [Float], to storage: inout T) {
+        withUnsafeMutableBytes(of: &storage) { rawBuffer in
+            let buffer = rawBuffer.bindMemory(to: Float.self)
+            for index in 0..<min(samples.count, buffer.count) {
+                buffer[index] = samples[index]
+            }
+        }
     }
 }
 
