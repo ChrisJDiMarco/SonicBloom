@@ -50,6 +50,14 @@ final class SonicBloomAppTests: XCTestCase {
         XCTAssertTrue(buildScript.contains("SonicBloomUpdateManifestPublicKeyHex"))
     }
 
+    func testStudioDeskCardsFillRemainingViewportHeight() throws {
+        let controlPanel = try String(contentsOf: URL(fileURLWithPath: "Sources/SonicBloomApp/SonicBloomControlPanel.swift"))
+
+        XCTAssertTrue(controlPanel.contains("GeometryReader { viewport in"))
+        XCTAssertTrue(controlPanel.contains(".frame(minHeight: viewport.size.height"))
+        XCTAssertFalse(controlPanel.contains(".frame(height: 350)"))
+    }
+
     @MainActor
     func testSelectedPresetWinsOverSuggestedForegroundAppPreset() {
         let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"

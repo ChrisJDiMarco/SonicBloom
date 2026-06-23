@@ -17,14 +17,17 @@ struct SonicBloomControlPanel: View {
                     if viewModel.settings.showAdvancedControls {
                         ConsoleTabBar(selection: $tab)
                             .fixedSize(horizontal: false, vertical: true)
-                        ScrollView(.vertical) {
-                            tabContent
-                                .frame(maxWidth: .infinity, alignment: .topLeading)
-                                .padding(.bottom, 10)
+                        GeometryReader { viewport in
+                            ScrollView(.vertical) {
+                                tabContent
+                                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                                    .frame(minHeight: viewport.size.height, alignment: .topLeading)
+                                    .padding(.bottom, 10)
+                            }
+                            .scrollIndicators(.visible)
+                            .clipped()
                         }
-                        .scrollIndicators(.visible)
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                        .clipped()
                     } else {
                         SimpleModePanel(viewModel: viewModel)
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -401,16 +404,14 @@ private struct StudioDesk: View {
     @ObservedObject var viewModel: SonicBloomViewModel
 
     var body: some View {
-        VStack(spacing: 12) {
-            HStack(spacing: 12) {
-                ToneEngine(viewModel: viewModel)
-                    .frame(width: 300)
-                EQConsole(viewModel: viewModel)
-                StereoField(viewModel: viewModel)
-                    .frame(width: 300)
-            }
-            .frame(height: 350)
+        HStack(spacing: 12) {
+            ToneEngine(viewModel: viewModel)
+                .frame(width: 300)
+            EQConsole(viewModel: viewModel)
+            StereoField(viewModel: viewModel)
+                .frame(width: 300)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
 
