@@ -814,6 +814,82 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertEqual(events, ["create 888", "destroy 888"])
     }
 
+    func testTapInputBufferExtractsInterleavedStereoFrames() {
+        var samples: [Float] = [0.1, 0.2, 0.3, 0.4]
+        let byteSize = UInt32(samples.count * MemoryLayout<Float>.size)
+        let frames = samples.withUnsafeMutableBufferPointer { pointer in
+            let buffer = AudioBuffer(
+                mNumberChannels: 2,
+                mDataByteSize: byteSize,
+                mData: pointer.baseAddress
+            )
+            var list = AudioBufferList(mNumberBuffers: 1, mBuffers: buffer)
+            return withUnsafePointer(to: &list) { CoreAudioStereoBuffer(inputData: $0).frames }
+        }
+
+        XCTAssertEqual(frames, [
+            StereoFrame(left: 0.1, right: 0.2),
+            StereoFrame(left: 0.3, right: 0.4)
+        ])
+    }
+
+    func testTapInputBufferExtractsPlanarStereoFrames() {
+        var left: [Float] = [0.1, 0.3]
+        var right: [Float] = [0.2, 0.4]
+        let leftByteSize = UInt32(left.count * MemoryLayout<Float>.size)
+        let rightByteSize = UInt32(right.count * MemoryLayout<Float>.size)
+        let frames = left.withUnsafeMutableBufferPointer { leftPointer in
+            right.withUnsafeMutableBufferPointer { rightPointer in
+                let buffers = [
+                    AudioBuffer(mNumberChannels: 1, mDataByteSize: leftByteSize, mData: leftPointer.baseAddress),
+                    AudioBuffer(mNumberChannels: 1, mDataByteSize: rightByteSize, mData: rightPointer.baseAddress)
+                ]
+                let byteCount = MemoryLayout<AudioBufferList>.size + MemoryLayout<AudioBuffer>.size
+                let rawPointer = UnsafeMutableRawPointer.allocate(byteCount: byteCount, alignment: MemoryLayout<AudioBufferList>.alignment)
+                defer { rawPointer.deallocate() }
+                let list = rawPointer.bindMemory(to: AudioBufferList.self, capacity: 1)
+                list.pointee.mNumberBuffers = 2
+                UnsafeMutableAudioBufferListPointer(list)[0] = buffers[0]
+                UnsafeMutableAudioBufferListPointer(list)[1] = buffers[1]
+                return CoreAudioStereoBuffer(inputData: UnsafePointer(list)).frames
+            }
+        }
+
+        XCTAssertEqual(frames, [
+            StereoFrame(left: 0.1, right: 0.2),
+            StereoFrame(left: 0.3, right: 0.4)
+        ])
+    }
+
+    func testTapSourceEmitsDecodedStereoFrames() throws {
+        var emitted: [StereoFrame] = []
+        let source = CoreAudioTapSource(
+            route: CoreAudioProcessTapRoute(
+                tap: CoreAudioProcessTap(id: 777, processObjectIDs: [9001]),
+                aggregateDeviceID: 888,
+                aggregateUID: "tap-device"
+            ),
+            stereoFrameHandler: { emitted = $0.frames },
+            createIOProc: { source, _ in
+                var samples: [Float] = [0.5, -0.5]
+                let byteSize = UInt32(samples.count * MemoryLayout<Float>.size)
+                samples.withUnsafeMutableBufferPointer { pointer in
+                    let buffer = AudioBuffer(mNumberChannels: 2, mDataByteSize: byteSize, mData: pointer.baseAddress)
+                    var list = AudioBufferList(mNumberBuffers: 1, mBuffers: buffer)
+                    withUnsafePointer(to: &list) { source.handleInputData($0) }
+                }
+                return { _, _, _, _, _, _, _ in noErr }
+            },
+            startDevice: { _, _ in },
+            stopDevice: { _, _ in },
+            destroyIOProc: { _, _ in }
+        )
+
+        try source.start()
+
+        XCTAssertEqual(emitted, [StereoFrame(left: 0.5, right: -0.5)])
+    }
+
     func testProfileEffectiveAppRuleUsesSuggestionsUntilSavedRuleExists() {
         var profile = SonicBloomProfile.default
 

@@ -884,9 +884,11 @@ public final class CoreAudioProcessTapManager: @unchecked Sendable {
 
 public final class CoreAudioTapSource: @unchecked Sendable {
     public typealias InputHandler = (UnsafePointer<AudioBufferList>) -> Void
+    public typealias StereoFrameHandler = (CoreAudioStereoBuffer) -> Void
 
     public let route: CoreAudioProcessTapRoute
     public var inputHandler: InputHandler?
+    public var stereoFrameHandler: StereoFrameHandler?
 
     private let createIOProc: (CoreAudioTapSource, UInt32) throws -> AudioDeviceIOProcID
     private let startDevice: (UInt32, AudioDeviceIOProcID) throws -> Void
@@ -902,13 +904,14 @@ public final class CoreAudioTapSource: @unchecked Sendable {
         return running
     }
 
-    public convenience init(route: CoreAudioProcessTapRoute, inputHandler: InputHandler? = nil) {
-        self.init(route: route, inputHandler: inputHandler, createIOProc: Self.systemCreateIOProc)
+    public convenience init(route: CoreAudioProcessTapRoute, inputHandler: InputHandler? = nil, stereoFrameHandler: StereoFrameHandler? = nil) {
+        self.init(route: route, inputHandler: inputHandler, stereoFrameHandler: stereoFrameHandler, createIOProc: Self.systemCreateIOProc)
     }
 
     init(
         route: CoreAudioProcessTapRoute,
         inputHandler: InputHandler? = nil,
+        stereoFrameHandler: StereoFrameHandler? = nil,
         createIOProc: @escaping (CoreAudioTapSource, UInt32) throws -> AudioDeviceIOProcID,
         startDevice: @escaping (UInt32, AudioDeviceIOProcID) throws -> Void = CoreAudioTapSource.systemStartDevice,
         stopDevice: @escaping (UInt32, AudioDeviceIOProcID) -> Void = CoreAudioTapSource.systemStopDevice,
@@ -916,6 +919,7 @@ public final class CoreAudioTapSource: @unchecked Sendable {
     ) {
         self.route = route
         self.inputHandler = inputHandler
+        self.stereoFrameHandler = stereoFrameHandler
         self.createIOProc = createIOProc
         self.startDevice = startDevice
         self.stopDevice = stopDevice
@@ -962,8 +966,11 @@ public final class CoreAudioTapSource: @unchecked Sendable {
         destroyIOProc(route.aggregateDeviceID, procID)
     }
 
-    fileprivate func handleInputData(_ inputData: UnsafePointer<AudioBufferList>) {
+    func handleInputData(_ inputData: UnsafePointer<AudioBufferList>) {
         inputHandler?(inputData)
+        if let stereoFrameHandler {
+            stereoFrameHandler(CoreAudioStereoBuffer(inputData: inputData))
+        }
     }
 
     private static func systemCreateIOProc(source: CoreAudioTapSource, deviceID: UInt32) throws -> AudioDeviceIOProcID {
@@ -989,5 +996,55 @@ public final class CoreAudioTapSource: @unchecked Sendable {
 
     private static func systemDestroyIOProc(deviceID: UInt32, procID: AudioDeviceIOProcID) {
         AudioDeviceDestroyIOProcID(AudioDeviceID(deviceID), procID)
+    }
+}
+
+public struct CoreAudioStereoBuffer: Equatable, Sendable {
+    public var frames: [StereoFrame]
+
+    public init(frames: [StereoFrame] = []) {
+        self.frames = frames
+    }
+
+    public init(inputData: UnsafePointer<AudioBufferList>) {
+        let buffers = UnsafeMutableAudioBufferListPointer(UnsafeMutablePointer(mutating: inputData))
+        let frameCount = Self.frameCount(buffers)
+        guard frameCount > 0 else {
+            frames = []
+            return
+        }
+
+        if buffers.count == 1 {
+            frames = Self.interleavedFrames(buffer: buffers[0], frameCount: frameCount)
+        } else {
+            frames = Self.planarFrames(buffers: buffers, frameCount: frameCount)
+        }
+    }
+
+    private static func frameCount(_ buffers: UnsafeMutableAudioBufferListPointer) -> Int {
+        buffers.reduce(0) { result, buffer in
+            let channels = max(Int(buffer.mNumberChannels), 1)
+            let samples = Int(buffer.mDataByteSize) / MemoryLayout<Float>.size
+            return max(result, samples / channels)
+        }
+    }
+
+    private static func interleavedFrames(buffer: AudioBuffer, frameCount: Int) -> [StereoFrame] {
+        let channels = max(Int(buffer.mNumberChannels), 1)
+        guard let data = buffer.mData?.assumingMemoryBound(to: Float.self) else { return [] }
+        return (0..<frameCount).map { frame in
+            let base = frame * channels
+            let left = data[base]
+            return StereoFrame(left: left, right: channels > 1 ? data[base + 1] : left)
+        }
+    }
+
+    private static func planarFrames(buffers: UnsafeMutableAudioBufferListPointer, frameCount: Int) -> [StereoFrame] {
+        guard let leftData = buffers[0].mData?.assumingMemoryBound(to: Float.self) else { return [] }
+        let rightData = buffers.count > 1 ? buffers[1].mData?.assumingMemoryBound(to: Float.self) : nil
+        return (0..<frameCount).map { frame in
+            let left = leftData[frame]
+            return StereoFrame(left: left, right: rightData?[frame] ?? left)
+        }
     }
 }
