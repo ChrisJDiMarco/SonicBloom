@@ -600,7 +600,7 @@ private struct PerAppMixer: View {
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(SBColor.subtext)
                     Spacer()
-                    Text("\(viewModel.appMixerRules.count) apps")
+                    Text("\(viewModel.appMixerItems.count) apps")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(SBColor.subtext)
                     Button("Refresh") { viewModel.refreshAppMixerRules() }
@@ -608,7 +608,7 @@ private struct PerAppMixer: View {
                         .buttonStyle(.plain)
                         .foregroundStyle(SBColor.blue)
                 }
-                if viewModel.appMixerRules.isEmpty {
+                if viewModel.appMixerItems.isEmpty {
                     Text("No regular apps detected")
                         .font(.caption)
                         .foregroundStyle(SBColor.subtext)
@@ -617,14 +617,14 @@ private struct PerAppMixer: View {
                 } else {
                     ScrollView(.vertical) {
                         LazyVStack(spacing: 8) {
-                            ForEach(viewModel.appMixerRules) { rule in
+                            ForEach(viewModel.appMixerItems) { item in
                                 PerAppRuleRow(
-                                    rule: rule,
+                                    item: item,
                                     presets: viewModel.presets,
-                                    setGain: { viewModel.setAppRuleGain(rule, gainDB: $0) },
-                                    toggleMute: { viewModel.toggleAppRuleMute(rule) },
-                                    setPreset: { viewModel.setAppRulePreset(rule, presetName: $0) },
-                                    setSyncMode: { viewModel.setAppRuleSyncMode(rule, syncMode: $0) }
+                                    setGain: { viewModel.setAppRuleGain(item.rule, gainDB: $0) },
+                                    toggleMute: { viewModel.toggleAppRuleMute(item.rule) },
+                                    setPreset: { viewModel.setAppRulePreset(item.rule, presetName: $0) },
+                                    setSyncMode: { viewModel.setAppRuleSyncMode(item.rule, syncMode: $0) }
                                 )
                             }
                         }
@@ -641,7 +641,7 @@ private struct PerAppMixer: View {
 }
 
 private struct PerAppRuleRow: View {
-    var rule: AppAudioRule
+    var item: AppMixerItem
     var presets: [DSPPreset]
     var setGain: (Double) -> Void
     var toggleMute: () -> Void
@@ -652,14 +652,23 @@ private struct PerAppRuleRow: View {
         HStack(spacing: 10) {
             Button(action: toggleMute) {
                 Image(systemName: rule.isMuted ? "speaker.slash.fill" : "speaker.wave.2.fill")
-                    .foregroundStyle(rule.isMuted ? SBColor.orange : SBColor.green)
+                    .foregroundStyle(rule.isMuted ? SBColor.orange : statusColor)
                     .frame(width: 24)
             }
             .buttonStyle(.plain)
             VStack(alignment: .leading, spacing: 2) {
-                Text(rule.displayName)
-                    .font(.caption.weight(.bold))
-                    .lineLimit(1)
+                HStack(spacing: 6) {
+                    Text(rule.displayName)
+                        .font(.caption.weight(.bold))
+                        .lineLimit(1)
+                    Text(item.captureStatus.rawValue.uppercased())
+                        .font(.system(size: 9, weight: .black))
+                        .foregroundStyle(statusColor)
+                        .padding(.horizontal, 5)
+                        .padding(.vertical, 2)
+                        .background(statusColor.opacity(0.12))
+                        .clipShape(Capsule())
+                }
                 Text(rule.bundleIdentifier)
                     .font(.caption2)
                     .foregroundStyle(SBColor.subtext)
@@ -696,6 +705,19 @@ private struct PerAppRuleRow: View {
         .background(SBColor.panel2)
         .overlay { RoundedRectangle(cornerRadius: 7).stroke(rule.isMuted ? SBColor.orange.opacity(0.45) : SBColor.line, lineWidth: 1) }
         .clipShape(RoundedRectangle(cornerRadius: 7))
+    }
+
+    private var rule: AppAudioRule {
+        item.rule
+    }
+
+    private var statusColor: Color {
+        switch item.captureStatus {
+        case .ready: SBColor.green
+        case .waitingForOutput: SBColor.blue
+        case .silent: SBColor.orange
+        case .unavailable, .notRunning: SBColor.subtext
+        }
     }
 }
 

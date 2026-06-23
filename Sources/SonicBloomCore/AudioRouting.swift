@@ -605,3 +605,80 @@ public final class CoreAudioDeviceInventory {
         }
     }
 }
+
+public final class CoreAudioProcessInventory {
+    public init() {}
+
+    public func processes() -> [AudioProcessSnapshot] {
+        processObjectIDs().compactMap(processSnapshot)
+    }
+
+    private func processObjectIDs() -> [AudioObjectID] {
+        var address = propertyAddress(selector: kAudioHardwarePropertyProcessObjectList)
+        var size: UInt32 = 0
+        guard AudioObjectGetPropertyDataSize(AudioObjectID(kAudioObjectSystemObject), &address, 0, nil, &size) == noErr, size > 0 else {
+            return []
+        }
+
+        let count = Int(size) / MemoryLayout<AudioObjectID>.size
+        var processIDs = Array(repeating: AudioObjectID(0), count: count)
+        let status = processIDs.withUnsafeMutableBufferPointer { pointer in
+            AudioObjectGetPropertyData(
+                AudioObjectID(kAudioObjectSystemObject),
+                &address,
+                0,
+                nil,
+                &size,
+                pointer.baseAddress!
+            )
+        }
+        guard status == noErr else {
+            return []
+        }
+        return processIDs.filter { $0 != kAudioObjectUnknown }
+    }
+
+    private func processSnapshot(processObjectID: AudioObjectID) -> AudioProcessSnapshot? {
+        guard let processID = readPID(processObjectID) else { return nil }
+        return AudioProcessSnapshot(
+            processID: processID,
+            bundleIdentifier: readBundleIdentifier(processObjectID),
+            isRunningOutput: readBool(processObjectID, selector: kAudioProcessPropertyIsRunningOutput, defaultValue: false),
+            isAudible: readBool(processObjectID, selector: kAudioHardwarePropertyProcessIsAudible, defaultValue: true)
+        )
+    }
+
+    private func readPID(_ objectID: AudioObjectID) -> Int32? {
+        var pid = pid_t(0)
+        var size = UInt32(MemoryLayout<pid_t>.size)
+        var address = propertyAddress(selector: kAudioProcessPropertyPID)
+        let status = AudioObjectGetPropertyData(objectID, &address, 0, nil, &size, &pid)
+        return status == noErr && pid > 0 ? Int32(pid) : nil
+    }
+
+    private func readBundleIdentifier(_ objectID: AudioObjectID) -> String? {
+        var value: Unmanaged<CFString>?
+        var size = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
+        var address = propertyAddress(selector: kAudioProcessPropertyBundleID)
+        let status = AudioObjectGetPropertyData(objectID, &address, 0, nil, &size, &value)
+        guard status == noErr, let value else { return nil }
+        let bundleIdentifier = value.takeRetainedValue() as String
+        return bundleIdentifier.isEmpty ? nil : bundleIdentifier
+    }
+
+    private func readBool(_ objectID: AudioObjectID, selector: AudioObjectPropertySelector, defaultValue: Bool) -> Bool {
+        var value: UInt32 = defaultValue ? 1 : 0
+        var size = UInt32(MemoryLayout<UInt32>.size)
+        var address = propertyAddress(selector: selector)
+        let status = AudioObjectGetPropertyData(objectID, &address, 0, nil, &size, &value)
+        return status == noErr ? value != 0 : defaultValue
+    }
+
+    private func propertyAddress(selector: AudioObjectPropertySelector) -> AudioObjectPropertyAddress {
+        AudioObjectPropertyAddress(
+            mSelector: selector,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+    }
+}

@@ -620,6 +620,37 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertNil(AppAudioRuleAdvisor.rule(for: "com.example.notes", displayName: "Notes"))
     }
 
+    func testAppMixerPlannerMarksCoreAudioCaptureReadiness() {
+        let apps = [
+            RunningAppSnapshot(bundleIdentifier: "com.spotify.client", displayName: "Spotify", processID: 101),
+            RunningAppSnapshot(bundleIdentifier: "us.zoom.xos", displayName: "Zoom", processID: 202),
+            RunningAppSnapshot(bundleIdentifier: "com.apple.TextEdit", displayName: "TextEdit", processID: 303)
+        ]
+        let processes = [
+            AudioProcessSnapshot(processID: 101, bundleIdentifier: "com.spotify.client", isRunningOutput: true, isAudible: true),
+            AudioProcessSnapshot(processID: 202, bundleIdentifier: "us.zoom.xos", isRunningOutput: false, isAudible: true),
+            AudioProcessSnapshot(processID: 303, bundleIdentifier: "com.apple.TextEdit", isRunningOutput: true, isAudible: false)
+        ]
+
+        let items = AppMixerPlanner.items(savedRules: [:], runningApps: apps, audioProcesses: processes, currentBundleIdentifier: "com.chrisdimarco.SonicBloom")
+
+        XCTAssertEqual(items.first { $0.rule.bundleIdentifier == "com.spotify.client" }?.captureStatus, .ready)
+        XCTAssertEqual(items.first { $0.rule.bundleIdentifier == "us.zoom.xos" }?.captureStatus, .waitingForOutput)
+        XCTAssertEqual(items.first { $0.rule.bundleIdentifier == "com.apple.TextEdit" }?.captureStatus, .silent)
+        XCTAssertTrue(items.first { $0.rule.bundleIdentifier == "com.spotify.client" }?.isTapEligible == true)
+    }
+
+    func testAppMixerPlannerKeepsSavedRulesWhenAppIsNotRunning() {
+        let saved = AppAudioRule(bundleIdentifier: "com.apple.Music", displayName: "Music", gainDB: -3, presetName: DSPPreset.cleanLoud.name)
+
+        let items = AppMixerPlanner.items(savedRules: [saved.bundleIdentifier: saved], runningApps: [], audioProcesses: [], currentBundleIdentifier: nil)
+
+        XCTAssertEqual(items.count, 1)
+        XCTAssertEqual(items[0].rule, saved)
+        XCTAssertEqual(items[0].captureStatus, .notRunning)
+        XCTAssertFalse(items[0].isTapEligible)
+    }
+
     func testProfileEffectiveAppRuleUsesSuggestionsUntilSavedRuleExists() {
         var profile = SonicBloomProfile.default
 

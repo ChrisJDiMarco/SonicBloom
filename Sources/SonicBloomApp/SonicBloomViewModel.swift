@@ -31,6 +31,7 @@ enum CalibrationSound {
 final class SonicBloomViewModel: ObservableObject {
     let routeManager = CoreAudioRouteManager()
     private let bridge = SonicBloomAudioBridge()
+    private let audioProcessInventory = CoreAudioProcessInventory()
     private let calibrationTonePlayer = CalibrationTonePlayer()
     private let audioControlQueue = DispatchQueue(label: "com.chrisdimarco.sonicbloom.audio-control")
     private let defaults: UserDefaults
@@ -90,7 +91,7 @@ final class SonicBloomViewModel: ObservableObject {
     @Published var lastError: String?
     @Published private(set) var cpuUsagePercent = 0.0
     @Published private(set) var smartContentProfile: SmartContentProfile = .quiet
-    @Published private(set) var appMixerRules: [AppAudioRule] = []
+    @Published private(set) var appMixerItems: [AppMixerItem] = []
     @Published private(set) var foregroundAppBundleIdentifier: String?
     @Published private(set) var activeAppRule: AppAudioRule?
 
@@ -339,7 +340,11 @@ final class SonicBloomViewModel: ObservableObject {
     }
 
     func refreshAppMixerRules() {
-        appMixerRules = Self.discoveredAppRules(profile: profile)
+        appMixerItems = Self.discoveredAppMixerItems(
+            profile: profile,
+            audioProcesses: audioProcessInventory.processes(),
+            currentBundleIdentifier: Bundle.main.bundleIdentifier
+        )
     }
 
     func setAppRuleGain(_ rule: AppAudioRule, gainDB: Double) {
@@ -525,25 +530,27 @@ final class SonicBloomViewModel: ObservableObject {
         updateBridgePreset()
     }
 
-    private static func discoveredAppRules(profile: SonicBloomProfile) -> [AppAudioRule] {
-        var rules = profile.appRules
-        for app in NSWorkspace.shared.runningApplications where app.activationPolicy == .regular {
-            guard let bundleIdentifier = app.bundleIdentifier,
-                  bundleIdentifier != Bundle.main.bundleIdentifier else { continue }
-            let displayName = app.localizedName ?? bundleIdentifier
-            let rule = profile.appRule(for: bundleIdentifier) ?? AppAudioRuleAdvisor.rule(for: bundleIdentifier, displayName: displayName)
-            rules[bundleIdentifier] = AppAudioRule(
+    private static func discoveredAppMixerItems(
+        profile: SonicBloomProfile,
+        audioProcesses: [AudioProcessSnapshot],
+        currentBundleIdentifier: String?
+    ) -> [AppMixerItem] {
+        let runningApps = NSWorkspace.shared.runningApplications.compactMap { app -> RunningAppSnapshot? in
+            guard app.activationPolicy == .regular,
+                  let bundleIdentifier = app.bundleIdentifier,
+                  bundleIdentifier != currentBundleIdentifier else { return nil }
+            return RunningAppSnapshot(
                 bundleIdentifier: bundleIdentifier,
-                displayName: displayName,
-                gainDB: rule?.gainDB ?? 0,
-                isMuted: rule?.isMuted ?? false,
-                presetName: rule?.presetName,
-                syncMode: rule?.syncMode
+                displayName: app.localizedName ?? bundleIdentifier,
+                processID: app.processIdentifier
             )
         }
-        return rules.values.sorted {
-            ($0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending)
-        }
+        return AppMixerPlanner.items(
+            savedRules: profile.appRules,
+            runningApps: runningApps,
+            audioProcesses: audioProcesses,
+            currentBundleIdentifier: currentBundleIdentifier
+        )
     }
 
     private func startCPURefresh() {

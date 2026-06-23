@@ -316,6 +316,111 @@ public enum AppAudioRuleAdvisor {
     }
 }
 
+public struct RunningAppSnapshot: Codable, Equatable, Sendable {
+    public var bundleIdentifier: String
+    public var displayName: String
+    public var processID: Int32?
+
+    public init(bundleIdentifier: String, displayName: String, processID: Int32? = nil) {
+        self.bundleIdentifier = bundleIdentifier
+        self.displayName = displayName.isEmpty ? bundleIdentifier : displayName
+        self.processID = processID
+    }
+}
+
+public struct AudioProcessSnapshot: Codable, Equatable, Sendable {
+    public var processID: Int32
+    public var bundleIdentifier: String?
+    public var isRunningOutput: Bool
+    public var isAudible: Bool
+
+    public init(processID: Int32, bundleIdentifier: String?, isRunningOutput: Bool, isAudible: Bool) {
+        self.processID = processID
+        self.bundleIdentifier = bundleIdentifier?.isEmpty == false ? bundleIdentifier : nil
+        self.isRunningOutput = isRunningOutput
+        self.isAudible = isAudible
+    }
+}
+
+public enum AppCaptureStatus: String, Codable, Equatable, Sendable {
+    case ready = "Ready"
+    case waitingForOutput = "Waiting"
+    case silent = "Silent"
+    case unavailable = "Unavailable"
+    case notRunning = "Not Running"
+}
+
+public struct AppMixerItem: Equatable, Identifiable, Sendable {
+    public var id: String { rule.bundleIdentifier }
+    public var rule: AppAudioRule
+    public var processID: Int32?
+    public var captureStatus: AppCaptureStatus
+
+    public var isTapEligible: Bool {
+        captureStatus == .ready
+    }
+
+    public init(rule: AppAudioRule, processID: Int32? = nil, captureStatus: AppCaptureStatus) {
+        self.rule = rule
+        self.processID = processID
+        self.captureStatus = captureStatus
+    }
+}
+
+public enum AppMixerPlanner {
+    public static func items(
+        savedRules: [String: AppAudioRule],
+        runningApps: [RunningAppSnapshot],
+        audioProcesses: [AudioProcessSnapshot],
+        currentBundleIdentifier: String?
+    ) -> [AppMixerItem] {
+        var itemsByBundle: [String: AppMixerItem] = [:]
+
+        for app in runningApps {
+            guard !app.bundleIdentifier.isEmpty,
+                  app.bundleIdentifier != currentBundleIdentifier else { continue }
+            let saved = savedRules[app.bundleIdentifier]
+            let suggested = AppAudioRuleAdvisor.rule(for: app.bundleIdentifier, displayName: app.displayName)
+            let rule = AppAudioRule(
+                bundleIdentifier: app.bundleIdentifier,
+                displayName: saved?.displayName ?? suggested?.displayName ?? app.displayName,
+                gainDB: saved?.gainDB ?? suggested?.gainDB ?? 0,
+                isMuted: saved?.isMuted ?? suggested?.isMuted ?? false,
+                presetName: saved?.presetName ?? suggested?.presetName,
+                syncMode: saved?.syncMode ?? suggested?.syncMode
+            )
+            let process = matchingProcess(for: app, in: audioProcesses)
+            itemsByBundle[app.bundleIdentifier] = AppMixerItem(
+                rule: rule,
+                processID: process?.processID ?? app.processID,
+                captureStatus: captureStatus(for: process)
+            )
+        }
+
+        for rule in savedRules.values where itemsByBundle[rule.bundleIdentifier] == nil {
+            itemsByBundle[rule.bundleIdentifier] = AppMixerItem(rule: rule, captureStatus: .notRunning)
+        }
+
+        return itemsByBundle.values.sorted {
+            $0.rule.displayName.localizedCaseInsensitiveCompare($1.rule.displayName) == .orderedAscending
+        }
+    }
+
+    private static func matchingProcess(for app: RunningAppSnapshot, in processes: [AudioProcessSnapshot]) -> AudioProcessSnapshot? {
+        if let processID = app.processID,
+           let process = processes.first(where: { $0.processID == processID }) {
+            return process
+        }
+        return processes.first { $0.bundleIdentifier == app.bundleIdentifier }
+    }
+
+    private static func captureStatus(for process: AudioProcessSnapshot?) -> AppCaptureStatus {
+        guard let process else { return .unavailable }
+        guard process.isRunningOutput else { return .waitingForOutput }
+        return process.isAudible ? .ready : .silent
+    }
+}
+
 public struct SonicBloomProfile: Codable, Equatable, Sendable {
     public var displayName: String
     public var listeningMode: ListeningMode
