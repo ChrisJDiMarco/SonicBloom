@@ -14,7 +14,7 @@ constexpr size_t crossfeedDelayBufferSize = 128;
 constexpr size_t spatialDelayBufferSize = 96;
 constexpr size_t lookaheadBufferSize = 512;
 constexpr size_t ambienceBufferSize = 4096;
-constexpr size_t hrtfTapCount = 12;
+constexpr size_t hrtfTapCount = 128;
 constexpr std::array<float, SonicBloomDSPBandCount> bandCenters = {
     20.0f, 25.0f, 31.5f, 40.0f, 50.0f, 63.0f, 80.0f, 100.0f,
     125.0f, 160.0f, 200.0f, 250.0f, 315.0f, 400.0f, 500.0f,
@@ -22,15 +22,6 @@ constexpr std::array<float, SonicBloomDSPBandCount> bandCenters = {
     2500.0f, 3150.0f, 4000.0f, 5000.0f, 6300.0f, 8000.0f,
     10000.0f, 12500.0f, 16000.0f, 20000.0f
 };
-constexpr std::array<float, hrtfTapCount> hrtfNearEar = {
-    0.74f, 0.20f, -0.06f, 0.04f, -0.03f, 0.02f,
-    -0.015f, 0.01f, -0.006f, 0.004f, 0.0f, 0.0f
-};
-constexpr std::array<float, hrtfTapCount> hrtfFarEar = {
-    0.0f, 0.0f, 0.20f, 0.17f, 0.08f, 0.04f,
-    0.02f, 0.01f, 0.005f, 0.002f, 0.001f, 0.0f
-};
-
 float clamp(float value, float lower, float upper) {
     return std::max(lower, std::min(value, upper));
 }
@@ -85,6 +76,53 @@ size_t crossfeedDelayFrames(float sampleRate) {
 size_t boundedDelayFrames(float seconds, float sampleRate) {
     const float frames = std::round(sampleRate * seconds);
     return static_cast<size_t>(clamp(frames, 1.0f, static_cast<float>(ambienceBufferSize - 1)));
+}
+
+struct HRTFKernels {
+    std::array<float, hrtfTapCount> nearEar = {};
+    std::array<float, hrtfTapCount> farEar = {};
+    std::array<float, hrtfTapCount> roomNear = {};
+    std::array<float, hrtfTapCount> roomFar = {};
+};
+
+float gaussianTap(float tap, float center, float width, float gain) {
+    const float x = (tap - center) / width;
+    return gain * std::exp(-0.5f * x * x);
+}
+
+HRTFKernels makeHRTFKernels() {
+    // ponytail: synthetic measured-style kernels; swap for licensed SOFA/BRIR imports after real capture/listening tests.
+    HRTFKernels kernels;
+    for (size_t tap = 0; tap < hrtfTapCount; ++tap) {
+        const float t = static_cast<float>(tap);
+        const float shimmer = (tap % 2 == 0 ? 1.0f : -1.0f) * std::exp(-t / 24.0f);
+        kernels.nearEar[tap] =
+            gaussianTap(t, 0.0f, 0.72f, 0.70f)
+            + gaussianTap(t, 2.4f, 1.25f, 0.18f)
+            - gaussianTap(t, 6.2f, 1.9f, 0.075f)
+            + gaussianTap(t, 12.5f, 3.0f, 0.050f)
+            - gaussianTap(t, 24.0f, 5.4f, 0.030f)
+            + gaussianTap(t, 42.0f, 8.0f, 0.018f)
+            + shimmer * 0.012f;
+        kernels.farEar[tap] =
+            gaussianTap(t, 10.0f, 2.8f, 0.19f)
+            + gaussianTap(t, 15.5f, 4.2f, 0.135f)
+            + gaussianTap(t, 27.0f, 6.5f, 0.060f)
+            - gaussianTap(t, 48.0f, 9.0f, 0.022f)
+            + gaussianTap(t, 72.0f, 14.0f, 0.010f)
+            - shimmer * 0.0025f;
+        kernels.roomNear[tap] =
+            gaussianTap(t, 30.0f, 3.6f, 0.035f)
+            - gaussianTap(t, 43.0f, 5.0f, 0.026f)
+            + gaussianTap(t, 64.0f, 7.5f, 0.020f)
+            - gaussianTap(t, 91.0f, 11.0f, 0.014f);
+        kernels.roomFar[tap] =
+            gaussianTap(t, 36.0f, 4.0f, 0.030f)
+            + gaussianTap(t, 55.0f, 6.5f, 0.022f)
+            - gaussianTap(t, 79.0f, 9.5f, 0.016f)
+            + gaussianTap(t, 108.0f, 12.0f, 0.010f);
+    }
+    return kernels;
 }
 
 struct Biquad {
@@ -238,6 +276,7 @@ struct SonicBloomDSPHandle {
     size_t hrtfIndex = 0;
     std::array<float, hrtfTapCount> hrtfHistoryL = {};
     std::array<float, hrtfTapCount> hrtfHistoryR = {};
+    HRTFKernels hrtfKernels = makeHRTFKernels();
 
     explicit SonicBloomDSPHandle(float initialSampleRate) : sampleRate(initialSampleRate) {
         lastEQ.fill(999.0f);
@@ -607,16 +646,20 @@ SonicBloomDSPMeter SonicBloomDSPProcess(
             handle->hrtfHistoryR[handle->hrtfIndex] = right;
             float convolvedL = 0.0f;
             float convolvedR = 0.0f;
+            const float brirAmount = clamp(ambienceAmount * 0.45f + spatialAmount * 0.25f, 0.0f, 0.75f);
             for (size_t tap = 0; tap < hrtfTapCount; ++tap) {
                 const size_t historyIndex = (handle->hrtfIndex + hrtfTapCount - tap) % hrtfTapCount;
                 const float historyL = handle->hrtfHistoryL[historyIndex];
                 const float historyR = handle->hrtfHistoryR[historyIndex];
-                convolvedL += hrtfNearEar[tap] * historyL + hrtfFarEar[tap] * historyR;
-                convolvedR += hrtfNearEar[tap] * historyR + hrtfFarEar[tap] * historyL;
+                const float nearTap = handle->hrtfKernels.nearEar[tap] + handle->hrtfKernels.roomNear[tap] * brirAmount;
+                const float farTap = handle->hrtfKernels.farEar[tap] + handle->hrtfKernels.roomFar[tap] * brirAmount;
+                convolvedL += nearTap * historyL + farTap * historyR;
+                convolvedR += nearTap * historyR + farTap * historyL;
             }
             handle->hrtfIndex = (handle->hrtfIndex + 1) % hrtfTapCount;
-            left = lerp(left, convolvedL, totalHRTF);
-            right = lerp(right, convolvedR, totalHRTF);
+            const float spatialGain = 0.98f - brirAmount * 0.06f;
+            left = lerp(left, convolvedL * spatialGain, totalHRTF);
+            right = lerp(right, convolvedR * spatialGain, totalHRTF);
         }
 
         if (fidelityAmount > 0.0f) {

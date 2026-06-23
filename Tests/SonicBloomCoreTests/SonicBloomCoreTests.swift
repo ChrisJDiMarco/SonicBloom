@@ -417,6 +417,29 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertLessThan(highFarRatio, lowFarRatio * 0.72)
     }
 
+    func testSyntheticBRIRHRTFProducesLongEarlyImage() {
+        let frames = [StereoFrame(left: 0.8, right: 0)] + Array(repeating: StereoFrame(left: 0, right: 0), count: 256)
+        let preset = DSPPreset.manual.with(spatialAmount: 0.7, ambienceAmount: 0.5, hrtfAmount: 1, limiterCeilingDB: -0.1)
+
+        let result = SonicBloomProcessor(sampleRate: 48_000).process(frames, preset: preset, bypass: false).frames
+        let earlyImageSamples = result[24..<128].filter { abs($0.left) > 0.000_02 || abs($0.right) > 0.000_02 }.count
+
+        XCTAssertGreaterThan(earlyImageSamples, 36)
+    }
+
+    func testHRTFAddsFarEarDelayWithoutBreakingCeiling() {
+        let frames = [StereoFrame(left: 0.9, right: 0)] + Array(repeating: StereoFrame(left: 0, right: 0), count: 256)
+        let preset = DSPPreset.manual.with(hrtfAmount: 1, limiterCeilingDB: -0.1)
+
+        let result = SonicBloomProcessor(sampleRate: 48_000).process(frames, preset: preset, bypass: false).frames
+        let leftPeakIndex = result.indices.max { abs(result[$0].left) < abs(result[$1].left) } ?? 0
+        let rightPeakIndex = result.indices.max { abs(result[$0].right) < abs(result[$1].right) } ?? 0
+        let peak = result.map { max(abs($0.left), abs($0.right)) }.max() ?? 0
+
+        XCTAssertGreaterThan(rightPeakIndex, leftPeakIndex + 5)
+        XCTAssertLessThanOrEqual(peak, preset.limiterCeilingLinear + 0.000_1)
+    }
+
     func testHeadphoneProfilesApplyCalibrationBands() throws {
         let profile = try XCTUnwrap(HeadphoneProfileCatalog.builtIns.first { $0.id == "airpods-pro" })
         let calibrated = profile.applying(to: .flat)
@@ -427,6 +450,15 @@ final class SonicBloomCoreTests: XCTestCase {
 
         let data = try JSONEncoder().encode(profile)
         XCTAssertEqual(try JSONDecoder().decode(HeadphoneProfile.self, from: data), profile)
+    }
+
+    func testHeadphoneProfilesApplySpatialTuning() throws {
+        let profile = try XCTUnwrap(HeadphoneProfileCatalog.builtIns.first { $0.id == "airpods-pro" })
+
+        let calibrated = profile.applying(to: .headphones)
+
+        XCTAssertGreaterThan(calibrated.hrtfAmount, DSPPreset.headphones.hrtfAmount)
+        XCTAssertGreaterThan(calibrated.spatialAmount, DSPPreset.headphones.spatialAmount)
     }
 
     func testAutoEQImporterParsesGraphicEQProfile() throws {

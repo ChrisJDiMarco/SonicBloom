@@ -1027,30 +1027,49 @@ public struct HeadphoneProfile: Codable, Equatable, Identifiable, Sendable {
     public var name: String
     public var calibrationBandsDB: [Double]
     public var preampDB: Double
+    public var spatialTrim: Double
+    public var crossfeedTrim: Double
+    public var ambienceTrim: Double
+    public var hrtfTrim: Double
 
     public init(
         id: String,
         manufacturer: String,
         name: String,
         calibrationBandsDB: [Double],
-        preampDB: Double = 0
+        preampDB: Double = 0,
+        spatialTrim: Double = 0,
+        crossfeedTrim: Double = 0,
+        ambienceTrim: Double = 0,
+        hrtfTrim: Double = 0
     ) {
         self.id = id
         self.manufacturer = manufacturer
         self.name = name
         self.calibrationBandsDB = Array((calibrationBandsDB + Array(repeating: 0, count: DSPPreset.bandCount)).prefix(DSPPreset.bandCount))
         self.preampDB = min(max(preampDB, -24), 24)
+        self.spatialTrim = min(max(spatialTrim, -1), 1)
+        self.crossfeedTrim = min(max(crossfeedTrim, -1), 1)
+        self.ambienceTrim = min(max(ambienceTrim, -1), 1)
+        self.hrtfTrim = min(max(hrtfTrim, -1), 1)
     }
 
     public func applying(to preset: DSPPreset) -> DSPPreset {
         let calibrated = zip(preset.eqBandsDB, calibrationBandsDB).map { band, correction in
             min(max(band + correction, -12), 12)
         }
-        return preset.with(eqBandsDB: calibrated, outputGainDB: min(max(preset.outputGainDB + preampDB, -60), 12))
+        return preset.with(
+            eqBandsDB: calibrated,
+            spatialAmount: clamp01(preset.spatialAmount + spatialTrim),
+            crossfeedAmount: clamp01(preset.crossfeedAmount + crossfeedTrim),
+            ambienceAmount: clamp01(preset.ambienceAmount + ambienceTrim),
+            hrtfAmount: clamp01(preset.hrtfAmount + hrtfTrim),
+            outputGainDB: min(max(preset.outputGainDB + preampDB, -60), 12)
+        )
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, manufacturer, name, calibrationBandsDB, preampDB
+        case id, manufacturer, name, calibrationBandsDB, preampDB, spatialTrim, crossfeedTrim, ambienceTrim, hrtfTrim
     }
 
     public init(from decoder: Decoder) throws {
@@ -1060,8 +1079,16 @@ public struct HeadphoneProfile: Codable, Equatable, Identifiable, Sendable {
             manufacturer: try values.decode(String.self, forKey: .manufacturer),
             name: try values.decode(String.self, forKey: .name),
             calibrationBandsDB: try values.decode([Double].self, forKey: .calibrationBandsDB),
-            preampDB: try values.decodeIfPresent(Double.self, forKey: .preampDB) ?? 0
+            preampDB: try values.decodeIfPresent(Double.self, forKey: .preampDB) ?? 0,
+            spatialTrim: try values.decodeIfPresent(Double.self, forKey: .spatialTrim) ?? 0,
+            crossfeedTrim: try values.decodeIfPresent(Double.self, forKey: .crossfeedTrim) ?? 0,
+            ambienceTrim: try values.decodeIfPresent(Double.self, forKey: .ambienceTrim) ?? 0,
+            hrtfTrim: try values.decodeIfPresent(Double.self, forKey: .hrtfTrim) ?? 0
         )
+    }
+
+    private func clamp01(_ value: Double) -> Double {
+        min(max(value, 0), 1)
     }
 }
 
@@ -1182,73 +1209,119 @@ public enum HeadphoneProfileCatalog {
             id: "airpods-pro",
             manufacturer: "Apple",
             name: "AirPods Pro",
-            calibrationBandsDB: curve(low: 1.2, lowerMid: -0.4, presence: 0.7, air: -0.8)
+            calibrationBandsDB: curve(low: 1.2, lowerMid: -0.4, presence: 0.7, air: -0.8),
+            spatialTrim: 0.08,
+            crossfeedTrim: 0.04,
+            ambienceTrim: 0.02,
+            hrtfTrim: 0.12
         ),
         HeadphoneProfile(
             id: "airpods-max",
             manufacturer: "Apple",
             name: "AirPods Max",
-            calibrationBandsDB: curve(low: 0.6, lowerMid: -0.2, presence: 0.4, air: -0.5)
+            calibrationBandsDB: curve(low: 0.6, lowerMid: -0.2, presence: 0.4, air: -0.5),
+            spatialTrim: 0.06,
+            crossfeedTrim: 0.03,
+            ambienceTrim: 0.02,
+            hrtfTrim: 0.10
         ),
         HeadphoneProfile(
             id: "airpods-3",
             manufacturer: "Apple",
             name: "AirPods",
-            calibrationBandsDB: curve(low: 1.0, lowerMid: -0.1, presence: 0.8, air: -0.4)
+            calibrationBandsDB: curve(low: 1.0, lowerMid: -0.1, presence: 0.8, air: -0.4),
+            spatialTrim: 0.05,
+            crossfeedTrim: 0.03,
+            ambienceTrim: 0.01,
+            hrtfTrim: 0.08
         ),
         HeadphoneProfile(
             id: "earpods",
             manufacturer: "Apple",
             name: "EarPods",
-            calibrationBandsDB: curve(low: 1.6, lowerMid: 0.2, presence: 0.8, air: 0.1)
+            calibrationBandsDB: curve(low: 1.6, lowerMid: 0.2, presence: 0.8, air: 0.1),
+            spatialTrim: 0.04,
+            crossfeedTrim: 0.05,
+            hrtfTrim: 0.06
         ),
         HeadphoneProfile(
             id: "macbook-speakers",
             manufacturer: "Apple",
             name: "MacBook Speakers",
-            calibrationBandsDB: curve(low: 2.4, lowerMid: 0.9, presence: 0.6, air: 0.2)
+            calibrationBandsDB: curve(low: 2.4, lowerMid: 0.9, presence: 0.6, air: 0.2),
+            spatialTrim: -0.06,
+            ambienceTrim: -0.02,
+            hrtfTrim: -0.06
         ),
         HeadphoneProfile(
             id: "sony-wh1000xm5",
             manufacturer: "Sony",
             name: "WH-1000XM5",
-            calibrationBandsDB: curve(low: -1.4, lowerMid: 0.2, presence: 0.8, air: 0.9)
+            calibrationBandsDB: curve(low: -1.4, lowerMid: 0.2, presence: 0.8, air: 0.9),
+            spatialTrim: 0.05,
+            crossfeedTrim: 0.06,
+            ambienceTrim: 0.02,
+            hrtfTrim: 0.09
         ),
         HeadphoneProfile(
             id: "sony-wh1000xm4",
             manufacturer: "Sony",
             name: "WH-1000XM4",
-            calibrationBandsDB: curve(low: -1.2, lowerMid: 0.3, presence: 0.7, air: 0.8)
+            calibrationBandsDB: curve(low: -1.2, lowerMid: 0.3, presence: 0.7, air: 0.8),
+            spatialTrim: 0.05,
+            crossfeedTrim: 0.06,
+            ambienceTrim: 0.02,
+            hrtfTrim: 0.08
         ),
         HeadphoneProfile(
             id: "bose-qc35",
             manufacturer: "Bose",
             name: "QuietComfort 35",
-            calibrationBandsDB: curve(low: -0.8, lowerMid: 0.5, presence: 0.9, air: 0.4)
+            calibrationBandsDB: curve(low: -0.8, lowerMid: 0.5, presence: 0.9, air: 0.4),
+            spatialTrim: 0.04,
+            crossfeedTrim: 0.06,
+            ambienceTrim: 0.02,
+            hrtfTrim: 0.08
         ),
         HeadphoneProfile(
             id: "bose-qc-ultra",
             manufacturer: "Bose",
             name: "QuietComfort Ultra",
-            calibrationBandsDB: curve(low: -0.9, lowerMid: 0.3, presence: 0.8, air: 0.5)
+            calibrationBandsDB: curve(low: -0.9, lowerMid: 0.3, presence: 0.8, air: 0.5),
+            spatialTrim: 0.05,
+            crossfeedTrim: 0.06,
+            ambienceTrim: 0.02,
+            hrtfTrim: 0.09
         ),
         HeadphoneProfile(
             id: "sennheiser-hd600",
             manufacturer: "Sennheiser",
             name: "HD 600",
-            calibrationBandsDB: curve(low: 1.1, lowerMid: 0.0, presence: -0.2, air: 0.8)
+            calibrationBandsDB: curve(low: 1.1, lowerMid: 0.0, presence: -0.2, air: 0.8),
+            spatialTrim: 0.04,
+            crossfeedTrim: 0.08,
+            ambienceTrim: 0.01,
+            hrtfTrim: 0.07
         ),
         HeadphoneProfile(
             id: "sennheiser-momentum4",
             manufacturer: "Sennheiser",
             name: "Momentum 4",
-            calibrationBandsDB: curve(low: -0.7, lowerMid: 0.1, presence: 0.5, air: 0.6)
+            calibrationBandsDB: curve(low: -0.7, lowerMid: 0.1, presence: 0.5, air: 0.6),
+            spatialTrim: 0.05,
+            crossfeedTrim: 0.06,
+            ambienceTrim: 0.02,
+            hrtfTrim: 0.08
         ),
         HeadphoneProfile(
             id: "beats-studio-pro",
             manufacturer: "Beats",
             name: "Studio Pro",
-            calibrationBandsDB: curve(low: -1.3, lowerMid: 0.4, presence: 0.7, air: 0.3)
+            calibrationBandsDB: curve(low: -1.3, lowerMid: 0.4, presence: 0.7, air: 0.3),
+            spatialTrim: 0.04,
+            crossfeedTrim: 0.05,
+            ambienceTrim: 0.01,
+            hrtfTrim: 0.07
         )
     ]
 
