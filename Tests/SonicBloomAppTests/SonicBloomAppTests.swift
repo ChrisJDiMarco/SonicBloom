@@ -332,6 +332,31 @@ final class SonicBloomAppTests: XCTestCase {
     }
 
     @MainActor
+    func testCheckForUpdatesRejectsUnsupportedMacOSManifest() async throws {
+        let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let packageURL = try XCTUnwrap(URL(string: "https://example.com/SonicBloom-0.2.0.pkg"))
+        let manifest = SonicBloomUpdateManifest(
+            version: "0.2.0",
+            minimumSystemVersion: "99.0",
+            packageURL: packageURL,
+            packageSHA256: "abc123",
+            notes: "Fixes"
+        )
+        let viewModel = SonicBloomViewModel.testInstance(
+            defaults: defaults,
+            currentVersion: "0.1.0",
+            updateManifestLoader: { _ in manifest }
+        )
+
+        await viewModel.checkForUpdates()
+
+        XCTAssertEqual(viewModel.updateStatusText, "Update 0.2.0 requires macOS 99.0")
+        XCTAssertNil(viewModel.updateDownloadURL)
+    }
+
+    @MainActor
     func testDownloadUpdateVerifiesChecksumBeforeOpeningInstaller() async throws {
         let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!

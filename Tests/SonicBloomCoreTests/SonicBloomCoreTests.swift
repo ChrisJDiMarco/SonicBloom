@@ -1933,6 +1933,24 @@ final class SonicBloomCoreTests: XCTestCase {
         )
     }
 
+    func testUpdateManifestCanRequireNewerMacOS() throws {
+        let manifest = SonicBloomUpdateManifest(
+            version: "0.2.0",
+            minimumSystemVersion: "14.0",
+            packageURL: URL(string: "https://example.com/SonicBloom-0.2.0.pkg")!,
+            packageSHA256: "abc123"
+        )
+
+        XCTAssertEqual(
+            SonicBloomUpdater.decision(currentVersion: "0.1.0", currentSystemVersion: "13.6", manifest: manifest),
+            .unsupported(manifest)
+        )
+        XCTAssertEqual(
+            SonicBloomUpdater.decision(currentVersion: "0.1.0", currentSystemVersion: "14.0", manifest: manifest),
+            .updateAvailable(manifest)
+        )
+    }
+
     func testUpdatePackageVerifierMatchesSHA256() {
         let data = Data("SonicBloom package".utf8)
         let checksum = SonicBloomUpdatePackageVerifier.sha256Hex(for: data)

@@ -252,6 +252,8 @@ final class SonicBloomViewModel: ObservableObject {
                 updateStatusText = "Update \(manifest.version) available"
                 updateDownloadURL = manifest.packageURL
                 availableUpdateManifest = manifest
+            case .unsupported(let manifest):
+                updateStatusText = "Update \(manifest.version) requires macOS \(manifest.minimumSystemVersion)"
             case .upToDate:
                 updateStatusText = "SonicBloom is up to date"
             }

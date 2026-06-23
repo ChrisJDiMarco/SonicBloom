@@ -23,12 +23,29 @@ public struct SonicBloomUpdateManifest: Codable, Equatable, Sendable {
 
 public enum SonicBloomUpdateDecision: Equatable, Sendable {
     case updateAvailable(SonicBloomUpdateManifest)
+    case unsupported(SonicBloomUpdateManifest)
     case upToDate
 }
 
 public enum SonicBloomUpdater {
     public static func decision(currentVersion: String, manifest: SonicBloomUpdateManifest) -> SonicBloomUpdateDecision {
-        ReleaseVersion(manifest.version) > ReleaseVersion(currentVersion) ? .updateAvailable(manifest) : .upToDate
+        decision(currentVersion: currentVersion, currentSystemVersion: currentSystemVersion, manifest: manifest)
+    }
+
+    public static func decision(
+        currentVersion: String,
+        currentSystemVersion: String,
+        manifest: SonicBloomUpdateManifest
+    ) -> SonicBloomUpdateDecision {
+        guard ReleaseVersion(currentSystemVersion) >= ReleaseVersion(manifest.minimumSystemVersion) else {
+            return .unsupported(manifest)
+        }
+        return ReleaseVersion(manifest.version) > ReleaseVersion(currentVersion) ? .updateAvailable(manifest) : .upToDate
+    }
+
+    private static var currentSystemVersion: String {
+        let version = ProcessInfo.processInfo.operatingSystemVersion
+        return "\(version.majorVersion).\(version.minorVersion).\(version.patchVersion)"
     }
 }
 
