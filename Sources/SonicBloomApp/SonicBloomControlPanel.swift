@@ -876,8 +876,12 @@ private struct SettingsWorkbench: View {
                         ConsoleAction(title: viewModel.isCheckingForUpdates ? "Checking..." : "Check for Updates", icon: "arrow.down.circle", color: SBColor.blue) {
                             Task { await viewModel.checkForUpdates() }
                         }
-                        if viewModel.updateDownloadURL != nil {
-                            ConsoleAction(title: "Download Update", icon: "square.and.arrow.down", color: SBColor.green) { viewModel.openUpdateDownload() }
+                        if viewModel.verifiedUpdatePackageURL != nil {
+                            ConsoleAction(title: "Open Installer", icon: "shippingbox", color: SBColor.green) { viewModel.openUpdateDownload() }
+                        } else if viewModel.updateDownloadURL != nil {
+                            ConsoleAction(title: viewModel.isDownloadingUpdate ? "Downloading..." : "Download & Verify", icon: "checkmark.shield", color: SBColor.green) {
+                                Task { await viewModel.downloadVerifiedUpdate() }
+                            }
                         }
                         ConsoleAction(title: "Install Driver", icon: "arrow.down.circle", color: SBColor.green) { viewModel.installVirtualDevice() }
                         ConsoleAction(title: "Uninstall Driver", icon: "trash", color: SBColor.red) { viewModel.uninstallVirtualDevice() }

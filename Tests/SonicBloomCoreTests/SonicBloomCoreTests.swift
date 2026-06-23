@@ -1652,6 +1652,15 @@ final class SonicBloomCoreTests: XCTestCase {
         )
     }
 
+    func testUpdatePackageVerifierMatchesSHA256() {
+        let data = Data("SonicBloom package".utf8)
+        let checksum = SonicBloomUpdatePackageVerifier.sha256Hex(for: data)
+
+        XCTAssertTrue(SonicBloomUpdatePackageVerifier.verify(data, expectedSHA256: checksum))
+        XCTAssertFalse(SonicBloomUpdatePackageVerifier.verify(data, expectedSHA256: "bad"))
+        XCTAssertTrue(SonicBloomUpdatePackageVerifier.verify(data, expectedSHA256: nil))
+    }
+
     func testPackageReleaseWritesUpdateManifest() throws {
         let packageScript = try String(contentsOf: URL(fileURLWithPath: "Scripts/package_release.sh"))
 

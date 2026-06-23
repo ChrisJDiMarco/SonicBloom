@@ -165,6 +165,41 @@ final class SonicBloomAppTests: XCTestCase {
         XCTAssertEqual(viewModel.updateDownloadURL, packageURL)
     }
 
+    @MainActor
+    func testDownloadUpdateVerifiesChecksumBeforeOpeningInstaller() async throws {
+        let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let packageData = Data("verified package".utf8)
+        let packageURL = try XCTUnwrap(URL(string: "https://example.com/SonicBloom-0.2.0.pkg"))
+        let manifest = SonicBloomUpdateManifest(
+            version: "0.2.0",
+            minimumSystemVersion: "13.0",
+            packageURL: packageURL,
+            packageSHA256: SonicBloomUpdatePackageVerifier.sha256Hex(for: packageData),
+            notes: "Fixes"
+        )
+        let packageDirectory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: packageDirectory) }
+        let viewModel = SonicBloomViewModel.testInstance(
+            defaults: defaults,
+            currentVersion: "0.1.0",
+            updateManifestLoader: { _ in manifest },
+            updatePackageDownloader: { url in
+                XCTAssertEqual(url, packageURL)
+                return packageData
+            },
+            updatePackageDirectory: packageDirectory
+        )
+
+        await viewModel.checkForUpdates()
+        await viewModel.downloadVerifiedUpdate()
+
+        let localURL = try XCTUnwrap(viewModel.verifiedUpdatePackageURL)
+        XCTAssertEqual(try Data(contentsOf: localURL), packageData)
+        XCTAssertEqual(viewModel.updateStatusText, "Update package verified")
+    }
+
     func testPerAppMixerLeavesRoomForRouteActionTray() {
         XCTAssertGreaterThanOrEqual(
             PerAppMixerLayout.bottomScrollClearance,
@@ -200,14 +235,18 @@ private extension SonicBloomViewModel {
                 minimumSystemVersion: "13.0",
                 packageURL: URL(string: "https://example.com/SonicBloom.pkg")!
             )
-        }
+        },
+        updatePackageDownloader: @escaping (URL) async throws -> Data = { _ in Data() },
+        updatePackageDirectory: URL = FileManager.default.temporaryDirectory
     ) -> SonicBloomViewModel {
         SonicBloomViewModel(
             defaults: defaults,
             routeState: .testReady,
             startLiveContext: false,
             currentVersion: currentVersion,
-            updateManifestLoader: updateManifestLoader
+            updateManifestLoader: updateManifestLoader,
+            updatePackageDownloader: updatePackageDownloader,
+            updatePackageDirectory: updatePackageDirectory
         )
     }
 }

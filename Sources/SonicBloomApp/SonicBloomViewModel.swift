@@ -30,10 +30,16 @@ enum CalibrationSound {
 
 private let defaultUpdateFeedURL = URL(string: "https://github.com/ChrisJDiMarco/SonicBloom/releases/latest/download/SonicBloom-update.json")!
 typealias UpdateManifestLoader = (URL) async throws -> SonicBloomUpdateManifest
+typealias UpdatePackageDownloader = (URL) async throws -> Data
 
 func fetchUpdateManifest(from url: URL) async throws -> SonicBloomUpdateManifest {
     let (data, _) = try await URLSession.shared.data(from: url)
     return try JSONDecoder().decode(SonicBloomUpdateManifest.self, from: data)
+}
+
+func fetchUpdatePackage(from url: URL) async throws -> Data {
+    let (data, _) = try await URLSession.shared.data(from: url)
+    return data
 }
 
 @MainActor
@@ -48,6 +54,8 @@ final class SonicBloomViewModel: ObservableObject {
     private let currentVersion: String
     private let updateFeedURL: URL
     private let updateManifestLoader: UpdateManifestLoader
+    private let updatePackageDownloader: UpdatePackageDownloader
+    private let updatePackageDirectory: URL
     private var cpuSampler = ProcessCPUUsageSampler()
     private var cpuRefreshTask: Task<Void, Never>?
     private var routeRecoveryTask: Task<Void, Never>?
@@ -109,8 +117,11 @@ final class SonicBloomViewModel: ObservableObject {
     @Published private(set) var activeAppRule: AppAudioRule?
     @Published private(set) var hasPlayedSetupTestSound = false
     @Published private(set) var isCheckingForUpdates = false
+    @Published private(set) var isDownloadingUpdate = false
     @Published private(set) var updateStatusText = "Updates not checked"
     @Published private(set) var updateDownloadURL: URL?
+    @Published private(set) var verifiedUpdatePackageURL: URL?
+    private var availableUpdateManifest: SonicBloomUpdateManifest?
 
     init(
         defaults: UserDefaults = .standard,
@@ -118,12 +129,16 @@ final class SonicBloomViewModel: ObservableObject {
         startLiveContext: Bool = true,
         currentVersion: String? = nil,
         updateFeedURL: URL = defaultUpdateFeedURL,
-        updateManifestLoader: @escaping UpdateManifestLoader = fetchUpdateManifest
+        updateManifestLoader: @escaping UpdateManifestLoader = fetchUpdateManifest,
+        updatePackageDownloader: @escaping UpdatePackageDownloader = fetchUpdatePackage,
+        updatePackageDirectory: URL = FileManager.default.temporaryDirectory
     ) {
         self.defaults = defaults
         self.currentVersion = currentVersion ?? (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.1.0")
         self.updateFeedURL = updateFeedURL
         self.updateManifestLoader = updateManifestLoader
+        self.updatePackageDownloader = updatePackageDownloader
+        self.updatePackageDirectory = updatePackageDirectory
         liveContextEnabled = startLiveContext
         profile = Self.load(SonicBloomProfile.self, from: defaults, key: DefaultsKey.profile) ?? .default
         settings = Self.load(SonicBloomSettings.self, from: defaults, key: DefaultsKey.settings) ?? .default
@@ -201,6 +216,8 @@ final class SonicBloomViewModel: ObservableObject {
         isCheckingForUpdates = true
         updateStatusText = "Checking for updates..."
         updateDownloadURL = nil
+        verifiedUpdatePackageURL = nil
+        availableUpdateManifest = nil
         defer { isCheckingForUpdates = false }
 
         do {
@@ -209,6 +226,7 @@ final class SonicBloomViewModel: ObservableObject {
             case .updateAvailable(let manifest):
                 updateStatusText = "Update \(manifest.version) available"
                 updateDownloadURL = manifest.packageURL
+                availableUpdateManifest = manifest
             case .upToDate:
                 updateStatusText = "SonicBloom is up to date"
             }
@@ -217,9 +235,32 @@ final class SonicBloomViewModel: ObservableObject {
         }
     }
 
+    func downloadVerifiedUpdate() async {
+        guard let manifest = availableUpdateManifest, !isDownloadingUpdate else { return }
+        isDownloadingUpdate = true
+        updateStatusText = "Downloading update..."
+        verifiedUpdatePackageURL = nil
+        defer { isDownloadingUpdate = false }
+
+        do {
+            let data = try await updatePackageDownloader(manifest.packageURL)
+            guard SonicBloomUpdatePackageVerifier.verify(data, expectedSHA256: manifest.packageSHA256) else {
+                updateStatusText = "Update checksum failed"
+                return
+            }
+            try FileManager.default.createDirectory(at: updatePackageDirectory, withIntermediateDirectories: true)
+            let localURL = updatePackageDirectory.appendingPathComponent("SonicBloom-\(manifest.version).pkg")
+            try data.write(to: localURL, options: .atomic)
+            verifiedUpdatePackageURL = localURL
+            updateStatusText = "Update package verified"
+        } catch {
+            updateStatusText = "Could not download update"
+        }
+    }
+
     func openUpdateDownload() {
-        guard let updateDownloadURL else { return }
-        NSWorkspace.shared.open(updateDownloadURL)
+        guard let url = verifiedUpdatePackageURL else { return }
+        NSWorkspace.shared.open(url)
     }
 
     var primaryActionTitle: String {

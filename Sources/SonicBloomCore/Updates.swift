@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 
 public struct SonicBloomUpdateManifest: Codable, Equatable, Sendable {
     public var version: String
@@ -28,6 +29,17 @@ public enum SonicBloomUpdateDecision: Equatable, Sendable {
 public enum SonicBloomUpdater {
     public static func decision(currentVersion: String, manifest: SonicBloomUpdateManifest) -> SonicBloomUpdateDecision {
         ReleaseVersion(manifest.version) > ReleaseVersion(currentVersion) ? .updateAvailable(manifest) : .upToDate
+    }
+}
+
+public enum SonicBloomUpdatePackageVerifier {
+    public static func sha256Hex(for data: Data) -> String {
+        SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+    }
+
+    public static func verify(_ data: Data, expectedSHA256: String?) -> Bool {
+        guard let expectedSHA256, !expectedSHA256.isEmpty else { return true }
+        return sha256Hex(for: data).caseInsensitiveCompare(expectedSHA256) == .orderedSame
     }
 }
 
