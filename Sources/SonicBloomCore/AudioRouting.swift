@@ -1048,3 +1048,35 @@ public struct CoreAudioStereoBuffer: Equatable, Sendable {
         }
     }
 }
+
+public final class PerAppAudioLane {
+    public let rule: AppAudioRule
+    public let preset: DSPPreset
+    private let processor: SonicBloomProcessor
+
+    public init(
+        rule: AppAudioRule,
+        basePreset: DSPPreset,
+        sampleRate: Double = 48_000,
+        catalog: [DSPPreset] = PresetCatalog.builtIns
+    ) {
+        self.rule = rule
+        var profile = SonicBloomProfile.default
+        profile.upsert(rule)
+        self.preset = profile.effectivePreset(basePreset: basePreset, for: rule.bundleIdentifier, catalog: catalog)
+        self.processor = SonicBloomProcessor(sampleRate: sampleRate)
+    }
+
+    public func process(_ buffer: CoreAudioStereoBuffer) -> [StereoFrame] {
+        processor.process(buffer.frames, preset: preset, bypass: false).frames
+    }
+
+    public static func mix(_ appFrames: [StereoFrame], into baseFrames: [StereoFrame]) -> [StereoFrame] {
+        let frameCount = max(baseFrames.count, appFrames.count)
+        return (0..<frameCount).map { index in
+            let base = index < baseFrames.count ? baseFrames[index] : StereoFrame(left: 0, right: 0)
+            let app = index < appFrames.count ? appFrames[index] : StereoFrame(left: 0, right: 0)
+            return StereoFrame(left: base.left + app.left, right: base.right + app.right)
+        }
+    }
+}

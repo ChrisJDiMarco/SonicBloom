@@ -890,6 +890,45 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertEqual(emitted, [StereoFrame(left: 0.5, right: -0.5)])
     }
 
+    func testPerAppAudioLaneAppliesRuleGain() {
+        let lane = PerAppAudioLane(
+            rule: AppAudioRule(bundleIdentifier: "com.spotify.client", displayName: "Spotify", gainDB: 6),
+            basePreset: .flat
+        )
+
+        let frames = lane.process(CoreAudioStereoBuffer(frames: Array(repeating: StereoFrame(left: 0.05, right: -0.05), count: 64)))
+        let leftPeak = frames.map { abs($0.left) }.max() ?? 0
+        let rightPeak = frames.map { abs($0.right) }.max() ?? 0
+
+        XCTAssertEqual(frames.count, 64)
+        XCTAssertEqual(leftPeak, 0.0998, accuracy: 0.002)
+        XCTAssertEqual(rightPeak, 0.0998, accuracy: 0.002)
+    }
+
+    func testPerAppAudioLaneMutesRule() {
+        let lane = PerAppAudioLane(
+            rule: AppAudioRule(bundleIdentifier: "us.zoom.xos", displayName: "Zoom", gainDB: 12, isMuted: true),
+            basePreset: .flat
+        )
+
+        let frames = lane.process(CoreAudioStereoBuffer(frames: [StereoFrame(left: 0.5, right: -0.5)]))
+
+        XCTAssertLessThan(abs(frames[0].left), 0.001)
+        XCTAssertLessThan(abs(frames[0].right), 0.001)
+    }
+
+    func testPerAppAudioLaneMixesIntoBaseFrames() {
+        let mixed = PerAppAudioLane.mix(
+            [StereoFrame(left: 0.2, right: -0.2), StereoFrame(left: 0.1, right: 0.1)],
+            into: [StereoFrame(left: 0.1, right: 0.1)]
+        )
+
+        XCTAssertEqual(mixed, [
+            StereoFrame(left: 0.3, right: -0.1),
+            StereoFrame(left: 0.1, right: 0.1)
+        ])
+    }
+
     func testProfileEffectiveAppRuleUsesSuggestionsUntilSavedRuleExists() {
         var profile = SonicBloomProfile.default
 
