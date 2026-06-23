@@ -403,6 +403,29 @@ final class SonicBloomAppTests: XCTestCase {
     }
 
     @MainActor
+    func testCheckForUpdatesRejectsInvalidReleaseVersion() async throws {
+        let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let manifest = SonicBloomUpdateManifest(
+            version: "1.0/evil",
+            minimumSystemVersion: "13.0",
+            packageURL: URL(string: "https://example.com/SonicBloom.pkg")!,
+            packageSHA256: SonicBloomUpdatePackageVerifier.sha256Hex(for: Data("pkg".utf8))
+        )
+        let viewModel = SonicBloomViewModel.testInstance(
+            defaults: defaults,
+            currentVersion: "0.1.0",
+            updateManifestLoader: { _ in manifest }
+        )
+
+        await viewModel.checkForUpdates()
+
+        XCTAssertEqual(viewModel.updateStatusText, "Update version invalid")
+        XCTAssertNil(viewModel.updateDownloadURL)
+    }
+
+    @MainActor
     func testCheckForUpdatesRejectsUnsupportedMacOSManifest() async throws {
         let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
@@ -494,7 +517,7 @@ final class SonicBloomAppTests: XCTestCase {
         defer { defaults.removePersistentDomain(forName: suiteName) }
         let packageData = Data("verified package".utf8)
         let manifest = SonicBloomUpdateManifest(
-            version: "1.0/evil",
+            version: "1.0.0",
             minimumSystemVersion: "13.0",
             packageURL: URL(string: "https://example.com/SonicBloom.pkg")!,
             packageSHA256: SonicBloomUpdatePackageVerifier.sha256Hex(for: packageData)
@@ -514,7 +537,7 @@ final class SonicBloomAppTests: XCTestCase {
 
         let localURL = try XCTUnwrap(viewModel.verifiedUpdatePackageURL)
         XCTAssertEqual(localURL.deletingLastPathComponent(), packageDirectory)
-        XCTAssertEqual(localURL.lastPathComponent, "SonicBloom-1.0-evil.pkg")
+        XCTAssertEqual(localURL.lastPathComponent, "SonicBloom-1.0.0.pkg")
     }
 
     @MainActor

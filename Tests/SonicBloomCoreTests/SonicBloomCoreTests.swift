@@ -2013,6 +2013,20 @@ final class SonicBloomCoreTests: XCTestCase {
         )
     }
 
+    func testUpdateManifestRequiresValidReleaseVersion() throws {
+        let manifest = SonicBloomUpdateManifest(
+            version: "1.0/evil",
+            minimumSystemVersion: "13.0",
+            packageURL: URL(string: "https://example.com/SonicBloom.pkg")!,
+            packageSHA256: SonicBloomUpdatePackageVerifier.sha256Hex(for: Data("pkg".utf8))
+        )
+
+        XCTAssertEqual(
+            SonicBloomUpdater.decision(currentVersion: "0.1.0", currentSystemVersion: "13.0", manifest: manifest),
+            .invalidVersion(manifest)
+        )
+    }
+
     func testUpdateManifestCanRequireNewerMacOS() throws {
         let manifest = SonicBloomUpdateManifest(
             version: "0.2.0",

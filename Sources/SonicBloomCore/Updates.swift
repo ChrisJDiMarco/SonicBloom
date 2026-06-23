@@ -23,6 +23,7 @@ public struct SonicBloomUpdateManifest: Codable, Equatable, Sendable {
 
 public enum SonicBloomUpdateDecision: Equatable, Sendable {
     case updateAvailable(SonicBloomUpdateManifest)
+    case invalidVersion(SonicBloomUpdateManifest)
     case unsupported(SonicBloomUpdateManifest)
     case insecurePackageURL(SonicBloomUpdateManifest)
     case invalidPackageURL(SonicBloomUpdateManifest)
@@ -41,6 +42,9 @@ public enum SonicBloomUpdater {
         currentSystemVersion: String,
         manifest: SonicBloomUpdateManifest
     ) -> SonicBloomUpdateDecision {
+        guard ReleaseVersion.isValid(manifest.version) else {
+            return .invalidVersion(manifest)
+        }
         guard ReleaseVersion(manifest.version) > ReleaseVersion(currentVersion) else {
             return .upToDate
         }
@@ -96,6 +100,12 @@ private struct ReleaseVersion: Comparable {
 
     init(_ value: String) {
         parts = value.split(separator: ".").map { Int($0.prefix { $0.isNumber }) ?? 0 }
+    }
+
+    static func isValid(_ value: String) -> Bool {
+        let parts = value.split(separator: ".", omittingEmptySubsequences: false)
+        guard (1...3).contains(parts.count) else { return false }
+        return parts.allSatisfy { !$0.isEmpty && $0.allSatisfy(\.isNumber) }
     }
 
     static func < (lhs: ReleaseVersion, rhs: ReleaseVersion) -> Bool {
