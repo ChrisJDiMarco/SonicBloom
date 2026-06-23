@@ -562,6 +562,14 @@ final class SonicBloomViewModel: ObservableObject {
         applyHeadphoneProfile(headphoneProfile)
     }
 
+    func importAutoEQProfiles(from directoryURL: URL) throws {
+        let headphoneProfiles = try AutoEQProfileImporter.profiles(in: directoryURL)
+        headphoneProfiles.forEach { profile.addCustomHeadphoneProfile($0) }
+        if let last = headphoneProfiles.last {
+            applyHeadphoneProfile(last)
+        }
+    }
+
     func importAutoEQProfileFromPanel() {
         let panel = NSOpenPanel()
         panel.title = "Import AutoEQ Profile"
@@ -573,6 +581,22 @@ final class SonicBloomViewModel: ObservableObject {
         do {
             let text = try String(contentsOf: url, encoding: .utf8)
             try importAutoEQProfile(name: url.deletingPathExtension().lastPathComponent, text: text)
+            lastError = nil
+        } catch {
+            lastError = error.localizedDescription
+        }
+    }
+
+    func importAutoEQProfileFolderFromPanel() {
+        let panel = NSOpenPanel()
+        panel.title = "Import AutoEQ Profile Folder"
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        do {
+            try importAutoEQProfiles(from: url)
             lastError = nil
         } catch {
             lastError = error.localizedDescription

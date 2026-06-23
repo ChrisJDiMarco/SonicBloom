@@ -1011,6 +1011,9 @@ private struct CalibrationWizard: View {
                 ConsoleAction(title: "Import AutoEQ Profile", icon: "square.and.arrow.down", color: SBColor.blue) {
                     viewModel.importAutoEQProfileFromPanel()
                 }
+                ConsoleAction(title: "Import AutoEQ Folder", icon: "folder.badge.plus", color: SBColor.green) {
+                    viewModel.importAutoEQProfileFolderFromPanel()
+                }
 
                 MiniSlider(title: "BASS RESPONSE", value: tuningBinding(\.bassPreference), range: 0...1, color: SBColor.yellow)
                 MiniSlider(title: "CLARITY", value: tuningBinding(\.clarityPreference), range: 0...1, color: SBColor.blue)

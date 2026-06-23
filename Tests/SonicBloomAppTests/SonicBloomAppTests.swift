@@ -1,5 +1,6 @@
 import XCTest
 import AudioToolbox
+import Foundation
 import SonicBloomCore
 @testable import SonicBloomApp
 
@@ -157,6 +158,35 @@ final class SonicBloomAppTests: XCTestCase {
         XCTAssertGreaterThan(viewModel.selectedPreset.eqBandsDB[17], 2)
         XCTAssertEqual(viewModel.selectedPreset.outputGainDB, -4)
         XCTAssertTrue(viewModel.availableHeadphoneProfiles.contains { $0.name == "Parametric AutoEQ" })
+    }
+
+    @MainActor
+    func testViewModelImportsAutoEQProfileFolder() throws {
+        let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let viewModel = SonicBloomViewModel.testInstance(defaults: defaults)
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("SonicBloomAutoEQ-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        try "Frequency,Gain\n20,-3\n1000,2\n20000,3\n".write(
+            to: directory.appendingPathComponent("AirPods.csv"),
+            atomically: true,
+            encoding: .utf8
+        )
+        try "GraphicEQ: 20 -4; 1000 1; 20000 4".write(
+            to: directory.appendingPathComponent("HD 650.txt"),
+            atomically: true,
+            encoding: .utf8
+        )
+
+        try viewModel.importAutoEQProfiles(from: directory)
+
+        XCTAssertTrue(viewModel.availableHeadphoneProfiles.contains { $0.name == "AirPods" })
+        XCTAssertTrue(viewModel.availableHeadphoneProfiles.contains { $0.name == "HD 650" })
+        XCTAssertEqual(viewModel.selectedPreset.name, DSPPreset.manual.name)
     }
 
     @MainActor

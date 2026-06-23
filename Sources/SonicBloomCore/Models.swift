@@ -1040,6 +1040,22 @@ public enum AutoEQProfileImporter {
         )
     }
 
+    public static func profiles(in directory: URL, manufacturer: String = "Imported") throws -> [HeadphoneProfile] {
+        let files = try FileManager.default.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: [.isRegularFileKey],
+            options: [.skipsHiddenFiles]
+        )
+        let profiles = files.sorted { $0.lastPathComponent < $1.lastPathComponent }.compactMap { url -> HeadphoneProfile? in
+            guard ["txt", "csv"].contains(url.pathExtension.lowercased()),
+                  ((try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) ?? false),
+                  let text = try? String(contentsOf: url, encoding: .utf8) else { return nil }
+            return try? profile(name: url.deletingPathExtension().lastPathComponent, manufacturer: manufacturer, text: text)
+        }
+        guard !profiles.isEmpty else { throw AutoEQImportError.noGraphicEQBands }
+        return profiles
+    }
+
     private static func parsePoints(_ text: String) -> [(frequency: Double, gain: Double)] {
         if let graphicLine = text.components(separatedBy: .newlines).first(where: { $0.range(of: "GraphicEQ:", options: .caseInsensitive) != nil }),
            let payload = graphicLine.split(separator: ":", maxSplits: 1).last {

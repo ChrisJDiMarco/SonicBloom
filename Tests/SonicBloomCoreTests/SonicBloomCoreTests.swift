@@ -1,5 +1,6 @@
 import CoreAudio
 import AudioToolbox
+import Foundation
 import XCTest
 import SonicBloomDSP
 @testable import SonicBloomCore
@@ -475,6 +476,34 @@ final class SonicBloomCoreTests: XCTestCase {
 
         let applied = profile.applying(to: .cleanLoud)
         XCTAssertEqual(applied.outputGainDB, DSPPreset.cleanLoud.outputGainDB - 6)
+    }
+
+    func testAutoEQImporterLoadsValidProfilesFromFolder() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("SonicBloomAutoEQ-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        try "Frequency,Gain\n20,-3\n1000,2\n20000,3\n".write(
+            to: directory.appendingPathComponent("AirPods.csv"),
+            atomically: true,
+            encoding: .utf8
+        )
+        try "Preamp: -6.0 dB".write(
+            to: directory.appendingPathComponent("Broken.txt"),
+            atomically: true,
+            encoding: .utf8
+        )
+        try "GraphicEQ: 20 -4; 1000 1; 20000 4".write(
+            to: directory.appendingPathComponent("HD 650.txt"),
+            atomically: true,
+            encoding: .utf8
+        )
+
+        let profiles = try AutoEQProfileImporter.profiles(in: directory)
+
+        XCTAssertEqual(profiles.map(\.name), ["AirPods", "HD 650"])
+        XCTAssertEqual(profiles.map(\.id), ["imported-airpods", "imported-hd-650"])
     }
 
     func testOlderHeadphoneProfileJSONDefaultsPreamp() throws {
