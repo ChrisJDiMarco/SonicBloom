@@ -78,6 +78,7 @@ final class SonicBloomViewModel: ObservableObject {
     private var activeProfileOutputName: String?
     private var presetUndoState = PresetUndoState()
     private var automaticAudioRepairAttempts = 0
+    private var isRepairingAudioPath = false
     private let liveContextEnabled: Bool
     private var isApplyingDevicePreset = false
     private var isRememberingSelectedPreset = false
@@ -373,8 +374,11 @@ final class SonicBloomViewModel: ObservableObject {
             routeState.installHealth = .active
             routeState.bufferSize = Int(processingSyncMode.preferredBufferFrameSize)
             routeState.statusMessage = "Processing active: \(selection.input.name) -> \(selection.output.name)"
-            audioHealth = AudioStreamHealth()
-            automaticAudioRepairAttempts = 0
+            bridge.resetHealthStats()
+            audioHealth = AudioStreamHealth(quarantinedAudioUnitIDs: failedAudioUnitEffectIDs)
+            if !isRepairingAudioPath {
+                automaticAudioRepairAttempts = 0
+            }
             isBridgeRunning = true
             lastError = nil
             startRouteLease()
@@ -666,6 +670,8 @@ final class SonicBloomViewModel: ObservableObject {
             return
         }
         routeState = routeState.recordingRecovery("Repairing SonicBloom audio path.")
+        isRepairingAudioPath = true
+        defer { isRepairingAudioPath = false }
         startBridge()
     }
 

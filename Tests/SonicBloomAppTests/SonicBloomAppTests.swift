@@ -837,6 +837,24 @@ final class SonicBloomAppTests: XCTestCase {
         XCTAssertTrue(controlPanel.contains("viewModel.repairAudioPath()"))
     }
 
+    func testAudioRepairDoesNotResetAutomaticRepairCap() throws {
+        let viewModel = try String(contentsOf: URL(fileURLWithPath: "Sources/SonicBloomApp/SonicBloomViewModel.swift"))
+
+        XCTAssertTrue(viewModel.contains("isRepairingAudioPath"))
+        XCTAssertTrue(viewModel.contains("if !isRepairingAudioPath"))
+        XCTAssertTrue(viewModel.contains("bridge.resetHealthStats()"))
+        XCTAssertTrue(viewModel.contains("quarantinedAudioUnitIDs: failedAudioUnitEffectIDs"))
+    }
+
+    func testAudioUnitStatusSnapshotsAreLocked() throws {
+        let chain = try String(contentsOf: URL(fileURLWithPath: "Sources/SonicBloomApp/AudioUnitEffectHostChain.swift"))
+
+        XCTAssertTrue(chain.contains("private var _activeEffectIDs"))
+        XCTAssertTrue(chain.contains("var activeEffectIDs: [String]"))
+        XCTAssertTrue(chain.contains("lockedSnapshot"))
+        XCTAssertTrue(chain.contains("callbackInstalled"))
+    }
+
     @MainActor
     func testViewModelOptimizesLatencyForVideo() {
         let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"

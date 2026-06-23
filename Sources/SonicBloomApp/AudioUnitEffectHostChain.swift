@@ -12,8 +12,10 @@ final class AudioUnitEffectHostChain {
     private let loader: Loader
     private let lock = NSLock()
     private var loadedEffects: [LoadedAudioUnitEffect] = []
-    private(set) var activeEffectIDs: [String] = []
-    private(set) var failedEffectIDs: [String] = []
+    private var _activeEffectIDs: [String] = []
+    private var _failedEffectIDs: [String] = []
+    var activeEffectIDs: [String] { lockedSnapshot(\._activeEffectIDs) }
+    var failedEffectIDs: [String] { lockedSnapshot(\._failedEffectIDs) }
 
     init(loader: @escaping Loader = AudioUnitEffectHostChain.loadEffect) {
         self.loader = loader
@@ -39,8 +41,8 @@ final class AudioUnitEffectHostChain {
 
         lock.lock()
         loadedEffects = nextLoaded
-        activeEffectIDs = nextIDs
-        failedEffectIDs = nextFailedIDs
+        _activeEffectIDs = nextIDs
+        _failedEffectIDs = nextFailedIDs
         lock.unlock()
     }
 
@@ -60,19 +62,25 @@ final class AudioUnitEffectHostChain {
     func reset() {
         lock.lock()
         loadedEffects = []
-        activeEffectIDs = []
-        failedEffectIDs = []
+        _activeEffectIDs = []
+        _failedEffectIDs = []
         lock.unlock()
     }
 
     private func quarantine(_ id: String) {
         lock.lock()
         loadedEffects.removeAll { $0.id == id }
-        activeEffectIDs.removeAll { $0 == id }
-        if !failedEffectIDs.contains(id) {
-            failedEffectIDs.append(id)
+        _activeEffectIDs.removeAll { $0 == id }
+        if !_failedEffectIDs.contains(id) {
+            _failedEffectIDs.append(id)
         }
         lock.unlock()
+    }
+
+    private func lockedSnapshot(_ keyPath: KeyPath<AudioUnitEffectHostChain, [String]>) -> [String] {
+        lock.lock()
+        defer { lock.unlock() }
+        return self[keyPath: keyPath]
     }
 
     private static func loadEffect(_ effect: AudioUnitEffectDescriptor, sampleRate: Double) -> AnyObject? {
@@ -120,6 +128,7 @@ private final class AudioUnitEffectInstance: AudioUnitEffectProcessing {
     private var sampleTime: Float64 = 0
     private let renderBufferList = AudioUnitEffectInstance.makeStereoBufferList()
     private var isInitialized = false
+    private var callbackInstalled = false
 
     private static let inputCallback: AURenderCallback = { refCon, _, _, _, frameCount, ioData in
         let effect = Unmanaged<AudioUnitEffectInstance>.fromOpaque(refCon).takeUnretainedValue()
@@ -132,7 +141,7 @@ private final class AudioUnitEffectInstance: AudioUnitEffectProcessing {
             inputProc: Self.inputCallback,
             inputProcRefCon: Unmanaged.passUnretained(self).toOpaque()
         )
-        AudioUnitSetProperty(
+        let callbackStatus = AudioUnitSetProperty(
             instance,
             kAudioUnitProperty_SetRenderCallback,
             kAudioUnitScope_Input,
@@ -140,9 +149,11 @@ private final class AudioUnitEffectInstance: AudioUnitEffectProcessing {
             &callback,
             UInt32(MemoryLayout<AURenderCallbackStruct>.size)
         )
+        callbackInstalled = callbackStatus == noErr
     }
 
     func initialize() -> Bool {
+        guard callbackInstalled else { return false }
         isInitialized = AudioUnitInitialize(instance) == noErr
         return isInitialized
     }
