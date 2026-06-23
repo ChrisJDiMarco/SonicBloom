@@ -724,6 +724,7 @@ final class SonicBloomViewModel: ObservableObject {
             cpuUsagePercent: cpuUsagePercent,
             selectedPresetName: selectedPreset.name,
             syncMode: processingSyncMode,
+            settings: settings,
             lastError: lastError
         )
     }

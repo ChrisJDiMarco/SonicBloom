@@ -49,12 +49,17 @@ public enum SonicBloomDiagnosticsReport {
         cpuUsagePercent: Double,
         selectedPresetName: String,
         syncMode: AudioSyncMode,
+        settings: SonicBloomSettings = .default,
         lastError: String?
     ) -> String {
         [
             "SonicBloom Diagnostics",
             "Preset: \(selectedPresetName)",
             "Sync Mode: \(syncMode.rawValue)",
+            "Smart Matching: \(settings.smartPresetMatching ? "On" : "Off")",
+            "App Profiles: \(settings.applyAppProfilesAutomatically ? "Auto" : "Manual")",
+            "Reduce Motion: \(settings.reduceMotion ? "On" : "Off")",
+            String(format: "Waveform Intensity: %.2f", settings.waveformIntensity),
             "Install Health: \(routeState.installHealth.rawValue)",
             "Input: \(routeState.bridgeInputDeviceName ?? "No input")",
             "Output: \(routeState.selectedPhysicalOutputName ?? "No output")",

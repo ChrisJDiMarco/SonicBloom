@@ -1719,6 +1719,12 @@ final class SonicBloomCoreTests: XCTestCase {
             cpuUsagePercent: 7.25,
             selectedPresetName: "Clean Loud",
             syncMode: .video,
+            settings: SonicBloomSettings(
+                reduceMotion: true,
+                waveformIntensity: 0.25,
+                smartPresetMatching: false,
+                applyAppProfilesAutomatically: true
+            ),
             lastError: "Test error"
         )
 
@@ -1732,6 +1738,10 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertTrue(report.contains("Latency: 2.9 ms"))
         XCTAssertTrue(report.contains("CPU: 7.2%"))
         XCTAssertTrue(report.contains("Clips Protected: 42"))
+        XCTAssertTrue(report.contains("Smart Matching: Off"))
+        XCTAssertTrue(report.contains("App Profiles: Auto"))
+        XCTAssertTrue(report.contains("Reduce Motion: On"))
+        XCTAssertTrue(report.contains("Waveform Intensity: 0.25"))
         XCTAssertTrue(report.contains("Recovery: Recovered route after wake."))
         XCTAssertTrue(report.contains("Last Error: Test error"))
     }
