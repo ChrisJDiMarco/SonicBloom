@@ -59,6 +59,8 @@ fi
 pkg="$pkg_dir/SonicBloom-$version.pkg"
 
 run mkdir -p "$pkg_dir"
+run cp Scripts/uninstall_sonicbloom.sh "$pkg_dir/SonicBloom-Uninstall.command"
+run chmod +x "$pkg_dir/SonicBloom-Uninstall.command"
 if [[ -n "$identity" ]]; then
   run productbuild --component "$app" /Applications --identifier com.chrisdimarco.sonicbloom.pkg --version "$version" --sign "$identity" "$pkg"
 else

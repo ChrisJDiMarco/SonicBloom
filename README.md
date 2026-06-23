@@ -24,6 +24,7 @@ SONICBLOOM_INSTALLER_IDENTITY="Developer ID Installer: Your Name (TEAMID)" SONIC
 ```
 
 The package installs `SonicBloom.app` into `/Applications`. Signing and notarization are enabled by environment variables so local development still works without Apple Developer credentials.
+Each release also writes `dist/release/SonicBloom-Uninstall.command`, which removes the app, SonicBloom HAL driver, and recovery LaunchAgent.
 
 ## What Exists
 

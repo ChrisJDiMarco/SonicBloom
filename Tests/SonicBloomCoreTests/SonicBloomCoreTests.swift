@@ -1566,6 +1566,18 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertFalse(script.contains("Soundflower"))
     }
 
+    func testReleaseShipsCleanSonicBloomUninstaller() throws {
+        let packageScript = try String(contentsOf: URL(fileURLWithPath: "Scripts/package_release.sh"))
+        let uninstallScript = try String(contentsOf: URL(fileURLWithPath: "Scripts/uninstall_sonicbloom.sh"))
+
+        XCTAssertTrue(packageScript.contains("SonicBloom-Uninstall.command"))
+        XCTAssertTrue(uninstallScript.contains("/Applications/SonicBloom.app"))
+        XCTAssertTrue(uninstallScript.contains("/Library/Audio/Plug-Ins/HAL/SonicBloomHAL.driver"))
+        XCTAssertTrue(uninstallScript.contains("com.chrisdimarco.sonicbloom.recovery.plist"))
+        XCTAssertFalse(uninstallScript.contains("BlackHole"))
+        XCTAssertFalse(uninstallScript.contains("Soundflower"))
+    }
+
     private func rms(_ frames: [StereoFrame]) -> Float {
         guard !frames.isEmpty else { return 0 }
         let sum = frames.reduce(Float(0)) { partial, frame in
