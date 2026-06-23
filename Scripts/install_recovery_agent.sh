@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+write_only=0
+if [[ "${1:-}" == "--write-only" ]]; then
+  write_only=1
+  shift
+fi
+
 app="${1:-/Applications/SonicBloom.app}"
 helper="$app/Contents/MacOS/SonicBloomRecovery"
 plist="$HOME/Library/LaunchAgents/com.chrisdimarco.sonicbloom.recovery.plist"
@@ -9,6 +15,12 @@ if [[ ! -x "$helper" ]]; then
   echo "missing recovery helper: $helper" >&2
   exit 66
 fi
+
+xml_escape() {
+  printf '%s' "$1" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'
+}
+
+escaped_helper="$(xml_escape "$helper")"
 
 mkdir -p "$(dirname "$plist")"
 cat > "$plist" <<PLIST
@@ -21,7 +33,7 @@ cat > "$plist" <<PLIST
   <string>com.chrisdimarco.sonicbloom.recovery</string>
   <key>ProgramArguments</key>
   <array>
-    <string>$helper</string>
+    <string>$escaped_helper</string>
     <string>--watch</string>
     <string>--interval</string>
     <string>2</string>
@@ -38,6 +50,9 @@ cat > "$plist" <<PLIST
 </plist>
 PLIST
 
-launchctl bootout "gui/$UID" "$plist" >/dev/null 2>&1 || true
-launchctl bootstrap "gui/$UID" "$plist"
+/usr/bin/plutil -lint "$plist" >/dev/null
+if [[ "$write_only" == "0" ]]; then
+  launchctl bootout "gui/$UID" "$plist" >/dev/null 2>&1 || true
+  launchctl bootstrap "gui/$UID" "$plist"
+fi
 echo "$plist"

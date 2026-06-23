@@ -1792,6 +1792,49 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertFalse(uninstallScript.contains("Soundflower"))
     }
 
+    func testReleaseShipsRecoveryAgentInstaller() throws {
+        let packageScript = try String(contentsOf: URL(fileURLWithPath: "Scripts/package_release.sh"))
+        let installScript = try String(contentsOf: URL(fileURLWithPath: "Scripts/install_recovery_agent.sh"))
+
+        XCTAssertTrue(packageScript.contains("SonicBloom-Install-Recovery.command"))
+        XCTAssertTrue(installScript.contains("RunAtLoad"))
+        XCTAssertTrue(installScript.contains("KeepAlive"))
+        XCTAssertTrue(installScript.contains("plutil -lint"))
+    }
+
+    func testRecoveryAgentInstallerWritesParseableLaunchAgentForEscapedAppPaths() throws {
+        let home = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let app = home.appendingPathComponent("Sonic&Bloom <Test>.app", isDirectory: true)
+        let helper = app.appendingPathComponent("Contents/MacOS/SonicBloomRecovery")
+        defer { try? FileManager.default.removeItem(at: home) }
+        try FileManager.default.createDirectory(at: helper.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try "#!/bin/sh\n".write(to: helper, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helper.path)
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        process.arguments = [
+            "HOME=\(home.path)",
+            "Scripts/install_recovery_agent.sh",
+            "--write-only",
+            app.path
+        ]
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = FileHandle.nullDevice
+
+        try process.run()
+        process.waitUntilExit()
+
+        let plist = home.appendingPathComponent("Library/LaunchAgents/com.chrisdimarco.sonicbloom.recovery.plist")
+        let data = try Data(contentsOf: plist)
+        let object = try XCTUnwrap(PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any])
+        let arguments = try XCTUnwrap(object["ProgramArguments"] as? [String])
+        XCTAssertEqual(process.terminationStatus, 0)
+        XCTAssertEqual(arguments.first, helper.path)
+        XCTAssertEqual(object["RunAtLoad"] as? Bool, true)
+        XCTAssertEqual(object["KeepAlive"] as? Bool, true)
+    }
+
     func testReleaseShipsSupportGuide() throws {
         let packageScript = try String(contentsOf: URL(fileURLWithPath: "Scripts/package_release.sh"))
         let supportGuide = try String(contentsOf: URL(fileURLWithPath: "Docs/Support.md"))
