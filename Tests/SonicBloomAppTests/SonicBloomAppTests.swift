@@ -58,6 +58,14 @@ final class SonicBloomAppTests: XCTestCase {
         XCTAssertFalse(controlPanel.contains(".frame(height: 350)"))
     }
 
+    func testRawCompareButtonHasObviousActiveState() throws {
+        let controlPanel = try String(contentsOf: URL(fileURLWithPath: "Sources/SonicBloomApp/SonicBloomControlPanel.swift"))
+
+        XCTAssertTrue(controlPanel.contains("RAW COMPARE ON"))
+        XCTAssertTrue(controlPanel.contains("Enhancement bypassed"))
+        XCTAssertTrue(controlPanel.contains("SBColor.orange.opacity(0.22)"))
+    }
+
     @MainActor
     func testSelectedPresetWinsOverSuggestedForegroundAppPreset() {
         let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
