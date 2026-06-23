@@ -1879,6 +1879,7 @@ final class SonicBloomCoreTests: XCTestCase {
         process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
         process.arguments = [
             "HOME=\(home.path)",
+            "SONICBLOOM_RECOVERY_INTERVAL=0.75",
             "Scripts/install_recovery_agent.sh",
             "--write-only",
             app.path
@@ -1894,9 +1895,39 @@ final class SonicBloomCoreTests: XCTestCase {
         let object = try XCTUnwrap(PropertyListSerialization.propertyList(from: data, format: nil) as? [String: Any])
         let arguments = try XCTUnwrap(object["ProgramArguments"] as? [String])
         XCTAssertEqual(process.terminationStatus, 0)
-        XCTAssertEqual(arguments.first, helper.path)
+        XCTAssertEqual(arguments, [helper.path, "--watch", "--interval", "0.75"])
         XCTAssertEqual(object["RunAtLoad"] as? Bool, true)
         XCTAssertEqual(object["KeepAlive"] as? Bool, true)
+    }
+
+    func testRecoveryAgentInstallerRejectsInvalidInterval() throws {
+        let home = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let app = home.appendingPathComponent("SonicBloom.app", isDirectory: true)
+        let helper = app.appendingPathComponent("Contents/MacOS/SonicBloomRecovery")
+        defer { try? FileManager.default.removeItem(at: home) }
+        try FileManager.default.createDirectory(at: helper.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try "#!/bin/sh\n".write(to: helper, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helper.path)
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        process.arguments = [
+            "HOME=\(home.path)",
+            "SONICBLOOM_RECOVERY_INTERVAL=<bad>",
+            "Scripts/install_recovery_agent.sh",
+            "--write-only",
+            app.path
+        ]
+        let errorPipe = Pipe()
+        process.standardOutput = FileHandle.nullDevice
+        process.standardError = errorPipe
+
+        try process.run()
+        process.waitUntilExit()
+
+        let errorText = String(data: errorPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        XCTAssertNotEqual(process.terminationStatus, 0)
+        XCTAssertTrue(errorText.contains("SONICBLOOM_RECOVERY_INTERVAL must be numeric"))
     }
 
     func testReleaseShipsSupportGuide() throws {

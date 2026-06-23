@@ -10,10 +10,16 @@ fi
 app="${1:-/Applications/SonicBloom.app}"
 helper="$app/Contents/MacOS/SonicBloomRecovery"
 plist="$HOME/Library/LaunchAgents/com.chrisdimarco.sonicbloom.recovery.plist"
+interval="${SONICBLOOM_RECOVERY_INTERVAL:-2}"
 
 if [[ ! -x "$helper" ]]; then
   echo "missing recovery helper: $helper" >&2
   exit 66
+fi
+
+if ! [[ "$interval" =~ ^[0-9]+([.][0-9]+)?$ ]]; then
+  echo "SONICBLOOM_RECOVERY_INTERVAL must be numeric" >&2
+  exit 64
 fi
 
 xml_escape() {
@@ -36,7 +42,7 @@ cat > "$plist" <<PLIST
     <string>$escaped_helper</string>
     <string>--watch</string>
     <string>--interval</string>
-    <string>2</string>
+    <string>$interval</string>
   </array>
   <key>RunAtLoad</key>
   <true/>
