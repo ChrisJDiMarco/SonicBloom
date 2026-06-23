@@ -1541,6 +1541,7 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertTrue(SonicBloomSettings.default.smartPresetMatching)
         XCTAssertFalse(SonicBloomSettings.default.showAdvancedControls)
         XCTAssertFalse(SonicBloomSettings.default.applyAppProfilesAutomatically)
+        XCTAssertFalse(SonicBloomSettings.default.loudnessMatchedCompare)
 
         let studio = SonicBloomSettings(showAdvancedControls: true)
         let data = try JSONEncoder().encode(studio)
@@ -1553,7 +1554,7 @@ final class SonicBloomCoreTests: XCTestCase {
         let settings = try JSONDecoder().decode(SonicBloomSettings.self, from: data)
 
         XCTAssertEqual(settings.syncMode, .music)
-        XCTAssertTrue(settings.loudnessMatchedCompare)
+        XCTAssertFalse(settings.loudnessMatchedCompare)
         XCTAssertFalse(settings.smartPresetMatching)
         XCTAssertFalse(settings.applyAppProfilesAutomatically)
     }

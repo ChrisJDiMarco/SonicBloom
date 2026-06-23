@@ -364,7 +364,7 @@ final class SonicBloomViewModel: ObservableObject {
                 outputDeviceID: outputDeviceID,
                 preset: processingPreset,
                 bypass: isBypassed,
-                loudnessMatchedBypass: settings.loudnessMatchedCompare,
+                loudnessMatchedBypass: false,
                 preferredBufferFrameSize: processingSyncMode.preferredBufferFrameSize
             )
             updateBridgeAudioUnitEffects()
@@ -914,7 +914,7 @@ final class SonicBloomViewModel: ObservableObject {
     }
 
     private func updateBridgePreset() {
-        bridge.update(preset: processingPreset, bypass: isBypassed, loudnessMatchedBypass: settings.loudnessMatchedCompare)
+        bridge.update(preset: processingPreset, bypass: isBypassed, loudnessMatchedBypass: false)
     }
 
     private func updateBridgeAudioUnitEffects() {

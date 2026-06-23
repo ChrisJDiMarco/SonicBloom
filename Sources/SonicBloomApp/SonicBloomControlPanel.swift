@@ -902,7 +902,6 @@ private struct SettingsWorkbench: View {
                         ToggleRow(title: "Auto-enhance on launch", subtitle: "Start processing when SonicBloom opens.", isOn: settingsBinding(\.autoEnhanceOnLaunch))
                         ToggleRow(title: "Smart preset matching", subtitle: "Suggest stable presets from content energy.", isOn: settingsBinding(\.smartPresetMatching))
                         ToggleRow(title: "Apply App Profiles Automatically", subtitle: "Use saved foreground-app profiles when that app is active.", isOn: settingsBinding(\.applyAppProfilesAutomatically))
-                        ToggleRow(title: "Loudness-matched compare", subtitle: "Keep raw A/B checks at the enhanced level.", isOn: settingsBinding(\.loudnessMatchedCompare))
                         ToggleRow(title: "Advanced controls", subtitle: "Expose spatial, HRTF, and crossfeed controls.", isOn: settingsBinding(\.showAdvancedControls))
                         ToggleRow(title: "Reduce motion", subtitle: "Calm scopes and moving meters.", isOn: settingsBinding(\.reduceMotion))
                         MiniSlider(title: "WAVEFORM INTENSITY", value: settingsBinding(\.waveformIntensity), range: 0...1, color: SBColor.red)

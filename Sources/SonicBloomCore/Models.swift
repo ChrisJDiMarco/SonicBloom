@@ -649,7 +649,7 @@ public struct SonicBloomSettings: Codable, Equatable, Sendable {
         waveformIntensity: Double = 0.72,
         showAdvancedControls: Bool = false,
         syncMode: AudioSyncMode = .auto,
-        loudnessMatchedCompare: Bool = true,
+        loudnessMatchedCompare: Bool = false,
         smartPresetMatching: Bool = true,
         applyAppProfilesAutomatically: Bool = false
     ) {
@@ -663,7 +663,7 @@ public struct SonicBloomSettings: Codable, Equatable, Sendable {
         self.applyAppProfilesAutomatically = applyAppProfilesAutomatically
     }
 
-    public static let `default` = SonicBloomSettings()
+    public static let `default` = SonicBloomSettings(loudnessMatchedCompare: false)
 
     private enum CodingKeys: String, CodingKey {
         case autoEnhanceOnLaunch, reduceMotion, waveformIntensity, showAdvancedControls, syncMode, loudnessMatchedCompare, smartPresetMatching, applyAppProfilesAutomatically
@@ -677,7 +677,7 @@ public struct SonicBloomSettings: Codable, Equatable, Sendable {
             waveformIntensity: try values.decodeIfPresent(Double.self, forKey: .waveformIntensity) ?? 0.72,
             showAdvancedControls: try values.decodeIfPresent(Bool.self, forKey: .showAdvancedControls) ?? false,
             syncMode: try values.decodeIfPresent(AudioSyncMode.self, forKey: .syncMode) ?? .music,
-            loudnessMatchedCompare: try values.decodeIfPresent(Bool.self, forKey: .loudnessMatchedCompare) ?? true,
+            loudnessMatchedCompare: try values.decodeIfPresent(Bool.self, forKey: .loudnessMatchedCompare) ?? false,
             smartPresetMatching: try values.decodeIfPresent(Bool.self, forKey: .smartPresetMatching) ?? false,
             applyAppProfilesAutomatically: try values.decodeIfPresent(Bool.self, forKey: .applyAppProfilesAutomatically) ?? false
         )
