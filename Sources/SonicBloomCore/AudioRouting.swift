@@ -694,18 +694,74 @@ public struct CoreAudioProcessTap: Equatable, Sendable {
     }
 }
 
+public struct CoreAudioTapAggregateDescription: Equatable, Sendable {
+    public var uid: String
+    public var name: String
+    public var tapUID: String
+    public var isPrivate: Bool
+    public var tapAutoStart: Bool
+
+    public init(uid: String, name: String, tapUID: String, isPrivate: Bool = true, tapAutoStart: Bool = true) {
+        self.uid = uid
+        self.name = name
+        self.tapUID = tapUID
+        self.isPrivate = isPrivate
+        self.tapAutoStart = tapAutoStart
+    }
+
+    var coreAudioDictionary: [String: Any] {
+        [
+            kAudioAggregateDeviceUIDKey: uid,
+            kAudioAggregateDeviceNameKey: name,
+            kAudioAggregateDeviceIsPrivateKey: isPrivate ? 1 : 0,
+            kAudioAggregateDeviceTapAutoStartKey: tapAutoStart ? 1 : 0,
+            kAudioAggregateDeviceTapListKey: [
+                [
+                    kAudioSubTapUIDKey: tapUID,
+                    kAudioSubTapDriftCompensationKey: 0
+                ]
+            ]
+        ]
+    }
+}
+
+public struct CoreAudioProcessTapRoute: Equatable, Sendable {
+    public var tap: CoreAudioProcessTap
+    public var aggregateDeviceID: UInt32
+    public var aggregateUID: String
+
+    public init(tap: CoreAudioProcessTap, aggregateDeviceID: UInt32, aggregateUID: String) {
+        self.tap = tap
+        self.aggregateDeviceID = aggregateDeviceID
+        self.aggregateUID = aggregateUID
+    }
+}
+
 public final class CoreAudioProcessTapManager: @unchecked Sendable {
     private let createTap: ([UInt32]) throws -> UInt32
+    private let tapUID: (UInt32) throws -> String
+    private let createAggregateDevice: (CoreAudioTapAggregateDescription) throws -> UInt32
+    private let destroyAggregateDevice: (UInt32) -> OSStatus
     private let destroyTap: (UInt32) -> OSStatus
     private let lock = NSLock()
+    private var activeAggregateDeviceIDs: [UInt32] = []
     private var activeTapIDs: [UInt32] = []
 
     public convenience init() {
         self.init(createTap: Self.systemCreateTap, destroyTap: Self.systemDestroyTap)
     }
 
-    init(createTap: @escaping ([UInt32]) throws -> UInt32, destroyTap: @escaping (UInt32) -> OSStatus) {
+    init(
+        createTap: @escaping ([UInt32]) throws -> UInt32,
+        tapUID: @escaping (UInt32) throws -> String = CoreAudioProcessTapManager.systemTapUID,
+        createAggregateDevice: @escaping (CoreAudioTapAggregateDescription) throws -> UInt32 = CoreAudioProcessTapManager.systemCreateAggregateDevice,
+        destroyAggregateDevice: @escaping (UInt32) -> OSStatus = CoreAudioProcessTapManager.systemDestroyAggregateDevice,
+        destroyTap: @escaping (UInt32) -> OSStatus
+    ) {
         self.createTap = createTap
+        self.tapUID = tapUID
+        self.createAggregateDevice = createAggregateDevice
+        self.destroyAggregateDevice = destroyAggregateDevice
         self.destroyTap = destroyTap
     }
 
@@ -724,15 +780,48 @@ public final class CoreAudioProcessTapManager: @unchecked Sendable {
         return CoreAudioProcessTap(id: tapID, processObjectIDs: [processObjectID])
     }
 
+    public func createReadableTapDevice(for item: AppMixerItem) throws -> CoreAudioProcessTapRoute {
+        let tap = try createTap(for: item)
+        do {
+            let uid = try tapUID(tap.id)
+            let aggregateUID = "com.chrisdimarco.sonicbloom.tap.\(tap.id)"
+            let description = CoreAudioTapAggregateDescription(
+                uid: aggregateUID,
+                name: "SonicBloom \(item.rule.displayName) Tap",
+                tapUID: uid
+            )
+            let aggregateDeviceID = try createAggregateDevice(description)
+            lock.lock()
+            activeAggregateDeviceIDs.append(aggregateDeviceID)
+            lock.unlock()
+            return CoreAudioProcessTapRoute(tap: tap, aggregateDeviceID: aggregateDeviceID, aggregateUID: aggregateUID)
+        } catch {
+            destroyTrackedTap(tap.id)
+            throw error
+        }
+    }
+
     public func destroyAll() {
         lock.lock()
+        let aggregateDeviceIDs = activeAggregateDeviceIDs
         let tapIDs = activeTapIDs
+        activeAggregateDeviceIDs.removeAll()
         activeTapIDs.removeAll()
         lock.unlock()
 
+        for aggregateDeviceID in aggregateDeviceIDs {
+            _ = destroyAggregateDevice(aggregateDeviceID)
+        }
         for tapID in tapIDs {
             _ = destroyTap(tapID)
         }
+    }
+
+    private func destroyTrackedTap(_ tapID: UInt32) {
+        lock.lock()
+        activeTapIDs.removeAll { $0 == tapID }
+        lock.unlock()
+        _ = destroyTap(tapID)
     }
 
     private static func systemCreateTap(processObjectIDs: [UInt32]) throws -> UInt32 {
@@ -750,6 +839,34 @@ public final class CoreAudioProcessTapManager: @unchecked Sendable {
             throw AudioRouteError.coreAudioFailed("Unable to create per-app audio tap.", status)
         }
         return UInt32(tapID)
+    }
+
+    private static func systemTapUID(_ tapID: UInt32) throws -> String {
+        var address = AudioObjectPropertyAddress(
+            mSelector: kAudioTapPropertyUID,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+        var value: Unmanaged<CFString>?
+        var size = UInt32(MemoryLayout<Unmanaged<CFString>?>.size)
+        let status = AudioObjectGetPropertyData(AudioObjectID(tapID), &address, 0, nil, &size, &value)
+        guard status == noErr, let value else {
+            throw AudioRouteError.coreAudioFailed("Unable to read per-app tap UID.", status)
+        }
+        return value.takeRetainedValue() as String
+    }
+
+    private static func systemCreateAggregateDevice(_ description: CoreAudioTapAggregateDescription) throws -> UInt32 {
+        var aggregateDeviceID = AudioObjectID(kAudioObjectUnknown)
+        let status = AudioHardwareCreateAggregateDevice(description.coreAudioDictionary as CFDictionary, &aggregateDeviceID)
+        guard status == noErr, aggregateDeviceID != kAudioObjectUnknown else {
+            throw AudioRouteError.coreAudioFailed("Unable to create readable per-app tap device.", status)
+        }
+        return UInt32(aggregateDeviceID)
+    }
+
+    private static func systemDestroyAggregateDevice(_ deviceID: UInt32) -> OSStatus {
+        AudioHardwareDestroyAggregateDevice(AudioObjectID(deviceID))
     }
 
     private static func systemDestroyTap(_ tapID: UInt32) -> OSStatus {

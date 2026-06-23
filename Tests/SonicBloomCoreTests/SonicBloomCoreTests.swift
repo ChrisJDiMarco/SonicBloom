@@ -693,6 +693,66 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertEqual(destroyedTaps, [777])
     }
 
+    func testProcessTapManagerCreatesReadableTapDeviceAndDestroysInOrder() throws {
+        var aggregateDescription: CoreAudioTapAggregateDescription?
+        var destroyedAggregates: [UInt32] = []
+        var destroyedTaps: [UInt32] = []
+        let manager = CoreAudioProcessTapManager(
+            createTap: { _ in 777 },
+            tapUID: { id in "tap-\(id)" },
+            createAggregateDevice: { description in
+                aggregateDescription = description
+                return 888
+            },
+            destroyAggregateDevice: { id in
+                destroyedAggregates.append(id)
+                return noErr
+            },
+            destroyTap: { id in
+                destroyedTaps.append(id)
+                return noErr
+            }
+        )
+        let item = AppMixerItem(
+            rule: AppAudioRule(bundleIdentifier: "com.spotify.client", displayName: "Spotify"),
+            processID: 101,
+            processObjectID: 9001,
+            captureStatus: .ready
+        )
+
+        let route = try manager.createReadableTapDevice(for: item)
+        manager.destroyAll()
+
+        XCTAssertEqual(route.tap.id, 777)
+        XCTAssertEqual(route.aggregateDeviceID, 888)
+        XCTAssertEqual(aggregateDescription?.tapUID, "tap-777")
+        XCTAssertEqual(destroyedAggregates, [888])
+        XCTAssertEqual(destroyedTaps, [777])
+    }
+
+    func testProcessTapManagerDestroysTapWhenAggregateCreationFails() {
+        var destroyedTaps: [UInt32] = []
+        let manager = CoreAudioProcessTapManager(
+            createTap: { _ in 777 },
+            tapUID: { _ in "tap-777" },
+            createAggregateDevice: { _ in throw AudioRouteError.coreAudioFailed("no aggregate", -1) },
+            destroyAggregateDevice: { _ in noErr },
+            destroyTap: { id in
+                destroyedTaps.append(id)
+                return noErr
+            }
+        )
+        let item = AppMixerItem(
+            rule: AppAudioRule(bundleIdentifier: "com.spotify.client", displayName: "Spotify"),
+            processID: 101,
+            processObjectID: 9001,
+            captureStatus: .ready
+        )
+
+        XCTAssertThrowsError(try manager.createReadableTapDevice(for: item))
+        XCTAssertEqual(destroyedTaps, [777])
+    }
+
     func testProcessTapManagerRejectsAppWithoutCoreAudioObjectID() {
         let manager = CoreAudioProcessTapManager(createTap: { _ in 1 }, destroyTap: { _ in noErr })
         let item = AppMixerItem(
