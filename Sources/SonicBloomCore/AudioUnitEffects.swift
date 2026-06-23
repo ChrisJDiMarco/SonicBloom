@@ -49,6 +49,20 @@ public struct AudioUnitEffectDescriptor: Codable, Equatable, Identifiable, Senda
     }
 }
 
+public struct AudioUnitEffectSlot: Codable, Equatable, Identifiable, Sendable {
+    public var effect: AudioUnitEffectDescriptor
+    public var isEnabled: Bool
+
+    public init(effect: AudioUnitEffectDescriptor, isEnabled: Bool = true) {
+        self.effect = effect
+        self.isEnabled = isEnabled
+    }
+
+    public var id: String {
+        effect.id
+    }
+}
+
 public enum AudioUnitEffectCatalog {
     public static let supportedComponentTypes: [OSType] = [
         kAudioUnitType_Effect,

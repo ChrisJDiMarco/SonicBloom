@@ -1,4 +1,5 @@
 import XCTest
+import AudioToolbox
 import SonicBloomCore
 @testable import SonicBloomApp
 
@@ -104,6 +105,31 @@ final class SonicBloomAppTests: XCTestCase {
         XCTAssertEqual(viewModel.selectedPreset.name, DSPPreset.manual.name)
         XCTAssertLessThan(viewModel.selectedPreset.eqBandsDB[0], -3)
         XCTAssertGreaterThan(viewModel.selectedPreset.eqBandsDB[17], 1.5)
+    }
+
+    @MainActor
+    func testViewModelStoresAudioUnitEffectsInProfile() {
+        let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let viewModel = SonicBloomViewModel.testInstance(defaults: defaults)
+        let effect = AudioUnitEffectDescriptor(
+            name: "Studio EQ",
+            manufacturerName: "Apple",
+            componentType: kAudioUnitType_Effect,
+            componentSubType: fourCC("eqal"),
+            componentManufacturer: fourCC("appl")
+        )
+
+        viewModel.addAudioUnitEffect(effect)
+        viewModel.setAudioUnitEffectEnabled("aufx-eqal-appl", false)
+        viewModel.removeAudioUnitEffect("missing")
+
+        XCTAssertEqual(viewModel.profile.audioUnitEffects.count, 1)
+        XCTAssertEqual(viewModel.profile.audioUnitEffects.first?.isEnabled, false)
+
+        viewModel.removeAudioUnitEffect("aufx-eqal-appl")
+        XCTAssertEqual(viewModel.profile.audioUnitEffects, [])
     }
 
     @MainActor
@@ -264,4 +290,8 @@ private extension AudioRouteState {
         installHealth: .active,
         statusMessage: "Test route ready."
     )
+}
+
+private func fourCC(_ value: String) -> OSType {
+    value.utf8.reduce(OSType(0)) { ($0 << 8) | OSType($1) }
 }

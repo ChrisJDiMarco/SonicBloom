@@ -478,6 +478,18 @@ final class SonicBloomViewModel: ObservableObject {
         }
     }
 
+    func addAudioUnitEffect(_ effect: AudioUnitEffectDescriptor) {
+        profile.addAudioUnitEffect(AudioUnitEffectSlot(effect: effect))
+    }
+
+    func removeAudioUnitEffect(_ id: String) {
+        profile.removeAudioUnitEffect(id)
+    }
+
+    func setAudioUnitEffectEnabled(_ id: String, _ isEnabled: Bool) {
+        profile.setAudioUnitEffectEnabled(id, isEnabled)
+    }
+
     var suggestedCalibrationTuning: CalibrationTuning {
         CalibrationTuning.recommended(for: routeState.selectedPhysicalOutputName)
     }

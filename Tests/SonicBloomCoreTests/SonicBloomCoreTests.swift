@@ -588,6 +588,7 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertEqual(profile.listeningMode, .everyday)
         XCTAssertEqual(profile.devicePresets, [:])
         XCTAssertEqual(profile.appRules, [:])
+        XCTAssertEqual(profile.audioUnitEffects, [])
 
         let data = try JSONEncoder().encode(profile)
         XCTAssertEqual(try JSONDecoder().decode(SonicBloomProfile.self, from: data), profile)
@@ -600,7 +601,49 @@ final class SonicBloomCoreTests: XCTestCase {
 
         XCTAssertEqual(profile.devicePresets, [:])
         XCTAssertEqual(profile.appRules, [:])
+        XCTAssertEqual(profile.audioUnitEffects, [])
         XCTAssertEqual(profile.favoritePresetName, DSPPreset.cleanLoud.name)
+    }
+
+    func testProfileStoresAudioUnitEffectChain() throws {
+        var profile = SonicBloomProfile.default
+        let descriptor = AudioUnitEffectDescriptor(
+            name: "Studio EQ",
+            manufacturerName: "Apple",
+            componentType: kAudioUnitType_Effect,
+            componentSubType: fourCC("eqal"),
+            componentManufacturer: fourCC("appl")
+        )
+        let slot = AudioUnitEffectSlot(effect: descriptor, isEnabled: false)
+
+        profile.addAudioUnitEffect(slot)
+        profile.addAudioUnitEffect(slot)
+        profile.setAudioUnitEffectEnabled(slot.id, true)
+
+        XCTAssertEqual(profile.audioUnitEffects.count, 1)
+        XCTAssertEqual(profile.audioUnitEffects.first?.id, "aufx-eqal-appl")
+        XCTAssertEqual(profile.audioUnitEffects.first?.isEnabled, true)
+
+        let data = try JSONEncoder().encode(profile)
+        XCTAssertEqual(try JSONDecoder().decode(SonicBloomProfile.self, from: data), profile)
+    }
+
+    func testProfileRemovesAudioUnitEffectByID() {
+        var profile = SonicBloomProfile.default
+        let slot = AudioUnitEffectSlot(
+            effect: AudioUnitEffectDescriptor(
+                name: "Delay",
+                manufacturerName: "Apple",
+                componentType: kAudioUnitType_Effect,
+                componentSubType: fourCC("dely"),
+                componentManufacturer: fourCC("appl")
+            )
+        )
+
+        profile.addAudioUnitEffect(slot)
+        profile.removeAudioUnitEffect(slot.id)
+
+        XCTAssertEqual(profile.audioUnitEffects, [])
     }
 
     func testProfileRemembersPresetPerOutput() {
