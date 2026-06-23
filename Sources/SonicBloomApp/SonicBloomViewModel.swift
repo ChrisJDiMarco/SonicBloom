@@ -65,13 +65,6 @@ final class SonicBloomViewModel: ObservableObject {
 #endif
             refreshAppMixerRules()
             activeAppRule = profile.effectiveAppRule(for: foregroundAppBundleIdentifier)
-            if oldValue.effectiveSyncMode(for: foregroundAppBundleIdentifier, default: settings.syncMode, contentProfile: smartContentProfile) != processingSyncMode {
-                routeState.bufferSize = Int(processingSyncMode.preferredBufferFrameSize)
-                if isBridgeRunning, !isTransitioning {
-                    startBridge()
-                    return
-                }
-            }
             updateBridgePreset()
             restartPerAppTapsIfRunning()
         }
@@ -448,6 +441,10 @@ final class SonicBloomViewModel: ObservableObject {
         processingPreset
     }
 
+    var processingSyncModeForTesting: AudioSyncMode {
+        processingSyncMode
+    }
+
     func setForegroundAppBundleIdentifierForTesting(_ bundleIdentifier: String?) {
         foregroundAppBundleIdentifier = bundleIdentifier
         activeAppRule = profile.effectiveAppRule(for: bundleIdentifier)
@@ -466,11 +463,7 @@ final class SonicBloomViewModel: ObservableObject {
     }
 
     private var processingSyncMode: AudioSyncMode {
-        profile.effectiveSyncMode(
-            for: foregroundAppBundleIdentifier,
-            default: settings.syncMode,
-            contentProfile: smartContentProfile
-        )
+        settings.syncMode == .auto ? .video : settings.syncMode
     }
 
     private func updateBridgePreset() {
@@ -578,16 +571,8 @@ final class SonicBloomViewModel: ObservableObject {
     private func refreshForegroundApplication(_ app: NSRunningApplication? = NSWorkspace.shared.frontmostApplication) {
         guard let bundleIdentifier = app?.bundleIdentifier,
               bundleIdentifier != Bundle.main.bundleIdentifier else { return }
-        let oldSyncMode = processingSyncMode
         foregroundAppBundleIdentifier = bundleIdentifier
         activeAppRule = profile.effectiveAppRule(for: bundleIdentifier)
-        if oldSyncMode != processingSyncMode {
-            routeState.bufferSize = Int(processingSyncMode.preferredBufferFrameSize)
-            if isBridgeRunning, !isTransitioning {
-                startBridge()
-                return
-            }
-        }
         updateBridgePreset()
     }
 

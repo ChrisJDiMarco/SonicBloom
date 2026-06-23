@@ -18,6 +18,21 @@ final class SonicBloomAppTests: XCTestCase {
         XCTAssertEqual(viewModel.profileAudioRefreshCountForTesting, 0)
     }
 
+    @MainActor
+    func testForegroundAppSwitchDoesNotChangeLiveSyncMode() {
+        let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let viewModel = SonicBloomViewModel(defaults: defaults)
+        viewModel.settings = SonicBloomSettings(syncMode: .music)
+
+        viewModel.setForegroundAppBundleIdentifierForTesting("com.spotify.client")
+        XCTAssertEqual(viewModel.processingSyncModeForTesting, .music)
+
+        viewModel.setForegroundAppBundleIdentifierForTesting("com.google.Chrome")
+        XCTAssertEqual(viewModel.processingSyncModeForTesting, .music)
+    }
+
     func testPerAppMixerLeavesRoomForRouteActionTray() {
         XCTAssertGreaterThanOrEqual(
             PerAppMixerLayout.bottomScrollClearance,
