@@ -24,6 +24,16 @@ final class SonicBloomAppTests: XCTestCase {
         XCTAssertTrue(buildScript.contains("$contents/Resources/install_recovery_agent.sh"))
     }
 
+    func testProcessingMaintainsCrashRecoveryRouteLease() throws {
+        let viewModel = try String(contentsOf: URL(fileURLWithPath: "Sources/SonicBloomApp/SonicBloomViewModel.swift"))
+        let recovery = try String(contentsOf: URL(fileURLWithPath: "Sources/SonicBloomRecovery/main.swift"))
+
+        XCTAssertTrue(viewModel.contains("startRouteLease()"))
+        XCTAssertTrue(viewModel.contains("SonicBloomRouteLease.touch()"))
+        XCTAssertTrue(viewModel.contains("SonicBloomRouteLease.clear()"))
+        XCTAssertTrue(recovery.contains("restoreAbandonedBridgeSystemOutput"))
+    }
+
     func testAppBundleShipsLocalizedPermissionCopy() throws {
         let buildScript = try String(contentsOf: URL(fileURLWithPath: "Scripts/build_app.sh"))
         let infoPlistStrings = try String(contentsOf: URL(fileURLWithPath: "Sources/SonicBloomApp/Resources/en.lproj/InfoPlist.strings"))

@@ -295,9 +295,11 @@ public enum AudioRoutePlanner {
     public static func abandonedBridgeRecoveryOutput(
         devices: [AudioDeviceSnapshot],
         defaultOutputDeviceID: UInt32?,
-        appIsRunning: Bool
+        appIsRunning: Bool,
+        routeLeaseIsFresh: Bool = false
     ) -> AudioDeviceSnapshot? {
         guard !appIsRunning,
+              !routeLeaseIsFresh,
               let defaultOutputDeviceID,
               devices.contains(where: { $0.id == defaultOutputDeviceID && $0.isSonicBloomBridge }) else {
             return nil
@@ -312,6 +314,34 @@ public enum AudioRoutePlanner {
         }
 
         return devices.first(where: \.isUsablePhysicalOutput)
+    }
+}
+
+public enum SonicBloomRouteLease {
+    public static let staleInterval: TimeInterval = 8
+
+    public static func defaultURL(fileManager: FileManager = .default) -> URL {
+        fileManager.homeDirectoryForCurrentUser
+            .appendingPathComponent("Library/Application Support/SonicBloom", isDirectory: true)
+            .appendingPathComponent("route-heartbeat")
+    }
+
+    public static func touch(at url: URL = defaultURL(), now: Date = Date(), fileManager: FileManager = .default) throws {
+        try fileManager.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try String(now.timeIntervalSince1970).write(to: url, atomically: true, encoding: .utf8)
+    }
+
+    public static func clear(at url: URL = defaultURL(), fileManager: FileManager = .default) {
+        try? fileManager.removeItem(at: url)
+    }
+
+    public static func isFresh(at url: URL = defaultURL(), now: Date = Date(), staleInterval: TimeInterval = staleInterval) -> Bool {
+        guard let text = try? String(contentsOf: url, encoding: .utf8),
+              let timestamp = TimeInterval(text.trimmingCharacters(in: .whitespacesAndNewlines)) else {
+            return false
+        }
+        let age = now.timeIntervalSince1970 - timestamp
+        return age >= 0 && age <= staleInterval
     }
 }
 
@@ -434,11 +464,13 @@ public final class CoreAudioRouteManager: AudioRouteManaging, @unchecked Sendabl
         guard let output = AudioRoutePlanner.abandonedBridgeRecoveryOutput(
             devices: inventory.devices(),
             defaultOutputDeviceID: inventory.defaultOutputDeviceID(),
-            appIsRunning: appIsRunning
+            appIsRunning: appIsRunning,
+            routeLeaseIsFresh: SonicBloomRouteLease.isFresh()
         ) else {
             return false
         }
         try inventory.setDefaultOutputDeviceID(output.id)
+        SonicBloomRouteLease.clear()
         return true
     }
 

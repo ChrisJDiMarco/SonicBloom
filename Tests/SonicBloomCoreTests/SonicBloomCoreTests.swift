@@ -1909,6 +1909,34 @@ final class SonicBloomCoreTests: XCTestCase {
         )
     }
 
+    func testRoutePlannerWaitsForFreshRouteLeaseBeforeCrashRecovery() {
+        let devices = [
+            AudioDeviceSnapshot(id: 1, name: "MacBook Speakers", inputChannels: 0, outputChannels: 2, sampleRate: 48_000, isVirtual: false),
+            AudioDeviceSnapshot(id: 9, name: "SonicBloom Output", inputChannels: 2, outputChannels: 2, sampleRate: 48_000, isVirtual: true)
+        ]
+
+        XCTAssertNil(AudioRoutePlanner.abandonedBridgeRecoveryOutput(devices: devices, defaultOutputDeviceID: 9, appIsRunning: false, routeLeaseIsFresh: true))
+        XCTAssertEqual(
+            AudioRoutePlanner.abandonedBridgeRecoveryOutput(devices: devices, defaultOutputDeviceID: 9, appIsRunning: false, routeLeaseIsFresh: false)?.id,
+            1
+        )
+    }
+
+    func testRouteLeaseTracksFreshStaleAndClearedHeartbeats() throws {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+            .appendingPathComponent("route-heartbeat")
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        let now = Date(timeIntervalSince1970: 1_000)
+
+        XCTAssertFalse(SonicBloomRouteLease.isFresh(at: url, now: now, staleInterval: 4))
+        try SonicBloomRouteLease.touch(at: url, now: now)
+        XCTAssertTrue(SonicBloomRouteLease.isFresh(at: url, now: now.addingTimeInterval(3), staleInterval: 4))
+        XCTAssertFalse(SonicBloomRouteLease.isFresh(at: url, now: now.addingTimeInterval(5), staleInterval: 4))
+        SonicBloomRouteLease.clear(at: url)
+        XCTAssertFalse(SonicBloomRouteLease.isFresh(at: url, now: now, staleInterval: 4))
+    }
+
     func testHALInstallerScriptInstallsSonicBloomDriver() {
         let driverURL = URL(fileURLWithPath: "/tmp/Driver's Test/SonicBloomHAL.driver")
 

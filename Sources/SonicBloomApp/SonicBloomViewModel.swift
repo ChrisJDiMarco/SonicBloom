@@ -73,6 +73,7 @@ final class SonicBloomViewModel: ObservableObject {
     private var cpuSampler = ProcessCPUUsageSampler()
     private var cpuRefreshTask: Task<Void, Never>?
     private var routeRecoveryTask: Task<Void, Never>?
+    private var routeLeaseTask: Task<Void, Never>?
     private var appActivationObserver: NSObjectProtocol?
     private var activeProfileOutputName: String?
     private var presetUndoState = PresetUndoState()
@@ -190,6 +191,8 @@ final class SonicBloomViewModel: ObservableObject {
     deinit {
         cpuRefreshTask?.cancel()
         routeRecoveryTask?.cancel()
+        routeLeaseTask?.cancel()
+        SonicBloomRouteLease.clear()
         if let appActivationObserver {
             NSWorkspace.shared.notificationCenter.removeObserver(appActivationObserver)
         }
@@ -370,12 +373,14 @@ final class SonicBloomViewModel: ObservableObject {
             routeState.statusMessage = "Processing active: \(selection.input.name) -> \(selection.output.name)"
             isBridgeRunning = true
             lastError = nil
+            startRouteLease()
             startPerAppTaps(sampleRate: selection.output.sampleRate)
             startRouteRecoveryWatchdog()
         } catch {
             perAppTapCoordinator.stop()
             bridge.stop()
             routeRecoveryTask?.cancel()
+            stopRouteLease()
             try? routeManager.restorePreviousSystemOutput()
             isBridgeRunning = false
             lastError = error.localizedDescription
@@ -400,6 +405,7 @@ final class SonicBloomViewModel: ObservableObject {
                     self?.refreshRoute()
                     self?.isTransitioning = false
                     self?.routeRecoveryTask?.cancel()
+                    self?.stopRouteLease()
                 }
             } catch {
                 DispatchQueue.main.async { [weak self] in
@@ -420,6 +426,7 @@ final class SonicBloomViewModel: ObservableObject {
         isTransitioning = false
         meterModel.meter = DSPMeter()
         routeRecoveryTask?.cancel()
+        stopRouteLease()
         refreshRoute()
     }
 
@@ -950,6 +957,26 @@ final class SonicBloomViewModel: ObservableObject {
                 guard let self, self.isBridgeRunning, !self.isTransitioning else { continue }
                 self.refreshRoute()
             }
+        }
+    }
+
+    private func startRouteLease() {
+        stopRouteLease(clear: false)
+        try? SonicBloomRouteLease.touch()
+        routeLeaseTask = Task.detached(priority: .utility) {
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 2_000_000_000)
+                if Task.isCancelled { break }
+                try? SonicBloomRouteLease.touch()
+            }
+        }
+    }
+
+    private func stopRouteLease(clear: Bool = true) {
+        routeLeaseTask?.cancel()
+        routeLeaseTask = nil
+        if clear {
+            SonicBloomRouteLease.clear()
         }
     }
 
