@@ -594,6 +594,41 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertNil(try source.exportPreset(named: "Missing"))
     }
 
+    func testPresetStoreNormalizesUnsafeImportedPresets() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = PresetStore(directoryURL: directory)
+        let unsafePreset = DSPPreset(
+            name: "",
+            eqBandsDB: Array(repeating: 99, count: DSPPreset.bandCount),
+            inputGainDB: 99,
+            bassAmount: 2,
+            widthAmount: -1,
+            spatialAmount: 2,
+            crossfeedAmount: -1,
+            loudnessAmount: 2,
+            ambienceAmount: 2,
+            fidelityAmount: 2,
+            nightModeAmount: 2,
+            masteringAmount: 2,
+            hrtfAmount: 2,
+            limiterCeilingDB: 1,
+            outputGainDB: 99
+        )
+        let data = try JSONEncoder().encode(PresetShareDocument(preset: unsafePreset))
+
+        let imported = try store.importPreset(from: data)
+
+        XCTAssertEqual(imported.name, "Imported Preset")
+        XCTAssertTrue(imported.eqBandsDB.allSatisfy { $0 == 12 })
+        XCTAssertEqual(imported.inputGainDB, 12)
+        XCTAssertEqual(imported.outputGainDB, 12)
+        XCTAssertEqual(imported.bassAmount, 1)
+        XCTAssertEqual(imported.widthAmount, 0)
+        XCTAssertEqual(imported.limiterCeilingDB, -0.1)
+    }
+
     func testPresetUndoStateCapturesFirstEditUntilUndo() {
         var undo = PresetUndoState()
         var preset = DSPPreset.cleanLoud

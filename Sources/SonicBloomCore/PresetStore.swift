@@ -29,11 +29,12 @@ public final class PresetStore {
         }
 
         let data = try Data(contentsOf: fileURL)
-        return try JSONDecoder().decode([DSPPreset].self, from: data)
+        return try JSONDecoder().decode([DSPPreset].self, from: data).map(Self.normalized)
     }
 
     public func saveCustomPreset(_ preset: DSPPreset) throws {
         try FileManager.default.createDirectory(at: directoryURL, withIntermediateDirectories: true)
+        let preset = Self.normalized(preset)
         var presets = try loadCustomPresets()
         presets.removeAll { $0.name == preset.name }
         presets.append(preset)
@@ -50,9 +51,37 @@ public final class PresetStore {
 
     @discardableResult
     public func importPreset(from data: Data) throws -> DSPPreset {
-        let preset = try JSONDecoder().decode(PresetShareDocument.self, from: data).preset
+        let preset = Self.normalized(try JSONDecoder().decode(PresetShareDocument.self, from: data).preset)
         try saveCustomPreset(preset)
         return preset
+    }
+
+    private static func normalized(_ preset: DSPPreset) -> DSPPreset {
+        preset.with(
+            name: preset.name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Imported Preset" : preset.name,
+            eqBandsDB: preset.eqBandsDB.map { clamp($0, -12, 12) },
+            inputGainDB: clamp(preset.inputGainDB, -12, 12),
+            bassAmount: clamp01(preset.bassAmount),
+            widthAmount: clamp01(preset.widthAmount),
+            spatialAmount: clamp01(preset.spatialAmount),
+            crossfeedAmount: clamp01(preset.crossfeedAmount),
+            loudnessAmount: clamp01(preset.loudnessAmount),
+            ambienceAmount: clamp01(preset.ambienceAmount),
+            fidelityAmount: clamp01(preset.fidelityAmount),
+            nightModeAmount: clamp01(preset.nightModeAmount),
+            masteringAmount: clamp01(preset.masteringAmount),
+            hrtfAmount: clamp01(preset.hrtfAmount),
+            limiterCeilingDB: clamp(preset.limiterCeilingDB, -12, -0.1),
+            outputGainDB: clamp(preset.outputGainDB, -12, 12)
+        )
+    }
+
+    private static func clamp01(_ value: Double) -> Double {
+        clamp(value, 0, 1)
+    }
+
+    private static func clamp(_ value: Double, _ lower: Double, _ upper: Double) -> Double {
+        min(max(value, lower), upper)
     }
 }
 
