@@ -42,6 +42,38 @@ public enum TrustSummaryBuilder {
     }
 }
 
+public enum SonicBloomDiagnosticsReport {
+    public static func build(
+        routeState: AudioRouteState,
+        meter: DSPMeter,
+        cpuUsagePercent: Double,
+        selectedPresetName: String,
+        syncMode: AudioSyncMode,
+        lastError: String?
+    ) -> String {
+        [
+            "SonicBloom Diagnostics",
+            "Preset: \(selectedPresetName)",
+            "Sync Mode: \(syncMode.rawValue)",
+            "Install Health: \(routeState.installHealth.rawValue)",
+            "Input: \(routeState.bridgeInputDeviceName ?? "No input")",
+            "Output: \(routeState.selectedPhysicalOutputName ?? "No output")",
+            "Sample Rate: \(Int(routeState.sampleRate.rounded())) Hz",
+            "Channels: \(routeState.channels)",
+            "Buffer: \(routeState.bufferSize) frames",
+            String(format: "Latency: %.1f ms", routeState.estimatedLatencyMS),
+            String(format: "CPU: %.1f%%", cpuUsagePercent),
+            String(format: "Input Peak: %.2f", meter.inputPeak),
+            String(format: "Output Peak: %.2f", meter.outputPeak),
+            String(format: "Gain Reduction: %.1f dB", meter.gainReductionDB),
+            "Clips Protected: \(meter.limitedSamples)",
+            "Recovery: \(routeState.recoverySummary)",
+            "Status: \(routeState.statusMessage)",
+            "Last Error: \(lastError ?? "None")"
+        ].joined(separator: "\n")
+    }
+}
+
 public struct ProcessCPUUsageSampler: Sendable {
     private var previousWallTime: TimeInterval?
     private var previousCPUTime: TimeInterval?

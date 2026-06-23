@@ -1688,6 +1688,38 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertEqual(degraded.cpu, "CPU high")
     }
 
+    func testDiagnosticsReportIncludesSupportCriticalState() {
+        var route = AudioRouteState.default
+        route.installHealth = .active
+        route.bridgeInputDeviceName = "SonicBloom Output"
+        route.selectedPhysicalOutputName = "AirPods Pro"
+        route.sampleRate = 44_100
+        route.bufferSize = 64
+        route.recoveryMessage = "Recovered route after wake."
+
+        let report = SonicBloomDiagnosticsReport.build(
+            routeState: route,
+            meter: DSPMeter(inputPeak: 0.5, outputPeak: 0.4, gainReductionDB: 2.5, limitedSamples: 42),
+            cpuUsagePercent: 7.25,
+            selectedPresetName: "Clean Loud",
+            syncMode: .video,
+            lastError: "Test error"
+        )
+
+        XCTAssertTrue(report.contains("SonicBloom Diagnostics"))
+        XCTAssertTrue(report.contains("Preset: Clean Loud"))
+        XCTAssertTrue(report.contains("Sync Mode: Video"))
+        XCTAssertTrue(report.contains("Input: SonicBloom Output"))
+        XCTAssertTrue(report.contains("Output: AirPods Pro"))
+        XCTAssertTrue(report.contains("Sample Rate: 44100 Hz"))
+        XCTAssertTrue(report.contains("Buffer: 64 frames"))
+        XCTAssertTrue(report.contains("Latency: 2.9 ms"))
+        XCTAssertTrue(report.contains("CPU: 7.2%"))
+        XCTAssertTrue(report.contains("Clips Protected: 42"))
+        XCTAssertTrue(report.contains("Recovery: Recovered route after wake."))
+        XCTAssertTrue(report.contains("Last Error: Test error"))
+    }
+
     func testRoutePlannerRequiresOwnedSonicBloomDriver() {
         let devices = [
             AudioDeviceSnapshot(id: 1, name: "AudioBox USB", inputChannels: 2, outputChannels: 2, sampleRate: 44_100, isVirtual: false),

@@ -33,6 +33,7 @@ macOS may show a microphone permission prompt because virtual system-audio devic
 
 When reporting an issue, include:
 
+- the text from Settings > Maintenance > Copy Diagnostics
 - macOS version and Mac model
 - output device name
 - SonicBloom preset and sync mode

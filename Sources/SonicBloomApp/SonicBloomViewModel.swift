@@ -717,6 +717,23 @@ final class SonicBloomViewModel: ObservableObject {
         )
     }
 
+    var diagnosticsReport: String {
+        SonicBloomDiagnosticsReport.build(
+            routeState: routeState,
+            meter: meterModel.meter,
+            cpuUsagePercent: cpuUsagePercent,
+            selectedPresetName: selectedPreset.name,
+            syncMode: processingSyncMode,
+            lastError: lastError
+        )
+    }
+
+    func copyDiagnosticsReport() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(diagnosticsReport, forType: .string)
+        routeState.statusMessage = "Copied diagnostics to clipboard."
+    }
+
     func resetSettings() {
         settings = .default
     }

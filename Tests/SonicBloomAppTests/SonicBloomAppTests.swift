@@ -376,6 +376,29 @@ final class SonicBloomAppTests: XCTestCase {
         ])
         bridge.stop()
     }
+
+    @MainActor
+    func testViewModelExposesSupportDiagnosticsReport() {
+        let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let viewModel = SonicBloomViewModel.testInstance(defaults: defaults)
+
+        viewModel.selectedPreset = .movies
+        viewModel.handleMeterForTesting(DSPMeter(inputPeak: 0.2, outputPeak: 0.3, gainReductionDB: 1.5, limitedSamples: 7))
+
+        XCTAssertTrue(viewModel.diagnosticsReport.contains("SonicBloom Diagnostics"))
+        XCTAssertTrue(viewModel.diagnosticsReport.contains("Preset: Movies"))
+        XCTAssertTrue(viewModel.diagnosticsReport.contains("Output: Test Speakers"))
+        XCTAssertTrue(viewModel.diagnosticsReport.contains("Clips Protected: 7"))
+    }
+
+    func testSettingsExposeCopyDiagnosticsAction() throws {
+        let controlPanel = try String(contentsOf: URL(fileURLWithPath: "Sources/SonicBloomApp/SonicBloomControlPanel.swift"))
+
+        XCTAssertTrue(controlPanel.contains("Copy Diagnostics"))
+        XCTAssertTrue(controlPanel.contains("viewModel.copyDiagnosticsReport()"))
+    }
 }
 
 private extension SonicBloomViewModel {
