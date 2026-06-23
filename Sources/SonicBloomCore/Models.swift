@@ -77,6 +77,57 @@ public enum AudioSyncMode: String, Codable, CaseIterable, Identifiable, Sendable
     }
 }
 
+public struct LatencyCalibrationRecommendation: Equatable, Sendable {
+    public var syncMode: AudioSyncMode
+    public var reason: String
+
+    public init(syncMode: AudioSyncMode, reason: String) {
+        self.syncMode = syncMode
+        self.reason = reason
+    }
+}
+
+public enum LatencyCalibration {
+    public static func recommendation(measuredAudioDelayMS: Double, currentMode: AudioSyncMode) -> LatencyCalibrationRecommendation {
+        if measuredAudioDelayMS > 18 {
+            return LatencyCalibrationRecommendation(syncMode: .gaming, reason: "audio is late; use the lowest safe buffer")
+        }
+        if measuredAudioDelayMS > 8 {
+            return LatencyCalibrationRecommendation(syncMode: .video, reason: "audio is late; use video sync")
+        }
+        if measuredAudioDelayMS < -18 {
+            return LatencyCalibrationRecommendation(syncMode: .music, reason: "audio is early; allow more output cushion")
+        }
+        return LatencyCalibrationRecommendation(syncMode: currentMode == .auto ? .video : currentMode, reason: "latency is already close")
+    }
+}
+
+public struct AudioStreamHealth: Codable, Equatable, Sendable {
+    public var underflowFrames: UInt64
+    public var droppedFrames: UInt64
+    public var quarantinedAudioUnitIDs: [String]
+
+    public init(
+        underflowFrames: UInt64 = 0,
+        droppedFrames: UInt64 = 0,
+        quarantinedAudioUnitIDs: [String] = []
+    ) {
+        self.underflowFrames = underflowFrames
+        self.droppedFrames = droppedFrames
+        self.quarantinedAudioUnitIDs = quarantinedAudioUnitIDs
+    }
+
+    public var needsRepair: Bool {
+        underflowFrames > 0 || droppedFrames > 0 || !quarantinedAudioUnitIDs.isEmpty
+    }
+
+    public var summary: String {
+        guard needsRepair else { return "Stable" }
+        let pluginText = quarantinedAudioUnitIDs.count == 1 ? "1 Audio Unit quarantined" : "\(quarantinedAudioUnitIDs.count) Audio Units quarantined"
+        return "Dropouts: \(underflowFrames) underflow, \(droppedFrames) dropped, \(pluginText)"
+    }
+}
+
 public enum CalibrationOutputKind: String, Codable, CaseIterable, Identifiable, Sendable {
     case speakers = "Speakers"
     case headphones = "Headphones"

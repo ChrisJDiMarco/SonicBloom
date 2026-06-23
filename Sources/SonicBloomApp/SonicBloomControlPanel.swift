@@ -917,6 +917,8 @@ private struct SettingsWorkbench: View {
                         ConsoleAction(title: "Install Driver", icon: "arrow.down.circle", color: SBColor.green) { viewModel.installVirtualDevice() }
                         ConsoleAction(title: "Uninstall Driver", icon: "trash", color: SBColor.red) { viewModel.uninstallVirtualDevice() }
                         ConsoleAction(title: "Refresh Route", icon: "arrow.clockwise", color: SBColor.blue) { viewModel.refreshRoute() }
+                        ConsoleAction(title: "Repair Audio", icon: "bandage", color: SBColor.orange) { viewModel.repairAudioPath() }
+                        ConsoleAction(title: "Optimize Latency", icon: "timer", color: SBColor.green) { viewModel.optimizeLatencyForVideo() }
                         ConsoleAction(title: "Copy Diagnostics", icon: "doc.on.doc", color: SBColor.blue) { viewModel.copyDiagnosticsReport() }
                         ConsoleAction(title: "Reset Settings", icon: "arrow.uturn.backward", color: SBColor.yellow) { viewModel.resetSettings() }
                     }

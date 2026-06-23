@@ -77,6 +77,7 @@ final class SonicBloomViewModel: ObservableObject {
     private var appActivationObserver: NSObjectProtocol?
     private var activeProfileOutputName: String?
     private var presetUndoState = PresetUndoState()
+    private var automaticAudioRepairAttempts = 0
     private let liveContextEnabled: Bool
     private var isApplyingDevicePreset = false
     private var isRememberingSelectedPreset = false
@@ -141,6 +142,7 @@ final class SonicBloomViewModel: ObservableObject {
     @Published private(set) var verifiedUpdatePackageURL: URL?
     @Published private(set) var availableAudioUnitEffects: [AudioUnitEffectDescriptor] = []
     @Published private(set) var failedAudioUnitEffectIDs: [String] = []
+    @Published private(set) var audioHealth = AudioStreamHealth()
     private var availableUpdateManifest: SonicBloomUpdateManifest?
 
     init(
@@ -371,6 +373,8 @@ final class SonicBloomViewModel: ObservableObject {
             routeState.installHealth = .active
             routeState.bufferSize = Int(processingSyncMode.preferredBufferFrameSize)
             routeState.statusMessage = "Processing active: \(selection.input.name) -> \(selection.output.name)"
+            audioHealth = AudioStreamHealth()
+            automaticAudioRepairAttempts = 0
             isBridgeRunning = true
             lastError = nil
             startRouteLease()
@@ -645,6 +649,26 @@ final class SonicBloomViewModel: ObservableObject {
         updateBridgeAudioUnitEffects()
     }
 
+    func optimizeLatencyForVideo(measuredAudioDelayMS: Double = 24) {
+        let recommendation = LatencyCalibration.recommendation(
+            measuredAudioDelayMS: measuredAudioDelayMS,
+            currentMode: settings.syncMode
+        )
+        settings.syncMode = recommendation.syncMode
+        routeState.statusMessage = "Latency optimized: \(recommendation.syncMode.rawValue) (\(recommendation.reason))"
+    }
+
+    func repairAudioPath() {
+        bridge.resetHealthStats()
+        audioHealth = AudioStreamHealth(quarantinedAudioUnitIDs: failedAudioUnitEffectIDs)
+        guard isBridgeRunning, !isTransitioning else {
+            routeState.statusMessage = "Audio health counters reset."
+            return
+        }
+        routeState = routeState.recordingRecovery("Repairing SonicBloom audio path.")
+        startBridge()
+    }
+
     var suggestedCalibrationTuning: CalibrationTuning {
         CalibrationTuning.recommended(for: routeState.selectedPhysicalOutputName)
     }
@@ -737,6 +761,7 @@ final class SonicBloomViewModel: ObservableObject {
             TrustDiagnostic(title: "Buffer", value: "\(routeState.bufferSize) frames", tint: .blue),
             TrustDiagnostic(title: "App", value: activeAppRule?.displayName ?? "Global", tint: activeAppRule == nil ? .blue : .green),
             TrustDiagnostic(title: "CPU", value: String(format: "%.1f%%", cpuUsagePercent), tint: cpuUsagePercent > 15 ? .orange : .green),
+            TrustDiagnostic(title: "Audio", value: audioHealth.needsRepair ? "Repair" : "Stable", tint: audioHealth.needsRepair ? .orange : .green),
             TrustDiagnostic(title: "Content", value: smartContentProfile.rawValue.capitalized, tint: .blue),
             TrustDiagnostic(title: "Clips", value: "\(meterModel.meter.limitedSamples) protected", tint: meterModel.meter.limitedSamples > 0 ? .orange : .green),
             TrustDiagnostic(title: "Recovery", value: routeState.recoverySummary, tint: lastError == nil ? .green : .orange)
@@ -788,6 +813,7 @@ final class SonicBloomViewModel: ObservableObject {
             selectedPresetName: selectedPreset.name,
             syncMode: processingSyncMode,
             settings: settings,
+            audioHealth: audioHealth,
             lastError: lastError
         )
     }
@@ -850,6 +876,7 @@ final class SonicBloomViewModel: ObservableObject {
     private func updateBridgeAudioUnitEffects() {
         guard isBridgeRunning || isTransitioning else { return }
         failedAudioUnitEffectIDs = bridge.updateAudioUnitEffects(profile.audioUnitEffects)
+        audioHealth = bridge.healthSnapshot()
     }
 
     private func restartPerAppTapsIfRunning() {
@@ -866,6 +893,19 @@ final class SonicBloomViewModel: ObservableObject {
     private func handleMeter(_ meter: DSPMeter) {
         meterModel.meter = meter
         smartContentProfile = SmartPresetAdvisor.profile(for: meter)
+        refreshAudioHealth()
+    }
+
+    private func refreshAudioHealth() {
+        audioHealth = bridge.healthSnapshot()
+        failedAudioUnitEffectIDs = audioHealth.quarantinedAudioUnitIDs
+        guard isBridgeRunning,
+              !isTransitioning,
+              automaticAudioRepairAttempts < 2,
+              audioHealth.underflowFrames > 4_096 || audioHealth.droppedFrames > 2_048 else { return }
+        automaticAudioRepairAttempts += 1
+        routeState = routeState.recordingRecovery("Auto-repaired audio after dropout protection triggered.")
+        repairAudioPath()
     }
 
     private func applyDevicePresetIfNeeded() {
@@ -945,6 +985,7 @@ final class SonicBloomViewModel: ObservableObject {
             while !Task.isCancelled {
                 try? await Task.sleep(nanoseconds: 1_000_000_000)
                 self.cpuUsagePercent = self.cpuSampler.sample()
+                self.refreshAudioHealth()
             }
         }
     }

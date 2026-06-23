@@ -78,6 +78,20 @@ final class SonicBloomAudioBridge: @unchecked Sendable {
         return audioUnitHost.failedEffectIDs
     }
 
+    func healthSnapshot() -> AudioStreamHealth {
+        AudioStreamHealth(
+            underflowFrames: ring.map { SonicBloomRingBufferUnderflowFrames($0) } ?? 0,
+            droppedFrames: ring.map { SonicBloomRingBufferDroppedFrames($0) } ?? 0,
+            quarantinedAudioUnitIDs: audioUnitHost.failedEffectIDs
+        )
+    }
+
+    func resetHealthStats() {
+        if let ring {
+            SonicBloomRingBufferResetStats(ring)
+        }
+    }
+
     func start(
         inputDeviceID: UInt32,
         outputDeviceID: UInt32,

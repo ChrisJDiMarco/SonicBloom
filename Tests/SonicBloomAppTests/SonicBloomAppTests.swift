@@ -371,6 +371,25 @@ final class SonicBloomAppTests: XCTestCase {
         XCTAssertEqual(right, [0.125, -0.5])
     }
 
+    func testAudioUnitHostChainQuarantinesFailedProcessors() {
+        let effect = AudioUnitEffectDescriptor(
+            name: "Broken Render",
+            manufacturerName: "Test",
+            componentType: kAudioUnitType_Effect,
+            componentSubType: fourCC("fail"),
+            componentManufacturer: fourCC("test")
+        )
+        let chain = AudioUnitEffectHostChain(loader: { _, _ in FailingAudioUnitEffectForTesting() })
+        var left: [Float] = [1.0]
+        var right: [Float] = [1.0]
+
+        chain.update(slots: [AudioUnitEffectSlot(effect: effect)], sampleRate: 48_000)
+        chain.process(left: &left, right: &right, frameCount: 1)
+
+        XCTAssertEqual(chain.failedEffectIDs, [effect.id])
+        XCTAssertEqual(chain.activeEffectIDs, [])
+    }
+
     func testAudioBridgeOwnsAudioUnitHostChain() {
         let effect = AudioUnitEffectDescriptor(
             name: "Studio EQ",
@@ -808,6 +827,29 @@ final class SonicBloomAppTests: XCTestCase {
         XCTAssertTrue(controlPanel.contains("Copy Diagnostics"))
         XCTAssertTrue(controlPanel.contains("viewModel.copyDiagnosticsReport()"))
     }
+
+    func testSettingsExposeLatencyAndRepairActions() throws {
+        let controlPanel = try String(contentsOf: URL(fileURLWithPath: "Sources/SonicBloomApp/SonicBloomControlPanel.swift"))
+
+        XCTAssertTrue(controlPanel.contains("Optimize Latency"))
+        XCTAssertTrue(controlPanel.contains("Repair Audio"))
+        XCTAssertTrue(controlPanel.contains("viewModel.optimizeLatencyForVideo()"))
+        XCTAssertTrue(controlPanel.contains("viewModel.repairAudioPath()"))
+    }
+
+    @MainActor
+    func testViewModelOptimizesLatencyForVideo() {
+        let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let viewModel = SonicBloomViewModel.testInstance(defaults: defaults)
+        viewModel.settings = SonicBloomSettings(syncMode: .music)
+
+        viewModel.optimizeLatencyForVideo(measuredAudioDelayMS: 24)
+
+        XCTAssertEqual(viewModel.settings.syncMode, .gaming)
+        XCTAssertTrue(viewModel.routeState.statusMessage.contains("Latency optimized"))
+    }
 }
 
 private final class GainAudioUnitEffectForTesting: AudioUnitEffectProcessing {
@@ -823,6 +865,12 @@ private final class GainAudioUnitEffectForTesting: AudioUnitEffectProcessing {
             right[index] *= gain
         }
         return true
+    }
+}
+
+private final class FailingAudioUnitEffectForTesting: AudioUnitEffectProcessing {
+    func process(left _: inout [Float], right _: inout [Float], frameCount _: Int) -> Bool {
+        false
     }
 }
 

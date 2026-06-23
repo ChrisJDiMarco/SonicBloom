@@ -359,6 +359,8 @@ struct SonicBloomRingBuffer {
     std::vector<std::atomic<float>> right;
     std::atomic<size_t> readCursor { 0 };
     std::atomic<size_t> writeCursor { 0 };
+    std::atomic<unsigned long long> underflowFrames { 0 };
+    std::atomic<unsigned long long> droppedFrames { 0 };
 };
 
 struct SonicBloomDSPConfigBuffer {
@@ -939,6 +941,7 @@ void SonicBloomRingBufferClear(SonicBloomRingBuffer *ring) {
     }
     ring->readCursor.store(0, std::memory_order_release);
     ring->writeCursor.store(0, std::memory_order_release);
+    SonicBloomRingBufferResetStats(ring);
 }
 
 size_t SonicBloomRingBufferWrite(
@@ -962,6 +965,9 @@ size_t SonicBloomRingBufferWrite(
                    std::memory_order_acq_rel,
                    std::memory_order_relaxed
                )) {}
+        if (observedRead < minimumRead) {
+            ring->droppedFrames.fetch_add(minimumRead - observedRead, std::memory_order_relaxed);
+        }
 
         const size_t slot = write % ring->capacity;
         ring->left[slot].store(left[index], std::memory_order_relaxed);
@@ -991,6 +997,9 @@ size_t SonicBloomRingBufferRead(
         }
         left[index] = nextLeft;
         right[index] = nextRight;
+    }
+    if (framesRead < frameCount) {
+        ring->underflowFrames.fetch_add(frameCount - framesRead, std::memory_order_relaxed);
     }
     return framesRead;
 }
@@ -1022,6 +1031,9 @@ size_t SonicBloomRingBufferReadInterleaved(
             output[base + channel] = 0.0f;
         }
     }
+    if (framesRead < frameCount) {
+        ring->underflowFrames.fetch_add(frameCount - framesRead, std::memory_order_relaxed);
+    }
 
     return framesRead;
 }
@@ -1046,6 +1058,7 @@ size_t SonicBloomRingBufferTrim(SonicBloomRingBuffer *ring, size_t maxFrames) {
             std::memory_order_acq_rel,
             std::memory_order_relaxed
         )) {
+            ring->droppedFrames.fetch_add(available - maxFrames, std::memory_order_relaxed);
             return available - maxFrames;
         }
     }
@@ -1059,4 +1072,20 @@ size_t SonicBloomRingBufferAvailable(const SonicBloomRingBuffer *ring) {
     const size_t read = ring->readCursor.load(std::memory_order_acquire);
     const size_t write = ring->writeCursor.load(std::memory_order_acquire);
     return std::min(write - read, ring->capacity);
+}
+
+unsigned long long SonicBloomRingBufferUnderflowFrames(const SonicBloomRingBuffer *ring) {
+    return ring ? ring->underflowFrames.load(std::memory_order_relaxed) : 0;
+}
+
+unsigned long long SonicBloomRingBufferDroppedFrames(const SonicBloomRingBuffer *ring) {
+    return ring ? ring->droppedFrames.load(std::memory_order_relaxed) : 0;
+}
+
+void SonicBloomRingBufferResetStats(SonicBloomRingBuffer *ring) {
+    if (!ring) {
+        return;
+    }
+    ring->underflowFrames.store(0, std::memory_order_relaxed);
+    ring->droppedFrames.store(0, std::memory_order_relaxed);
 }

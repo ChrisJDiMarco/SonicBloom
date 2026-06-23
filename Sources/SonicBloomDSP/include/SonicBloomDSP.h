@@ -89,6 +89,9 @@ size_t SonicBloomRingBufferReadInterleaved(
 );
 size_t SonicBloomRingBufferTrim(SonicBloomRingBuffer *ring, size_t maxFrames);
 size_t SonicBloomRingBufferAvailable(const SonicBloomRingBuffer *ring);
+unsigned long long SonicBloomRingBufferUnderflowFrames(const SonicBloomRingBuffer *ring);
+unsigned long long SonicBloomRingBufferDroppedFrames(const SonicBloomRingBuffer *ring);
+void SonicBloomRingBufferResetStats(SonicBloomRingBuffer *ring);
 
 #ifdef __cplusplus
 }

@@ -551,6 +551,8 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertEqual(read, 3)
         XCTAssertEqual(outputLeft, [2, 3, 4, 0, 0])
         XCTAssertEqual(outputRight, [-2, -3, -4, 0, 0])
+        XCTAssertEqual(SonicBloomRingBufferDroppedFrames(ring), 1)
+        XCTAssertEqual(SonicBloomRingBufferUnderflowFrames(ring), 2)
     }
 
     func testRealtimeRingBufferTrimKeepsNewestFrames() {
@@ -577,6 +579,8 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertEqual(read, 3)
         XCTAssertEqual(outputLeft, [4, 5, 6, 0])
         XCTAssertEqual(outputRight, [4, 5, 6, 0])
+        XCTAssertEqual(SonicBloomRingBufferDroppedFrames(ring), 3)
+        XCTAssertEqual(SonicBloomRingBufferUnderflowFrames(ring), 1)
     }
 
     func testRealtimeConfigBufferPublishesPresetConfig() {
@@ -1776,6 +1780,22 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertEqual(sampler.sample(wallTime: 11, processCPUTime: 3), 0)
     }
 
+    func testAudioStreamHealthFlagsDropoutsAndPluginQuarantine() {
+        let clean = AudioStreamHealth()
+        let unhealthy = AudioStreamHealth(underflowFrames: 512, droppedFrames: 64, quarantinedAudioUnitIDs: ["aufx-bad-appl"])
+
+        XCTAssertFalse(clean.needsRepair)
+        XCTAssertTrue(unhealthy.needsRepair)
+        XCTAssertEqual(unhealthy.summary, "Dropouts: 512 underflow, 64 dropped, 1 Audio Unit quarantined")
+    }
+
+    func testLatencyCalibrationRecommendsLowerLatencyModeForLateVideo() {
+        let recommendation = LatencyCalibration.recommendation(measuredAudioDelayMS: 24, currentMode: .music)
+
+        XCTAssertEqual(recommendation.syncMode, .gaming)
+        XCTAssertTrue(recommendation.reason.contains("audio is late"))
+    }
+
     func testTrustSummaryUsesUserFacingProtectionCopy() {
         var route = AudioRouteState.default
         route.installHealth = .active
@@ -1817,6 +1837,7 @@ final class SonicBloomCoreTests: XCTestCase {
                 smartPresetMatching: false,
                 applyAppProfilesAutomatically: true
             ),
+            audioHealth: AudioStreamHealth(underflowFrames: 128, droppedFrames: 0, quarantinedAudioUnitIDs: ["aufx-bad-appl"]),
             lastError: "Test error"
         )
 
@@ -1834,6 +1855,7 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertTrue(report.contains("App Profiles: Auto"))
         XCTAssertTrue(report.contains("Reduce Motion: On"))
         XCTAssertTrue(report.contains("Waveform Intensity: 0.25"))
+        XCTAssertTrue(report.contains("Audio Health: Dropouts: 128 underflow, 0 dropped, 1 Audio Unit quarantined"))
         XCTAssertTrue(report.contains("Recovery: Recovered route after wake."))
         XCTAssertTrue(report.contains("Last Error: Test error"))
     }
@@ -2361,6 +2383,17 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertTrue(qaScript.contains("Scripts/test_hal_bundle.sh"))
         XCTAssertTrue(qaScript.contains("Scripts/package_release.sh --skip-build"))
         XCTAssertTrue(qaScript.contains("SonicBloomManifestSigner"))
+        XCTAssertEqual((permissions?.intValue ?? 0) & 0o111, 0o111)
+    }
+
+    func testReleaseShipsStabilityWatchScript() throws {
+        let scriptURL = URL(fileURLWithPath: "Scripts/stability_watch.sh")
+        let script = try String(contentsOf: scriptURL)
+        let permissions = try FileManager.default.attributesOfItem(atPath: scriptURL.path)[.posixPermissions] as? NSNumber
+
+        XCTAssertTrue(script.contains("SonicBloom-stability"))
+        XCTAssertTrue(script.contains("pgrep -x SonicBloom"))
+        XCTAssertTrue(script.contains("ps -p"))
         XCTAssertEqual((permissions?.intValue ?? 0) & 0o111, 0o111)
     }
 

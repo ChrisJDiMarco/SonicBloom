@@ -12,6 +12,14 @@ Scripts/qa_gate.sh
 
 Pass means the DSP, preset, routing planner, installer script, recovery planner, and packaged HAL bundle checks are green. It does not prove live-device stability.
 
+For a live playback soak, start SonicBloom, play Spotify/YouTube/Zoom audio, then run:
+
+```bash
+Scripts/stability_watch.sh 1800 30
+```
+
+Attach the generated `dist/stability/SonicBloom-stability-*.log` to any dropout, latency, or crash bug.
+
 ## Live Audio Matrix
 
 | Area | Scenario | Expected Result | Result |

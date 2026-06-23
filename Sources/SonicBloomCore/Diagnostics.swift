@@ -50,6 +50,7 @@ public enum SonicBloomDiagnosticsReport {
         selectedPresetName: String,
         syncMode: AudioSyncMode,
         settings: SonicBloomSettings = .default,
+        audioHealth: AudioStreamHealth = AudioStreamHealth(),
         lastError: String?
     ) -> String {
         [
@@ -72,6 +73,7 @@ public enum SonicBloomDiagnosticsReport {
             String(format: "Output Peak: %.2f", meter.outputPeak),
             String(format: "Gain Reduction: %.1f dB", meter.gainReductionDB),
             "Clips Protected: \(meter.limitedSamples)",
+            "Audio Health: \(audioHealth.summary)",
             "Recovery: \(routeState.recoverySummary)",
             "Status: \(routeState.statusMessage)",
             "Last Error: \(lastError ?? "None")"

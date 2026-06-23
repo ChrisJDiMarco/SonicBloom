@@ -47,4 +47,4 @@ Before calling a build stable, run the automated checks and live-device scenario
 
 ## Release Work Left
 
-The HAL driver is intentionally small and source-owned. Before public release it still needs production Developer ID credentials, long-session latency/dropout work, and broader device recovery testing.
+The HAL driver is intentionally small and source-owned. Before public release it still needs production Developer ID credentials and broader device recovery testing. Long-session playback should be tracked with `Scripts/stability_watch.sh`.

@@ -11,7 +11,7 @@ final class AudioUnitEffectHostChain {
 
     private let loader: Loader
     private let lock = NSLock()
-    private var loadedEffects: [AnyObject] = []
+    private var loadedEffects: [LoadedAudioUnitEffect] = []
     private(set) var activeEffectIDs: [String] = []
     private(set) var failedEffectIDs: [String] = []
 
@@ -25,7 +25,7 @@ final class AudioUnitEffectHostChain {
             .map(\.effect)
             .filter { AudioUnitEffectCatalog.isSupportedEffectType($0.componentType) }
 
-        var nextLoaded: [AnyObject] = []
+        var nextLoaded: [LoadedAudioUnitEffect] = []
         var nextIDs: [String] = []
         var nextFailedIDs: [String] = []
         for effect in effects {
@@ -33,7 +33,7 @@ final class AudioUnitEffectHostChain {
                 nextFailedIDs.append(effect.id)
                 continue
             }
-            nextLoaded.append(loaded)
+            nextLoaded.append(LoadedAudioUnitEffect(id: effect.id, instance: loaded))
             nextIDs.append(effect.id)
         }
 
@@ -50,8 +50,10 @@ final class AudioUnitEffectHostChain {
         lock.unlock()
 
         for effect in effects {
-            guard let effect = effect as? AudioUnitEffectProcessing else { continue }
-            _ = effect.process(left: &left, right: &right, frameCount: frameCount)
+            guard let processor = effect.instance as? AudioUnitEffectProcessing else { continue }
+            if !processor.process(left: &left, right: &right, frameCount: frameCount) {
+                quarantine(effect.id)
+            }
         }
     }
 
@@ -60,6 +62,16 @@ final class AudioUnitEffectHostChain {
         loadedEffects = []
         activeEffectIDs = []
         failedEffectIDs = []
+        lock.unlock()
+    }
+
+    private func quarantine(_ id: String) {
+        lock.lock()
+        loadedEffects.removeAll { $0.id == id }
+        activeEffectIDs.removeAll { $0 == id }
+        if !failedEffectIDs.contains(id) {
+            failedEffectIDs.append(id)
+        }
         lock.unlock()
     }
 
@@ -92,6 +104,11 @@ final class AudioUnitEffectHostChain {
         guard effect.initialize() else { return nil }
         return effect
     }
+}
+
+private struct LoadedAudioUnitEffect {
+    var id: String
+    var instance: AnyObject
 }
 
 private final class AudioUnitEffectInstance: AudioUnitEffectProcessing {
