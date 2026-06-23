@@ -16,33 +16,6 @@ final class SonicBloomAppTests: XCTestCase {
         XCTAssertEqual(viewModel.processingPresetForTesting.name, DSPPreset.deepBass.name)
     }
 
-    @MainActor
-    func testUnsavedSuggestedAppRuleDoesNotOverrideRuntimePreset() {
-        let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
-        let defaults = UserDefaults(suiteName: suiteName)!
-        defer { defaults.removePersistentDomain(forName: suiteName) }
-        let viewModel = SonicBloomViewModel(defaults: defaults)
-        let item = AppMixerItem(
-            rule: AppAudioRule(
-                bundleIdentifier: "com.google.Chrome",
-                displayName: "Chrome",
-                presetName: DSPPreset.cleanLoud.name,
-                syncMode: .video
-            ),
-            processID: 42,
-            processObjectID: 100,
-            captureStatus: .ready
-        )
-
-        let runtimeItem = viewModel.runtimeAppMixerItemForTesting(item)
-
-        XCTAssertNil(runtimeItem.rule.presetName)
-        XCTAssertNil(runtimeItem.rule.syncMode)
-        XCTAssertEqual(runtimeItem.processID, item.processID)
-        XCTAssertEqual(runtimeItem.processObjectID, item.processObjectID)
-        XCTAssertEqual(runtimeItem.captureStatus, item.captureStatus)
-    }
-
     func testPerAppMixerLeavesRoomForRouteActionTray() {
         XCTAssertGreaterThanOrEqual(
             PerAppMixerLayout.bottomScrollClearance,

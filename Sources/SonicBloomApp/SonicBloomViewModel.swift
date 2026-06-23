@@ -50,7 +50,6 @@ final class SonicBloomViewModel: ObservableObject {
         didSet {
             updateBridgePreset()
             rememberSelectedPresetForCurrentOutput()
-            restartPerAppTapsIfRunning()
         }
     }
     @Published var profile: SonicBloomProfile {
@@ -446,9 +445,6 @@ final class SonicBloomViewModel: ObservableObject {
         activeAppRule = profile.effectiveAppRule(for: bundleIdentifier)
     }
 
-    func runtimeAppMixerItemForTesting(_ item: AppMixerItem) -> AppMixerItem {
-        runtimeAppMixerItem(for: item)
-    }
 #endif
 
     private func save<T: Encodable>(_ value: T, forKey key: String) {
@@ -477,21 +473,6 @@ final class SonicBloomViewModel: ObservableObject {
         selectedPreset.optimized(for: processingSyncMode)
     }
 
-    private var runtimeAppMixerItems: [AppMixerItem] {
-        appMixerItems.map(runtimeAppMixerItem)
-    }
-
-    private func runtimeAppMixerItem(for item: AppMixerItem) -> AppMixerItem {
-        let rule = profile.appRule(for: item.rule.bundleIdentifier)
-            ?? AppAudioRule(bundleIdentifier: item.rule.bundleIdentifier, displayName: item.rule.displayName)
-        return AppMixerItem(
-            rule: rule,
-            processID: item.processID,
-            processObjectID: item.processObjectID,
-            captureStatus: item.captureStatus
-        )
-    }
-
     private func presetApplyingSavedAppRule(basePreset: DSPPreset, for bundleIdentifier: String?) -> DSPPreset {
         guard let rule = profile.appRule(for: bundleIdentifier) else { return basePreset }
         let preset = rule.presetName.flatMap { name in
@@ -512,7 +493,7 @@ final class SonicBloomViewModel: ObservableObject {
         let bridge = self.bridge
         do {
             try perAppTapCoordinator.start(
-                items: runtimeAppMixerItems,
+                items: appMixerItems,
                 basePreset: perAppBasePreset,
                 sampleRate: sampleRate,
                 catalog: presets
