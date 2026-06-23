@@ -369,6 +369,40 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertEqual(try JSONDecoder().decode(HeadphoneProfile.self, from: data), profile)
     }
 
+    func testAutoEQImporterParsesGraphicEQProfile() throws {
+        let text = "GraphicEQ: 20 -6.0; 80 -3.0; 1000 1.5; 10000 4.0; 20000 5.0"
+
+        let profile = try AutoEQProfileImporter.profile(
+            name: "HD 650 AutoEQ",
+            manufacturer: "Sennheiser",
+            text: text
+        )
+
+        XCTAssertEqual(profile.id, "sennheiser-hd-650-autoeq")
+        XCTAssertEqual(profile.calibrationBandsDB.count, DSPPreset.bandCount)
+        XCTAssertLessThan(profile.calibrationBandsDB[0], -5)
+        XCTAssertGreaterThan(profile.calibrationBandsDB[30], 4)
+    }
+
+    func testAutoEQImporterParsesFrequencyGainRows() throws {
+        let text = """
+        Frequency,Gain
+        20,-4
+        1000,2
+        20000,3
+        """
+
+        let profile = try AutoEQProfileImporter.profile(name: "Custom", manufacturer: "", text: text)
+
+        XCTAssertEqual(profile.manufacturer, "Imported")
+        XCTAssertLessThan(profile.calibrationBandsDB[0], -3)
+        XCTAssertGreaterThan(profile.calibrationBandsDB[17], 1.5)
+    }
+
+    func testAutoEQImporterRejectsEmptyProfile() {
+        XCTAssertThrowsError(try AutoEQProfileImporter.profile(name: "", manufacturer: "", text: "Filter 1: ON PK Fc 1000 Hz Gain 3 dB Q 1.4"))
+    }
+
     func testRealtimeRingBufferDropsOldestAndZeroFillsUnderflow() {
         let ring = SonicBloomRingBufferCreate(3)
         defer { SonicBloomRingBufferDestroy(ring) }

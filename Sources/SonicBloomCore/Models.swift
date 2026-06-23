@@ -610,6 +610,11 @@ public struct ProcessResult: Equatable, Sendable {
 
 public struct DSPPreset: Codable, Equatable, Identifiable, Sendable {
     public static let bandCount = 31
+    public static let graphicEQBandFrequencies: [Double] = [
+        20, 25, 31.5, 40, 50, 63, 80, 100, 125, 160, 200, 250, 315, 400, 500, 630,
+        800, 1_000, 1_250, 1_600, 2_000, 2_500, 3_150, 4_000, 5_000, 6_300, 8_000,
+        10_000, 12_500, 16_000, 20_000
+    ]
 
     public var id: String { name }
     public var name: String
@@ -919,6 +924,77 @@ public struct HeadphoneProfile: Codable, Equatable, Identifiable, Sendable {
             min(max(band + correction, -12), 12)
         }
         return preset.with(eqBandsDB: calibrated)
+    }
+}
+
+public enum AutoEQImportError: Error, Equatable, LocalizedError, Sendable {
+    case noGraphicEQBands
+
+    public var errorDescription: String? {
+        switch self {
+        case .noGraphicEQBands:
+            "No AutoEQ graphic EQ frequency/gain bands were found."
+        }
+    }
+}
+
+public enum AutoEQProfileImporter {
+    public static func profile(name: String, manufacturer: String, text: String) throws -> HeadphoneProfile {
+        let points = parsePoints(text)
+        guard !points.isEmpty else { throw AutoEQImportError.noGraphicEQBands }
+        let profileName = name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Imported AutoEQ" : name
+        let profileManufacturer = manufacturer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "Imported" : manufacturer
+        return HeadphoneProfile(
+            id: slug("\(profileManufacturer) \(profileName)"),
+            manufacturer: profileManufacturer,
+            name: profileName,
+            calibrationBandsDB: DSPPreset.graphicEQBandFrequencies.map { gain(at: $0, points: points) }
+        )
+    }
+
+    private static func parsePoints(_ text: String) -> [(frequency: Double, gain: Double)] {
+        if let graphicLine = text.components(separatedBy: .newlines).first(where: { $0.range(of: "GraphicEQ:", options: .caseInsensitive) != nil }),
+           let payload = graphicLine.split(separator: ":", maxSplits: 1).last {
+            return payload.split(separator: ";").compactMap { pair in
+                let values = numbers(in: String(pair))
+                guard values.count >= 2 else { return nil }
+                return (values[0], values[1])
+            }.sorted { $0.frequency < $1.frequency }
+        }
+
+        return text.components(separatedBy: .newlines).compactMap { line in
+            let values = numbers(in: line)
+            guard values.count >= 2 else { return nil }
+            return (values[0], values[1])
+        }.filter { $0.frequency >= 10 && $0.frequency <= 30_000 }
+            .sorted { $0.frequency < $1.frequency }
+    }
+
+    private static func gain(at frequency: Double, points: [(frequency: Double, gain: Double)]) -> Double {
+        guard let first = points.first, let last = points.last else { return 0 }
+        if frequency <= first.frequency { return clamp(first.gain) }
+        if frequency >= last.frequency { return clamp(last.gain) }
+        guard let upperIndex = points.firstIndex(where: { $0.frequency >= frequency }), upperIndex > 0 else { return 0 }
+        let lower = points[upperIndex - 1]
+        let upper = points[upperIndex]
+        let span = max(log2(upper.frequency / lower.frequency), 0.000_001)
+        let position = log2(frequency / lower.frequency) / span
+        return clamp(lower.gain + (upper.gain - lower.gain) * min(max(position, 0), 1))
+    }
+
+    private static func numbers(in line: String) -> [Double] {
+        line.split { !$0.isNumber && $0 != "." && $0 != "-" && $0 != "+" }
+            .compactMap(Double.init)
+    }
+
+    private static func slug(_ value: String) -> String {
+        let allowed = CharacterSet.alphanumerics
+        let scalars = value.lowercased().unicodeScalars.map { allowed.contains($0) ? Character($0) : "-" }
+        return String(scalars).split(separator: "-").joined(separator: "-")
+    }
+
+    private static func clamp(_ value: Double) -> Double {
+        min(max(value, -12), 12)
     }
 }
 

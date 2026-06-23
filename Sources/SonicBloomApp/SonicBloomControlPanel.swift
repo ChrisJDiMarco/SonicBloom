@@ -877,6 +877,9 @@ private struct CalibrationWizard: View {
                     ConsoleAction(title: "Play Tone", icon: "waveform", color: SBColor.blue) { viewModel.playCalibrationSound(.tone) }
                     ConsoleAction(title: "Play Noise", icon: "speaker.wave.2", color: SBColor.orange) { viewModel.playCalibrationSound(.noise) }
                 }
+                ConsoleAction(title: "Import AutoEQ Profile", icon: "square.and.arrow.down", color: SBColor.blue) {
+                    viewModel.importAutoEQProfileFromPanel()
+                }
 
                 MiniSlider(title: "BASS RESPONSE", value: tuningBinding(\.bassPreference), range: 0...1, color: SBColor.yellow)
                 MiniSlider(title: "CLARITY", value: tuningBinding(\.clarityPreference), range: 0...1, color: SBColor.blue)

@@ -2,6 +2,7 @@
 import AVFoundation
 import Foundation
 import SonicBloomCore
+import UniformTypeIdentifiers
 
 @MainActor
 final class SonicBloomMeterModel: ObservableObject {
@@ -336,6 +337,27 @@ final class SonicBloomViewModel: ObservableObject {
         selectedPreset = tuned
         profile.favoritePresetName = tuned.name
         profile.remember(tuned, for: routeState.selectedPhysicalOutputName)
+    }
+
+    func importAutoEQProfile(name: String, manufacturer: String = "Imported", text: String) throws {
+        applyHeadphoneProfile(try AutoEQProfileImporter.profile(name: name, manufacturer: manufacturer, text: text))
+    }
+
+    func importAutoEQProfileFromPanel() {
+        let panel = NSOpenPanel()
+        panel.title = "Import AutoEQ Profile"
+        panel.allowedContentTypes = [.plainText, .commaSeparatedText]
+        panel.allowsMultipleSelection = false
+        panel.canChooseDirectories = false
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        do {
+            let text = try String(contentsOf: url, encoding: .utf8)
+            try importAutoEQProfile(name: url.deletingPathExtension().lastPathComponent, text: text)
+            lastError = nil
+        } catch {
+            lastError = error.localizedDescription
+        }
     }
 
     var suggestedCalibrationTuning: CalibrationTuning {

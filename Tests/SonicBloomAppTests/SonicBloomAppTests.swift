@@ -89,6 +89,24 @@ final class SonicBloomAppTests: XCTestCase {
     }
 
     @MainActor
+    func testImportedAutoEQProfileAppliesToSelectedPreset() throws {
+        let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let viewModel = SonicBloomViewModel(defaults: defaults)
+        viewModel.selectedPreset = .flat
+
+        try viewModel.importAutoEQProfile(
+            name: "HD 650 AutoEQ",
+            text: "GraphicEQ: 20 -4; 1000 2; 20000 3"
+        )
+
+        XCTAssertEqual(viewModel.selectedPreset.name, DSPPreset.manual.name)
+        XCTAssertLessThan(viewModel.selectedPreset.eqBandsDB[0], -3)
+        XCTAssertGreaterThan(viewModel.selectedPreset.eqBandsDB[17], 1.5)
+    }
+
+    @MainActor
     func testSmartMeterDoesNotChangeMasterPreset() {
         let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
