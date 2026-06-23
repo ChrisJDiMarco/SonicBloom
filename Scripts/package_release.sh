@@ -78,11 +78,13 @@ manifest="$pkg_dir/SonicBloom-update.json"
 if [[ "$dry_run" == "1" ]]; then
   echo "+ write $manifest"
 else
+  package_sha256="$(shasum -a 256 "$pkg" | awk '{print $1}')"
   cat > "$manifest" <<JSON
 {
   "version": "$version",
   "minimumSystemVersion": "$minimum_system_version",
   "packageURL": "$package_url",
+  "packageSHA256": "$package_sha256",
   "notes": "SonicBloom $version"
 }
 JSON

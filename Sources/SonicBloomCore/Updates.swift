@@ -4,13 +4,19 @@ public struct SonicBloomUpdateManifest: Codable, Equatable, Sendable {
     public var version: String
     public var minimumSystemVersion: String
     public var packageURL: URL
+    public var packageSHA256: String?
     public var notes: String
 
-    public init(version: String, minimumSystemVersion: String, packageURL: URL, notes: String = "") {
+    public init(version: String, minimumSystemVersion: String, packageURL: URL, packageSHA256: String? = nil, notes: String = "") {
         self.version = version
         self.minimumSystemVersion = minimumSystemVersion
         self.packageURL = packageURL
+        self.packageSHA256 = packageSHA256?.isEmpty == false ? packageSHA256 : nil
         self.notes = notes
+    }
+
+    public init(version: String, minimumSystemVersion: String, packageURL: URL, notes: String = "") {
+        self.init(version: version, minimumSystemVersion: minimumSystemVersion, packageURL: packageURL, packageSHA256: nil, notes: notes)
     }
 }
 

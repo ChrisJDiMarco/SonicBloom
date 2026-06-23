@@ -1635,11 +1635,13 @@ final class SonicBloomCoreTests: XCTestCase {
           "version": "0.2.0",
           "minimumSystemVersion": "13.0",
           "packageURL": "https://example.com/SonicBloom-0.2.0.pkg",
+          "packageSHA256": "abc123",
           "notes": "Stability fixes"
         }
         """.utf8)
         let manifest = try JSONDecoder().decode(SonicBloomUpdateManifest.self, from: data)
 
+        XCTAssertEqual(manifest.packageSHA256, "abc123")
         XCTAssertEqual(
             SonicBloomUpdater.decision(currentVersion: "0.1.0", manifest: manifest),
             .updateAvailable(manifest)
@@ -1655,6 +1657,8 @@ final class SonicBloomCoreTests: XCTestCase {
 
         XCTAssertTrue(packageScript.contains("SonicBloom-update.json"))
         XCTAssertTrue(packageScript.contains("packageURL"))
+        XCTAssertTrue(packageScript.contains("packageSHA256"))
+        XCTAssertTrue(packageScript.contains("shasum -a 256"))
         XCTAssertTrue(packageScript.contains("minimumSystemVersion"))
     }
 
