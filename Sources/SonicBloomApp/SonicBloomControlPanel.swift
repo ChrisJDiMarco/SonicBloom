@@ -152,6 +152,25 @@ private enum ConsoleTab: String, CaseIterable, Identifiable {
     }
 }
 
+enum PerAppMixerLayout {
+    static let sectionSpacing: CGFloat = 12
+    static let panelHeight: CGFloat = 340
+    static let routeActionTrayHeight: CGFloat = 58
+    static let rowMinHeight: CGFloat = 54
+    static let rowSpacing: CGFloat = 8
+    static let listHeaderHeight: CGFloat = 28
+    static let bottomScrollClearance: CGFloat = routeActionTrayHeight + sectionSpacing
+
+    static func minimumPanelHeight(visibleRows: Int) -> CGFloat {
+        let rows = max(visibleRows, 0)
+        let rowGaps = max(rows - 1, 0)
+        return listHeaderHeight
+            + CGFloat(rows) * rowMinHeight
+            + CGFloat(rowGaps) * rowSpacing
+            + 36
+    }
+}
+
 private struct SimpleModePanel: View {
     @ObservedObject var viewModel: SonicBloomViewModel
 
@@ -558,7 +577,7 @@ private struct RoutingWorkbench: View {
     @ObservedObject var viewModel: SonicBloomViewModel
 
     var body: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: PerAppMixerLayout.sectionSpacing) {
             SignalChain(viewModel: viewModel)
                 .frame(height: 82)
                 .padding(12)
@@ -578,14 +597,27 @@ private struct RoutingWorkbench: View {
                 }
             }
             PerAppMixer(viewModel: viewModel)
-                .frame(height: 280)
-            HStack(spacing: 8) {
-                ConsoleAction(title: "Refresh Route", icon: "arrow.clockwise", color: SBColor.blue) { viewModel.refreshRoute() }
-                ConsoleAction(title: viewModel.primaryActionTitle, icon: viewModel.primaryActionIcon, color: SBColor.green) { viewModel.runPrimaryAction() }
-                ConsoleAction(title: "Use Current Output", icon: "checkmark.circle", color: SBColor.yellow) { viewModel.useCurrentOutputAsPreferred() }
-            }
-            .padding(.top, 2)
+                .frame(height: PerAppMixerLayout.panelHeight)
+            RouteActionTray(viewModel: viewModel)
         }
+    }
+}
+
+private struct RouteActionTray: View {
+    @ObservedObject var viewModel: SonicBloomViewModel
+
+    var body: some View {
+        HStack(spacing: 10) {
+            ConsoleAction(title: "Refresh Route", icon: "arrow.clockwise", color: SBColor.blue) { viewModel.refreshRoute() }
+            ConsoleAction(title: viewModel.primaryActionTitle, icon: viewModel.primaryActionIcon, color: SBColor.green) { viewModel.runPrimaryAction() }
+            ConsoleAction(title: "Use Current Output", icon: "checkmark.circle", color: SBColor.yellow) { viewModel.useCurrentOutputAsPreferred() }
+        }
+        .padding(8)
+        .frame(height: PerAppMixerLayout.routeActionTrayHeight)
+        .background(SBColor.panel)
+        .overlay { RoundedRectangle(cornerRadius: 12).stroke(SBColor.line.opacity(0.95), lineWidth: 1) }
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .shadow(color: SBColor.shadow, radius: 7, x: 0, y: 3)
     }
 }
 
@@ -616,7 +648,7 @@ private struct PerAppMixer: View {
                         .padding(.top, 6)
                 } else {
                     ScrollView(.vertical) {
-                        LazyVStack(spacing: 8) {
+                        LazyVStack(spacing: PerAppMixerLayout.rowSpacing) {
                             ForEach(viewModel.appMixerItems) { item in
                                 PerAppRuleRow(
                                     item: item,
@@ -629,6 +661,7 @@ private struct PerAppMixer: View {
                             }
                         }
                         .padding(.trailing, 4)
+                        .padding(.bottom, PerAppMixerLayout.bottomScrollClearance)
                     }
                     .scrollIndicators(.visible)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -711,6 +744,7 @@ private struct PerAppRuleRow: View {
             .frame(width: 105)
         }
         .padding(8)
+        .frame(minHeight: PerAppMixerLayout.rowMinHeight)
         .background(SBColor.panel2)
         .overlay { RoundedRectangle(cornerRadius: 7).stroke(rule.isMuted ? SBColor.orange.opacity(0.45) : SBColor.line, lineWidth: 1) }
         .clipShape(RoundedRectangle(cornerRadius: 7))
@@ -1711,9 +1745,15 @@ private struct ConsoleAction: View {
                 .font(.callout.weight(.bold))
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
-                .background(color.opacity(0.15))
+                .background {
+                    ZStack {
+                        SBColor.panel2
+                        color.opacity(0.14)
+                    }
+                }
                 .overlay { RoundedRectangle(cornerRadius: 8).stroke(color.opacity(0.55), lineWidth: 1) }
                 .clipShape(RoundedRectangle(cornerRadius: 8))
+                .contentShape(RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
     }

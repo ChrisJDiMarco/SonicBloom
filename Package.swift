@@ -42,6 +42,10 @@ let package = Package(
         .testTarget(
             name: "SonicBloomCoreTests",
             dependencies: ["SonicBloomCore", "SonicBloomDSP"]
+        ),
+        .testTarget(
+            name: "SonicBloomAppTests",
+            dependencies: ["SonicBloomApp"]
         )
     ]
 )
