@@ -24,6 +24,7 @@ let package = Package(
             name: "SonicBloomCore",
             dependencies: ["SonicBloomDSP"],
             linkerSettings: [
+                .linkedFramework("AudioToolbox"),
                 .linkedFramework("CoreAudio")
             ]
         ),

@@ -1,9 +1,39 @@
 import CoreAudio
+import AudioToolbox
 import XCTest
 import SonicBloomDSP
 @testable import SonicBloomCore
 
 final class SonicBloomCoreTests: XCTestCase {
+    func testAudioUnitEffectDescriptorUsesStableFourCharacterIDs() throws {
+        let descriptor = AudioUnitEffectDescriptor(
+            name: "Studio EQ",
+            manufacturerName: "Apple",
+            componentType: kAudioUnitType_Effect,
+            componentSubType: fourCC("eqal"),
+            componentManufacturer: fourCC("appl")
+        )
+        let data = try JSONEncoder().encode(descriptor)
+
+        XCTAssertEqual(descriptor.id, "aufx-eqal-appl")
+        XCTAssertEqual(descriptor.componentTypeCode, "aufx")
+        XCTAssertEqual(descriptor.componentSubTypeCode, "eqal")
+        XCTAssertEqual(try JSONDecoder().decode(AudioUnitEffectDescriptor.self, from: data), descriptor)
+    }
+
+    func testAudioUnitEffectCatalogOnlySupportsEffects() {
+        XCTAssertTrue(AudioUnitEffectCatalog.isSupportedEffectType(kAudioUnitType_Effect))
+        XCTAssertTrue(AudioUnitEffectCatalog.isSupportedEffectType(kAudioUnitType_MusicEffect))
+        XCTAssertFalse(AudioUnitEffectCatalog.isSupportedEffectType(kAudioUnitType_Output))
+    }
+
+    func testAudioUnitEffectCatalogDiscoveryReturnsStableDescriptors() {
+        let effects = AudioUnitEffectCatalog.installedEffects()
+
+        XCTAssertEqual(Set(effects.map(\.id)).count, effects.count)
+        XCTAssertTrue(effects.allSatisfy { AudioUnitEffectCatalog.isSupportedEffectType($0.componentType) })
+    }
+
     func testBuiltInPresetsAreValidAndCodable() throws {
         let presets = PresetCatalog.builtIns
 
@@ -1789,5 +1819,9 @@ final class SonicBloomCoreTests: XCTestCase {
             imag -= sample * sin(phase)
         }
         return Float(2 * sqrt(real * real + imag * imag) / Double(frames.count))
+    }
+
+    private func fourCC(_ value: String) -> OSType {
+        value.utf8.reduce(OSType(0)) { ($0 << 8) | OSType($1) }
     }
 }
