@@ -259,7 +259,7 @@ private struct SimpleModePanel: View {
             get: { min(max(viewModel.selectedPreset.loudnessAmount / 0.56, 0), 1) },
             set: { value in
                 let amount = min(max(value, 0), 1)
-                viewModel.selectedPreset = viewModel.selectedPreset.with(
+                viewModel.editSelectedPreset(viewModel.selectedPreset.with(
                     inputGainDB: amount * 4,
                     bassAmount: 0.08 + amount * 0.42,
                     widthAmount: 0.08 + amount * 0.24,
@@ -268,7 +268,7 @@ private struct SimpleModePanel: View {
                     fidelityAmount: 0.05 + amount * 0.24,
                     masteringAmount: 0.08 + amount * 0.34,
                     limiterCeilingDB: min(viewModel.selectedPreset.limiterCeilingDB, -1)
-                )
+                ))
             }
         )
     }
@@ -412,12 +412,29 @@ private struct ToneEngine: View {
                     KnobControl(title: "PRESENCE", value: binding(\.fidelityAmount), range: 0...1, display: percentDisplay, color: SBColor.blue)
                     KnobControl(title: "NIGHT", value: binding(\.nightModeAmount), range: 0...1, display: percentDisplay, color: SBColor.green)
                 }
+                Button {
+                    viewModel.undoPresetChange()
+                } label: {
+                    Label("Undo Changes", systemImage: "arrow.uturn.backward")
+                        .font(.caption.weight(.bold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .background(viewModel.canUndoPresetChange ? SBColor.yellow.opacity(0.16) : SBColor.panel2)
+                        .overlay { RoundedRectangle(cornerRadius: 7).stroke(viewModel.canUndoPresetChange ? SBColor.yellow.opacity(0.55) : SBColor.line, lineWidth: 1) }
+                        .clipShape(RoundedRectangle(cornerRadius: 7))
+                        .contentShape(RoundedRectangle(cornerRadius: 7))
+                }
+                .buttonStyle(SonicPressButtonStyle())
+                .disabled(!viewModel.canUndoPresetChange)
             }
         }
     }
 
     private func binding(_ keyPath: WritableKeyPath<DSPPreset, Double>) -> Binding<Double> {
-        Binding(get: { viewModel.selectedPreset[keyPath: keyPath] }, set: { viewModel.selectedPreset[keyPath: keyPath] = $0 })
+        Binding(
+            get: { viewModel.selectedPreset[keyPath: keyPath] },
+            set: { viewModel.editSelectedPreset(viewModel.selectedPreset.with(keyPath, $0)) }
+        )
     }
 
     private func percentDisplay(_ value: Double) -> String {
@@ -453,7 +470,7 @@ private struct EQConsole: View {
             set: { value in
                 var bands = viewModel.selectedPreset.eqBandsDB
                 bands[index] = value
-                viewModel.selectedPreset = viewModel.selectedPreset.with(eqBandsDB: bands)
+                viewModel.editSelectedPreset(viewModel.selectedPreset.with(eqBandsDB: bands))
             }
         )
     }
@@ -475,7 +492,10 @@ private struct StereoField: View {
     }
 
     private func binding(_ keyPath: WritableKeyPath<DSPPreset, Double>) -> Binding<Double> {
-        Binding(get: { viewModel.selectedPreset[keyPath: keyPath] }, set: { viewModel.selectedPreset[keyPath: keyPath] = $0 })
+        Binding(
+            get: { viewModel.selectedPreset[keyPath: keyPath] },
+            set: { viewModel.editSelectedPreset(viewModel.selectedPreset.with(keyPath, $0)) }
+        )
     }
 }
 
@@ -528,7 +548,10 @@ private struct SafetyLimiter: View {
     }
 
     private func binding(_ keyPath: WritableKeyPath<DSPPreset, Double>) -> Binding<Double> {
-        Binding(get: { viewModel.selectedPreset[keyPath: keyPath] }, set: { viewModel.selectedPreset[keyPath: keyPath] = $0 })
+        Binding(
+            get: { viewModel.selectedPreset[keyPath: keyPath] },
+            set: { viewModel.editSelectedPreset(viewModel.selectedPreset.with(keyPath, $0)) }
+        )
     }
 }
 
@@ -559,7 +582,7 @@ private struct EQWorkbench: View {
             set: { value in
                 var bands = viewModel.selectedPreset.eqBandsDB
                 bands[index] = value
-                viewModel.selectedPreset = viewModel.selectedPreset.with(eqBandsDB: bands)
+                viewModel.editSelectedPreset(viewModel.selectedPreset.with(eqBandsDB: bands))
             }
         )
     }
@@ -780,9 +803,9 @@ private struct SpaceWorkbench: View {
             }
             ConsoleCard(title: "ROOM PRESETS", icon: "sparkles", color: SBColor.yellow) {
                 VStack(spacing: 10) {
-                    PresetApplyButton(title: "Headphones", subtitle: "Open image, soft crossfeed") { viewModel.selectedPreset = .headphones }
-                    PresetApplyButton(title: "Movies", subtitle: "Wide HRTF and room tail") { viewModel.selectedPreset = .movies }
-                    PresetApplyButton(title: "Night", subtitle: "Compressed late-night dynamics") { viewModel.selectedPreset = .nightMode }
+                    PresetApplyButton(title: "Headphones", subtitle: "Open image, soft crossfeed") { viewModel.selectPreset(.headphones) }
+                    PresetApplyButton(title: "Movies", subtitle: "Wide HRTF and room tail") { viewModel.selectPreset(.movies) }
+                    PresetApplyButton(title: "Night", subtitle: "Compressed late-night dynamics") { viewModel.selectPreset(.nightMode) }
                 }
             }
             .frame(width: 300)
@@ -790,7 +813,10 @@ private struct SpaceWorkbench: View {
     }
 
     private func binding(_ keyPath: WritableKeyPath<DSPPreset, Double>) -> Binding<Double> {
-        Binding(get: { viewModel.selectedPreset[keyPath: keyPath] }, set: { viewModel.selectedPreset[keyPath: keyPath] = $0 })
+        Binding(
+            get: { viewModel.selectedPreset[keyPath: keyPath] },
+            set: { viewModel.editSelectedPreset(viewModel.selectedPreset.with(keyPath, $0)) }
+        )
     }
 }
 

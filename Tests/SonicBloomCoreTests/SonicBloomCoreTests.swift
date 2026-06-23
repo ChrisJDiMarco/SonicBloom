@@ -536,6 +536,20 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertNil(try source.exportPreset(named: "Missing"))
     }
 
+    func testPresetUndoStateCapturesFirstEditUntilUndo() {
+        var undo = PresetUndoState()
+        var preset = DSPPreset.cleanLoud
+
+        undo.captureIfNeeded(preset)
+        preset = preset.with(bassAmount: 0.7)
+        undo.captureIfNeeded(preset)
+        preset = preset.with(widthAmount: 0.6)
+
+        XCTAssertTrue(undo.canUndo)
+        XCTAssertEqual(undo.undo(current: preset), DSPPreset.cleanLoud)
+        XCTAssertFalse(undo.canUndo)
+    }
+
     func testProfileDefaultsAreStableAndCodable() throws {
         let profile = SonicBloomProfile.default
 

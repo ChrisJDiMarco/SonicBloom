@@ -42,6 +42,7 @@ final class SonicBloomViewModel: ObservableObject {
     private var routeRecoveryTask: Task<Void, Never>?
     private var appActivationObserver: NSObjectProtocol?
     private var activeProfileOutputName: String?
+    private var presetUndoState = PresetUndoState()
     private var isApplyingDevicePreset = false
     private var isRememberingSelectedPreset = false
 #if DEBUG
@@ -316,8 +317,24 @@ final class SonicBloomViewModel: ObservableObject {
     }
 
     func selectPreset(_ preset: DSPPreset) {
+        presetUndoState.clear()
         selectedPreset = preset
         try? routeManager.handle(.setPreset(preset))
+    }
+
+    var canUndoPresetChange: Bool {
+        presetUndoState.canUndo
+    }
+
+    func editSelectedPreset(_ preset: DSPPreset) {
+        guard preset != selectedPreset else { return }
+        presetUndoState.captureIfNeeded(selectedPreset)
+        selectedPreset = preset
+    }
+
+    func undoPresetChange() {
+        guard let preset = presetUndoState.undo(current: selectedPreset) else { return }
+        selectedPreset = preset
     }
 
     func useCurrentOutputAsPreferred() {
@@ -328,14 +345,14 @@ final class SonicBloomViewModel: ObservableObject {
 
     func applyCalibration(_ tuning: CalibrationTuning) {
         let tuned = tuning.applying(to: selectedPreset)
-        selectedPreset = tuned
+        editSelectedPreset(tuned)
         profile.favoritePresetName = tuned.name
         profile.remember(tuned, for: routeState.selectedPhysicalOutputName)
     }
 
     func applyHeadphoneProfile(_ headphoneProfile: HeadphoneProfile) {
         let tuned = headphoneProfile.applying(to: selectedPreset).with(name: DSPPreset.manual.name)
-        selectedPreset = tuned
+        editSelectedPreset(tuned)
         profile.favoritePresetName = tuned.name
         profile.remember(tuned, for: routeState.selectedPhysicalOutputName)
     }
@@ -554,6 +571,7 @@ final class SonicBloomViewModel: ObservableObject {
         let outputName = routeState.selectedPhysicalOutputName
         guard outputName != activeProfileOutputName else { return }
         activeProfileOutputName = outputName
+        presetUndoState.clear()
         isApplyingDevicePreset = true
         selectedPreset = presetForOutput(outputName)
         isApplyingDevicePreset = false

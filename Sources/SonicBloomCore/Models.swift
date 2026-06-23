@@ -717,6 +717,12 @@ public struct DSPPreset: Codable, Equatable, Identifiable, Sendable {
         )
     }
 
+    public func with(_ keyPath: WritableKeyPath<DSPPreset, Double>, _ value: Double) -> DSPPreset {
+        var preset = self
+        preset[keyPath: keyPath] = value
+        return preset
+    }
+
     private static func normalizedBands(_ bands: [Double]) -> [Double] {
         Array((bands + Array(repeating: 0, count: bandCount)).prefix(bandCount))
     }
@@ -870,6 +876,34 @@ public enum PresetCatalog {
         .nightMode,
         .manual
     ]
+}
+
+public struct PresetUndoState: Equatable, Sendable {
+    private var previousPreset: DSPPreset?
+
+    public init(previousPreset: DSPPreset? = nil) {
+        self.previousPreset = previousPreset
+    }
+
+    public var canUndo: Bool {
+        previousPreset != nil
+    }
+
+    public mutating func captureIfNeeded(_ preset: DSPPreset) {
+        if previousPreset == nil {
+            previousPreset = preset
+        }
+    }
+
+    public mutating func undo(current: DSPPreset) -> DSPPreset? {
+        defer { previousPreset = nil }
+        guard previousPreset != current else { return nil }
+        return previousPreset
+    }
+
+    public mutating func clear() {
+        previousPreset = nil
+    }
 }
 
 public enum DeviceProfileAdvisor {
