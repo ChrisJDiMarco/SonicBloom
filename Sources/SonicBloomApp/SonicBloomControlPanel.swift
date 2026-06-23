@@ -10,6 +10,7 @@ enum SonicBloomWindowMetrics {
 struct SonicBloomControlPanel: View {
     @ObservedObject var viewModel: SonicBloomViewModel
     @State private var tab = ConsoleTab.studio
+    @State private var isQuickSetupDismissed = false
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -96,8 +97,11 @@ struct SonicBloomControlPanel: View {
 
             ProcessingCard(viewModel: viewModel)
 
-            if let step = viewModel.nextSetupStep {
-                FirstRunWizardCard(step: step) {
+            if let step = viewModel.nextSetupStep, !isQuickSetupDismissed {
+                FirstRunWizardCard(
+                    step: step,
+                    dismiss: { isQuickSetupDismissed = true }
+                ) {
                     viewModel.runSetupGuideAction(step.id)
                 }
             }
@@ -1377,6 +1381,7 @@ private struct SyncModePicker: View {
 
 private struct FirstRunWizardCard: View {
     var step: FirstRunSetupStep
+    var dismiss: () -> Void
     var action: () -> Void
 
     var body: some View {
@@ -1388,6 +1393,16 @@ private struct FirstRunWizardCard: View {
                     .font(.caption.weight(.black))
                     .foregroundStyle(SBColor.orange)
                 Spacer()
+                Button(action: dismiss) {
+                    Image(systemName: "xmark")
+                        .font(.caption.weight(.bold))
+                        .frame(width: 24, height: 24)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(SonicPressButtonStyle())
+                .foregroundStyle(SBColor.subtext)
+                .accessibilityLabel("Dismiss quick setup")
+                .help("Hide quick setup")
             }
             Text(step.title)
                 .font(.callout.weight(.bold))
@@ -1409,7 +1424,6 @@ private struct FirstRunWizardCard: View {
         .background(SBColor.orange.opacity(0.11))
         .overlay { RoundedRectangle(cornerRadius: 8).stroke(SBColor.orange.opacity(0.45), lineWidth: 1) }
         .clipShape(RoundedRectangle(cornerRadius: 8))
-        .accessibilityElement(children: .combine)
         .accessibilityLabel("Quick setup: \(step.title)")
         .help("Complete setup: \(step.detail)")
     }

@@ -89,6 +89,9 @@ final class SonicBloomAppTests: XCTestCase {
         XCTAssertTrue(controlPanel.contains("PresetStatusLine"))
         XCTAssertTrue(controlPanel.contains("controlHelpText"))
         XCTAssertTrue(controlPanel.contains("Microphone permission is only for SonicBloom Output"))
+        XCTAssertTrue(controlPanel.contains("isQuickSetupDismissed"))
+        XCTAssertTrue(controlPanel.contains("Dismiss quick setup"))
+        XCTAssertTrue(controlPanel.contains("xmark"))
     }
 
     func testMenuBarExposesQuickPresetAndRepairControls() throws {
