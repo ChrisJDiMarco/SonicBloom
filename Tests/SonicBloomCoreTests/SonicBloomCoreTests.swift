@@ -1,3 +1,4 @@
+import CoreAudio
 import XCTest
 import SonicBloomDSP
 @testable import SonicBloomCore
@@ -762,6 +763,55 @@ final class SonicBloomCoreTests: XCTestCase {
         )
 
         XCTAssertThrowsError(try manager.createTap(for: item))
+    }
+
+    func testTapSourceStartsAndStopsAggregateIOProc() throws {
+        let ioProc: AudioDeviceIOProcID = { _, _, _, _, _, _, _ in noErr }
+        var events: [String] = []
+        let source = CoreAudioTapSource(
+            route: CoreAudioProcessTapRoute(
+                tap: CoreAudioProcessTap(id: 777, processObjectIDs: [9001]),
+                aggregateDeviceID: 888,
+                aggregateUID: "tap-device"
+            ),
+            createIOProc: { _, deviceID in
+                events.append("create \(deviceID)")
+                return ioProc
+            },
+            startDevice: { deviceID, _ in events.append("start \(deviceID)") },
+            stopDevice: { deviceID, _ in events.append("stop \(deviceID)") },
+            destroyIOProc: { deviceID, _ in events.append("destroy \(deviceID)") }
+        )
+
+        try source.start()
+        XCTAssertTrue(source.isRunning)
+        source.stop()
+
+        XCTAssertFalse(source.isRunning)
+        XCTAssertEqual(events, ["create 888", "start 888", "stop 888", "destroy 888"])
+    }
+
+    func testTapSourceDestroysIOProcWhenStartFails() {
+        let ioProc: AudioDeviceIOProcID = { _, _, _, _, _, _, _ in noErr }
+        var events: [String] = []
+        let source = CoreAudioTapSource(
+            route: CoreAudioProcessTapRoute(
+                tap: CoreAudioProcessTap(id: 777, processObjectIDs: [9001]),
+                aggregateDeviceID: 888,
+                aggregateUID: "tap-device"
+            ),
+            createIOProc: { _, deviceID in
+                events.append("create \(deviceID)")
+                return ioProc
+            },
+            startDevice: { _, _ in throw AudioRouteError.coreAudioFailed("start failed", -1) },
+            stopDevice: { deviceID, _ in events.append("stop \(deviceID)") },
+            destroyIOProc: { deviceID, _ in events.append("destroy \(deviceID)") }
+        )
+
+        XCTAssertThrowsError(try source.start())
+        XCTAssertFalse(source.isRunning)
+        XCTAssertEqual(events, ["create 888", "destroy 888"])
     }
 
     func testProfileEffectiveAppRuleUsesSuggestionsUntilSavedRuleExists() {

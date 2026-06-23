@@ -1,6 +1,13 @@
 import CoreAudio
 import Foundation
 
+private let coreAudioTapSourceIOProc: AudioDeviceIOProc = { _, _, inputData, _, _, _, clientData in
+    guard let clientData else { return noErr }
+    let source = Unmanaged<CoreAudioTapSource>.fromOpaque(clientData).takeUnretainedValue()
+    source.handleInputData(inputData)
+    return noErr
+}
+
 public struct AudioDeviceSnapshot: Codable, Equatable, Identifiable, Sendable {
     public var id: UInt32
     public var name: String
@@ -872,5 +879,115 @@ public final class CoreAudioProcessTapManager: @unchecked Sendable {
     private static func systemDestroyTap(_ tapID: UInt32) -> OSStatus {
         guard #available(macOS 14.2, *) else { return noErr }
         return AudioHardwareDestroyProcessTap(AudioObjectID(tapID))
+    }
+}
+
+public final class CoreAudioTapSource: @unchecked Sendable {
+    public typealias InputHandler = (UnsafePointer<AudioBufferList>) -> Void
+
+    public let route: CoreAudioProcessTapRoute
+    public var inputHandler: InputHandler?
+
+    private let createIOProc: (CoreAudioTapSource, UInt32) throws -> AudioDeviceIOProcID
+    private let startDevice: (UInt32, AudioDeviceIOProcID) throws -> Void
+    private let stopDevice: (UInt32, AudioDeviceIOProcID) -> Void
+    private let destroyIOProc: (UInt32, AudioDeviceIOProcID) -> Void
+    private let lock = NSLock()
+    private var ioProcID: AudioDeviceIOProcID?
+    private var running = false
+
+    public var isRunning: Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return running
+    }
+
+    public convenience init(route: CoreAudioProcessTapRoute, inputHandler: InputHandler? = nil) {
+        self.init(route: route, inputHandler: inputHandler, createIOProc: Self.systemCreateIOProc)
+    }
+
+    init(
+        route: CoreAudioProcessTapRoute,
+        inputHandler: InputHandler? = nil,
+        createIOProc: @escaping (CoreAudioTapSource, UInt32) throws -> AudioDeviceIOProcID,
+        startDevice: @escaping (UInt32, AudioDeviceIOProcID) throws -> Void = CoreAudioTapSource.systemStartDevice,
+        stopDevice: @escaping (UInt32, AudioDeviceIOProcID) -> Void = CoreAudioTapSource.systemStopDevice,
+        destroyIOProc: @escaping (UInt32, AudioDeviceIOProcID) -> Void = CoreAudioTapSource.systemDestroyIOProc
+    ) {
+        self.route = route
+        self.inputHandler = inputHandler
+        self.createIOProc = createIOProc
+        self.startDevice = startDevice
+        self.stopDevice = stopDevice
+        self.destroyIOProc = destroyIOProc
+    }
+
+    deinit {
+        stop()
+    }
+
+    public func start() throws {
+        lock.lock()
+        let alreadyStarted = ioProcID != nil
+        lock.unlock()
+        guard !alreadyStarted else { return }
+
+        let deviceID = route.aggregateDeviceID
+        let procID = try createIOProc(self, deviceID)
+        do {
+            try startDevice(deviceID, procID)
+        } catch {
+            destroyIOProc(deviceID, procID)
+            throw error
+        }
+
+        lock.lock()
+        ioProcID = procID
+        running = true
+        lock.unlock()
+    }
+
+    public func stop() {
+        lock.lock()
+        let procID = ioProcID
+        let wasRunning = running
+        ioProcID = nil
+        running = false
+        lock.unlock()
+
+        guard let procID else { return }
+        if wasRunning {
+            stopDevice(route.aggregateDeviceID, procID)
+        }
+        destroyIOProc(route.aggregateDeviceID, procID)
+    }
+
+    fileprivate func handleInputData(_ inputData: UnsafePointer<AudioBufferList>) {
+        inputHandler?(inputData)
+    }
+
+    private static func systemCreateIOProc(source: CoreAudioTapSource, deviceID: UInt32) throws -> AudioDeviceIOProcID {
+        let clientData = Unmanaged.passUnretained(source).toOpaque()
+        var procID: AudioDeviceIOProcID?
+        let status = AudioDeviceCreateIOProcID(AudioDeviceID(deviceID), coreAudioTapSourceIOProc, clientData, &procID)
+        guard status == noErr, let procID else {
+            throw AudioRouteError.coreAudioFailed("Unable to create per-app tap IOProc.", status)
+        }
+        return procID
+    }
+
+    private static func systemStartDevice(deviceID: UInt32, procID: AudioDeviceIOProcID) throws {
+        let status = AudioDeviceStart(AudioDeviceID(deviceID), procID)
+        guard status == noErr else {
+            throw AudioRouteError.coreAudioFailed("Unable to start per-app tap capture.", status)
+        }
+    }
+
+    private static func systemStopDevice(deviceID: UInt32, procID: AudioDeviceIOProcID) {
+        AudioDeviceStop(AudioDeviceID(deviceID), procID)
+    }
+
+    private static func systemDestroyIOProc(deviceID: UInt32, procID: AudioDeviceIOProcID) {
+        AudioDeviceDestroyIOProcID(AudioDeviceID(deviceID), procID)
     }
 }
