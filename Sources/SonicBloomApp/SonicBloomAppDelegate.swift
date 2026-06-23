@@ -12,6 +12,7 @@ final class SonicBloomAppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         installStatusItem()
+        RecoveryAgentAutostart.installBundledAgentIfAvailable()
         installRecoveryObservers()
         openControlPanel()
         viewModel.startIfAutoEnhanceEnabled()

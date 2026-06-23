@@ -4,6 +4,25 @@ import SonicBloomCore
 @testable import SonicBloomApp
 
 final class SonicBloomAppTests: XCTestCase {
+    func testRecoveryAgentAutostartBuildsInstallCommandForBundlePath() {
+        let scriptURL = URL(fileURLWithPath: "/Applications/SonicBloom.app/Contents/Resources/install_recovery_agent.sh")
+        let bundleURL = URL(fileURLWithPath: "/Applications/SonicBloom.app")
+
+        let command = RecoveryAgentAutostart.command(scriptURL: scriptURL, appBundleURL: bundleURL)
+
+        XCTAssertEqual(command.executableURL, scriptURL)
+        XCTAssertEqual(command.arguments, [bundleURL.path])
+    }
+
+    func testAppLaunchInstallsBundledRecoveryAgent() throws {
+        let delegate = try String(contentsOf: URL(fileURLWithPath: "Sources/SonicBloomApp/SonicBloomAppDelegate.swift"))
+        let buildScript = try String(contentsOf: URL(fileURLWithPath: "Scripts/build_app.sh"))
+
+        XCTAssertTrue(delegate.contains("RecoveryAgentAutostart.installBundledAgentIfAvailable()"))
+        XCTAssertTrue(buildScript.contains("install_recovery_agent.sh"))
+        XCTAssertTrue(buildScript.contains("$contents/Resources/install_recovery_agent.sh"))
+    }
+
     @MainActor
     func testSelectedPresetWinsOverSuggestedForegroundAppPreset() {
         let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
