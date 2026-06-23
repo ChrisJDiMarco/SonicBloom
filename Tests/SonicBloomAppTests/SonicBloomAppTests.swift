@@ -105,6 +105,7 @@ final class SonicBloomAppTests: XCTestCase {
         XCTAssertEqual(viewModel.selectedPreset.name, DSPPreset.manual.name)
         XCTAssertLessThan(viewModel.selectedPreset.eqBandsDB[0], -3)
         XCTAssertGreaterThan(viewModel.selectedPreset.eqBandsDB[17], 1.5)
+        XCTAssertTrue(viewModel.availableHeadphoneProfiles.contains { $0.name == "HD 650 AutoEQ" })
     }
 
     @MainActor

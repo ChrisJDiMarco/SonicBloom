@@ -468,7 +468,9 @@ final class SonicBloomViewModel: ObservableObject {
     }
 
     func importAutoEQProfile(name: String, manufacturer: String = "Imported", text: String) throws {
-        applyHeadphoneProfile(try AutoEQProfileImporter.profile(name: name, manufacturer: manufacturer, text: text))
+        let headphoneProfile = try AutoEQProfileImporter.profile(name: name, manufacturer: manufacturer, text: text)
+        profile.addCustomHeadphoneProfile(headphoneProfile)
+        applyHeadphoneProfile(headphoneProfile)
     }
 
     func importAutoEQProfileFromPanel() {
@@ -515,6 +517,10 @@ final class SonicBloomViewModel: ObservableObject {
 
     var matchedOutputProfile: HeadphoneProfile? {
         HeadphoneProfileCatalog.match(for: routeState.selectedPhysicalOutputName)
+    }
+
+    var availableHeadphoneProfiles: [HeadphoneProfile] {
+        HeadphoneProfileCatalog.builtIns + profile.customHeadphoneProfiles
     }
 
     func playCalibrationSound(_ sound: CalibrationSound) {

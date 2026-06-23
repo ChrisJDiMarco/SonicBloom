@@ -1005,7 +1005,7 @@ private struct CalibrationWizard: View {
                 }
 
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 160), spacing: 8)], spacing: 8) {
-                    ForEach(HeadphoneProfileCatalog.builtIns) { profile in
+                    ForEach(viewModel.availableHeadphoneProfiles) { profile in
                         Button {
                             viewModel.applyHeadphoneProfile(profile)
                         } label: {

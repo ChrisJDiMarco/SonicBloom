@@ -444,6 +444,7 @@ public struct SonicBloomProfile: Codable, Equatable, Sendable {
     public var devicePresets: [String: DSPPreset]
     public var appRules: [String: AppAudioRule]
     public var audioUnitEffects: [AudioUnitEffectSlot]
+    public var customHeadphoneProfiles: [HeadphoneProfile]
 
     public init(
         displayName: String = "Chris",
@@ -452,7 +453,8 @@ public struct SonicBloomProfile: Codable, Equatable, Sendable {
         preferredOutputName: String? = nil,
         devicePresets: [String: DSPPreset] = [:],
         appRules: [String: AppAudioRule] = [:],
-        audioUnitEffects: [AudioUnitEffectSlot] = []
+        audioUnitEffects: [AudioUnitEffectSlot] = [],
+        customHeadphoneProfiles: [HeadphoneProfile] = []
     ) {
         self.displayName = displayName.isEmpty ? "Chris" : displayName
         self.listeningMode = listeningMode
@@ -461,6 +463,7 @@ public struct SonicBloomProfile: Codable, Equatable, Sendable {
         self.devicePresets = devicePresets
         self.appRules = appRules
         self.audioUnitEffects = audioUnitEffects
+        self.customHeadphoneProfiles = customHeadphoneProfiles
     }
 
     public static let `default` = SonicBloomProfile()
@@ -547,8 +550,13 @@ public struct SonicBloomProfile: Codable, Equatable, Sendable {
         audioUnitEffects[index].isEnabled = isEnabled
     }
 
+    public mutating func addCustomHeadphoneProfile(_ headphoneProfile: HeadphoneProfile) {
+        customHeadphoneProfiles.removeAll { $0.id == headphoneProfile.id }
+        customHeadphoneProfiles.append(headphoneProfile)
+    }
+
     private enum CodingKeys: String, CodingKey {
-        case displayName, listeningMode, favoritePresetName, preferredOutputName, devicePresets, appRules, audioUnitEffects
+        case displayName, listeningMode, favoritePresetName, preferredOutputName, devicePresets, appRules, audioUnitEffects, customHeadphoneProfiles
     }
 
     public init(from decoder: Decoder) throws {
@@ -560,7 +568,8 @@ public struct SonicBloomProfile: Codable, Equatable, Sendable {
             preferredOutputName: try values.decodeIfPresent(String.self, forKey: .preferredOutputName),
             devicePresets: try values.decodeIfPresent([String: DSPPreset].self, forKey: .devicePresets) ?? [:],
             appRules: try values.decodeIfPresent([String: AppAudioRule].self, forKey: .appRules) ?? [:],
-            audioUnitEffects: try values.decodeIfPresent([AudioUnitEffectSlot].self, forKey: .audioUnitEffects) ?? []
+            audioUnitEffects: try values.decodeIfPresent([AudioUnitEffectSlot].self, forKey: .audioUnitEffects) ?? [],
+            customHeadphoneProfiles: try values.decodeIfPresent([HeadphoneProfile].self, forKey: .customHeadphoneProfiles) ?? []
         )
     }
 }

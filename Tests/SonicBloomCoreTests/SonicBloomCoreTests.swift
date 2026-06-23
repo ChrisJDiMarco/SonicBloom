@@ -617,6 +617,7 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertEqual(profile.devicePresets, [:])
         XCTAssertEqual(profile.appRules, [:])
         XCTAssertEqual(profile.audioUnitEffects, [])
+        XCTAssertEqual(profile.customHeadphoneProfiles, [])
 
         let data = try JSONEncoder().encode(profile)
         XCTAssertEqual(try JSONDecoder().decode(SonicBloomProfile.self, from: data), profile)
@@ -630,7 +631,26 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertEqual(profile.devicePresets, [:])
         XCTAssertEqual(profile.appRules, [:])
         XCTAssertEqual(profile.audioUnitEffects, [])
+        XCTAssertEqual(profile.customHeadphoneProfiles, [])
         XCTAssertEqual(profile.favoritePresetName, DSPPreset.cleanLoud.name)
+    }
+
+    func testProfileStoresCustomHeadphoneProfiles() throws {
+        var profile = SonicBloomProfile.default
+        let headphoneProfile = HeadphoneProfile(
+            id: "imported-hd650",
+            manufacturer: "Imported",
+            name: "HD 650 AutoEQ",
+            calibrationBandsDB: Array(repeating: 1, count: DSPPreset.bandCount)
+        )
+
+        profile.addCustomHeadphoneProfile(headphoneProfile)
+        profile.addCustomHeadphoneProfile(headphoneProfile)
+
+        XCTAssertEqual(profile.customHeadphoneProfiles, [headphoneProfile])
+
+        let data = try JSONEncoder().encode(profile)
+        XCTAssertEqual(try JSONDecoder().decode(SonicBloomProfile.self, from: data), profile)
     }
 
     func testProfileStoresAudioUnitEffectChain() throws {
