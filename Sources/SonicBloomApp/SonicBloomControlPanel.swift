@@ -799,16 +799,20 @@ private struct SettingsWorkbench: View {
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            ConsoleCard(title: "APP SETTINGS", icon: "gearshape.fill", color: SBColor.blue) {
-                VStack(alignment: .leading, spacing: 16) {
-                    SyncModePicker(selection: settingsBinding(\.syncMode))
-                    ToggleRow(title: "Auto-enhance on launch", subtitle: "Start processing when SonicBloom opens.", isOn: settingsBinding(\.autoEnhanceOnLaunch))
-                    ToggleRow(title: "Smart preset matching", subtitle: "Suggest stable presets from content energy.", isOn: settingsBinding(\.smartPresetMatching))
-                    ToggleRow(title: "Apply App Profiles Automatically", subtitle: "Use saved foreground-app profiles when that app is active.", isOn: settingsBinding(\.applyAppProfilesAutomatically))
-                    ToggleRow(title: "Loudness-matched compare", subtitle: "Keep raw A/B checks at the enhanced level.", isOn: settingsBinding(\.loudnessMatchedCompare))
-                    ToggleRow(title: "Advanced controls", subtitle: "Expose spatial, HRTF, and crossfeed controls.", isOn: settingsBinding(\.showAdvancedControls))
-                    ToggleRow(title: "Reduce motion", subtitle: "Calm scopes and moving meters.", isOn: settingsBinding(\.reduceMotion))
-                    MiniSlider(title: "WAVEFORM INTENSITY", value: settingsBinding(\.waveformIntensity), range: 0...1, color: SBColor.red)
+            VStack(spacing: 12) {
+                SetupGuideCard(viewModel: viewModel)
+                    .fixedSize(horizontal: false, vertical: true)
+                ConsoleCard(title: "APP SETTINGS", icon: "gearshape.fill", color: SBColor.blue) {
+                    VStack(alignment: .leading, spacing: 16) {
+                        SyncModePicker(selection: settingsBinding(\.syncMode))
+                        ToggleRow(title: "Auto-enhance on launch", subtitle: "Start processing when SonicBloom opens.", isOn: settingsBinding(\.autoEnhanceOnLaunch))
+                        ToggleRow(title: "Smart preset matching", subtitle: "Suggest stable presets from content energy.", isOn: settingsBinding(\.smartPresetMatching))
+                        ToggleRow(title: "Apply App Profiles Automatically", subtitle: "Use saved foreground-app profiles when that app is active.", isOn: settingsBinding(\.applyAppProfilesAutomatically))
+                        ToggleRow(title: "Loudness-matched compare", subtitle: "Keep raw A/B checks at the enhanced level.", isOn: settingsBinding(\.loudnessMatchedCompare))
+                        ToggleRow(title: "Advanced controls", subtitle: "Expose spatial, HRTF, and crossfeed controls.", isOn: settingsBinding(\.showAdvancedControls))
+                        ToggleRow(title: "Reduce motion", subtitle: "Calm scopes and moving meters.", isOn: settingsBinding(\.reduceMotion))
+                        MiniSlider(title: "WAVEFORM INTENSITY", value: settingsBinding(\.waveformIntensity), range: 0...1, color: SBColor.red)
+                    }
                 }
             }
             .frame(width: 340)
@@ -845,6 +849,56 @@ private struct SettingsWorkbench: View {
 
     private func settingsBinding(_ keyPath: WritableKeyPath<SonicBloomSettings, AudioSyncMode>) -> Binding<AudioSyncMode> {
         Binding(get: { viewModel.settings[keyPath: keyPath] }, set: { viewModel.settings[keyPath: keyPath] = $0 })
+    }
+}
+
+private struct SetupGuideCard: View {
+    @ObservedObject var viewModel: SonicBloomViewModel
+
+    var body: some View {
+        ConsoleCard(title: "SETUP GUIDE", icon: "checklist", color: viewModel.isSetupGuideComplete ? SBColor.green : SBColor.orange) {
+            VStack(spacing: 8) {
+                ForEach(viewModel.setupGuideSteps) { step in
+                    SetupGuideRow(step: step) {
+                        viewModel.runSetupGuideAction(step.id)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct SetupGuideRow: View {
+    var step: FirstRunSetupStep
+    var action: () -> Void
+
+    var body: some View {
+        HStack(spacing: 9) {
+            Image(systemName: step.isComplete ? "checkmark.circle.fill" : "circle")
+                .foregroundStyle(step.isComplete ? SBColor.green : SBColor.subtext)
+                .frame(width: 18)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(step.title)
+                    .font(.caption.weight(.bold))
+                    .lineLimit(1)
+                Text(step.detail)
+                    .font(.caption2)
+                    .foregroundStyle(SBColor.subtext)
+                    .lineLimit(2)
+            }
+            Spacer(minLength: 6)
+            if !step.isComplete {
+                Button(step.actionTitle, action: action)
+                    .font(.caption.weight(.bold))
+                    .buttonStyle(SonicPressButtonStyle())
+                    .foregroundStyle(SBColor.blue)
+            }
+        }
+        .padding(8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(step.isComplete ? SBColor.green.opacity(0.08) : SBColor.panel2)
+        .overlay { RoundedRectangle(cornerRadius: 7).stroke(step.isComplete ? SBColor.green.opacity(0.32) : SBColor.line, lineWidth: 1) }
+        .clipShape(RoundedRectangle(cornerRadius: 7))
     }
 }
 

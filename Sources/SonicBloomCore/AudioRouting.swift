@@ -170,6 +170,70 @@ public struct AudioRouteState: Codable, Equatable, Sendable {
     }
 }
 
+public enum FirstRunSetupStepID: String, Codable, Equatable, Identifiable, CaseIterable, Sendable {
+    case installDriver
+    case chooseOutput
+    case testSound
+    case turnOnEnhancement
+
+    public var id: String { rawValue }
+}
+
+public struct FirstRunSetupStep: Equatable, Identifiable, Sendable {
+    public var id: FirstRunSetupStepID
+    public var title: String
+    public var detail: String
+    public var actionTitle: String
+    public var isComplete: Bool
+
+    public init(id: FirstRunSetupStepID, title: String, detail: String, actionTitle: String, isComplete: Bool) {
+        self.id = id
+        self.title = title
+        self.detail = detail
+        self.actionTitle = actionTitle
+        self.isComplete = isComplete
+    }
+}
+
+public enum FirstRunSetupGuide {
+    public static func steps(routeState: AudioRouteState, isBridgeRunning: Bool, hasPlayedTestSound: Bool) -> [FirstRunSetupStep] {
+        [
+            FirstRunSetupStep(
+                id: .installDriver,
+                title: "Install SonicBloom Output",
+                detail: routeState.isProcessingAvailable ? "Driver is ready." : "Adds the virtual output device SonicBloom needs.",
+                actionTitle: "Install Driver",
+                isComplete: routeState.isProcessingAvailable
+            ),
+            FirstRunSetupStep(
+                id: .chooseOutput,
+                title: "Confirm Real Output",
+                detail: routeState.selectedPhysicalOutputName ?? "Pick speakers or headphones before enhancing audio.",
+                actionTitle: "Use Current Output",
+                isComplete: routeState.selectedPhysicalOutputName != nil
+            ),
+            FirstRunSetupStep(
+                id: .testSound,
+                title: "Play Test Sound",
+                detail: hasPlayedTestSound ? "Test tone played." : "Make sure audio reaches the selected output.",
+                actionTitle: "Play Tone",
+                isComplete: hasPlayedTestSound
+            ),
+            FirstRunSetupStep(
+                id: .turnOnEnhancement,
+                title: "Turn On Enhancement",
+                detail: isBridgeRunning ? "SonicBloom is processing Mac audio." : "Start processing once the route is ready.",
+                actionTitle: "Turn On",
+                isComplete: isBridgeRunning
+            )
+        ]
+    }
+
+    public static func isComplete(_ steps: [FirstRunSetupStep]) -> Bool {
+        !steps.isEmpty && steps.allSatisfy(\.isComplete)
+    }
+}
+
 public struct AudioBridgeSelection: Equatable, Sendable {
     public var input: AudioDeviceSnapshot
     public var output: AudioDeviceSnapshot

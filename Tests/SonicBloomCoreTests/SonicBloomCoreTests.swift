@@ -1297,6 +1297,43 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertFalse(state.isProcessingAvailable)
     }
 
+    func testFirstRunSetupGuideStartsWithDriverInstall() {
+        let steps = FirstRunSetupGuide.steps(
+            routeState: .default,
+            isBridgeRunning: false,
+            hasPlayedTestSound: false
+        )
+
+        XCTAssertEqual(steps.first?.id, .installDriver)
+        XCTAssertFalse(steps.first?.isComplete ?? true)
+        XCTAssertEqual(steps.first?.actionTitle, "Install Driver")
+        XCTAssertFalse(FirstRunSetupGuide.isComplete(steps))
+    }
+
+    func testFirstRunSetupGuideCompletesWhenRouteTestAndEnhancementAreReady() {
+        let route = AudioRouteState(
+            virtualDeviceName: "SonicBloom Output",
+            bridgeInputDeviceID: 9,
+            bridgeInputDeviceName: "SonicBloom Output",
+            selectedPhysicalOutputID: 1,
+            selectedPhysicalOutputName: "MacBook Speakers",
+            sampleRate: 48_000,
+            channels: 2,
+            bufferSize: 64,
+            installHealth: .active,
+            statusMessage: "Processing active"
+        )
+
+        let steps = FirstRunSetupGuide.steps(
+            routeState: route,
+            isBridgeRunning: true,
+            hasPlayedTestSound: true
+        )
+
+        XCTAssertEqual(steps.map(\.id), [.installDriver, .chooseOutput, .testSound, .turnOnEnhancement])
+        XCTAssertTrue(FirstRunSetupGuide.isComplete(steps))
+    }
+
     func testRouteStateEstimatesRoundTripLatencyFromBuffer() {
         let state = AudioRouteState(
             virtualDeviceName: "SonicBloom Output",

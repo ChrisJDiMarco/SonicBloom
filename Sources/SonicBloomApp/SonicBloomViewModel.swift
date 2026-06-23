@@ -94,6 +94,7 @@ final class SonicBloomViewModel: ObservableObject {
     @Published private(set) var appMixerItems: [AppMixerItem] = []
     @Published private(set) var foregroundAppBundleIdentifier: String?
     @Published private(set) var activeAppRule: AppAudioRule?
+    @Published private(set) var hasPlayedSetupTestSound = false
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -369,6 +370,7 @@ final class SonicBloomViewModel: ObservableObject {
     }
 
     func playCalibrationSound(_ sound: CalibrationSound) {
+        hasPlayedSetupTestSound = true
         calibrationTonePlayer.play(sound)
     }
 
@@ -446,6 +448,32 @@ final class SonicBloomViewModel: ObservableObject {
             TrustDiagnostic(title: "Clips", value: "\(meterModel.meter.limitedSamples) protected", tint: meterModel.meter.limitedSamples > 0 ? .orange : .green),
             TrustDiagnostic(title: "Recovery", value: routeState.recoverySummary, tint: lastError == nil ? .green : .orange)
         ]
+    }
+
+    var setupGuideSteps: [FirstRunSetupStep] {
+        FirstRunSetupGuide.steps(
+            routeState: routeState,
+            isBridgeRunning: isBridgeRunning,
+            hasPlayedTestSound: hasPlayedSetupTestSound
+        )
+    }
+
+    var isSetupGuideComplete: Bool {
+        FirstRunSetupGuide.isComplete(setupGuideSteps)
+    }
+
+    func runSetupGuideAction(_ stepID: FirstRunSetupStepID) {
+        switch stepID {
+        case .installDriver:
+            installVirtualDevice()
+        case .chooseOutput:
+            useCurrentOutputAsPreferred()
+        case .testSound:
+            playCalibrationSound(.tone)
+        case .turnOnEnhancement:
+            guard routeState.isProcessingAvailable, !isBridgeRunning else { return }
+            startBridge()
+        }
     }
 
     var trustSummary: TrustSummary {
