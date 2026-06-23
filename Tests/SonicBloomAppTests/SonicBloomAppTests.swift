@@ -366,6 +366,33 @@ final class SonicBloomAppTests: XCTestCase {
         XCTAssertEqual(viewModel.updateStatusText, "Update package verified")
     }
 
+    @MainActor
+    func testDownloadUpdateRejectsManifestWithoutChecksum() async throws {
+        let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let packageData = Data("unsigned package".utf8)
+        let packageURL = try XCTUnwrap(URL(string: "https://example.com/SonicBloom-0.2.0.pkg"))
+        let manifest = SonicBloomUpdateManifest(
+            version: "0.2.0",
+            minimumSystemVersion: "13.0",
+            packageURL: packageURL,
+            notes: "Fixes"
+        )
+        let viewModel = SonicBloomViewModel.testInstance(
+            defaults: defaults,
+            currentVersion: "0.1.0",
+            updateManifestLoader: { _ in manifest },
+            updatePackageDownloader: { _ in packageData }
+        )
+
+        await viewModel.checkForUpdates()
+        await viewModel.downloadVerifiedUpdate()
+
+        XCTAssertNil(viewModel.verifiedUpdatePackageURL)
+        XCTAssertEqual(viewModel.updateStatusText, "Update checksum failed")
+    }
+
     func testPerAppMixerLeavesRoomForRouteActionTray() {
         XCTAssertGreaterThanOrEqual(
             PerAppMixerLayout.bottomScrollClearance,

@@ -1939,7 +1939,7 @@ final class SonicBloomCoreTests: XCTestCase {
 
         XCTAssertTrue(SonicBloomUpdatePackageVerifier.verify(data, expectedSHA256: checksum))
         XCTAssertFalse(SonicBloomUpdatePackageVerifier.verify(data, expectedSHA256: "bad"))
-        XCTAssertTrue(SonicBloomUpdatePackageVerifier.verify(data, expectedSHA256: nil))
+        XCTAssertFalse(SonicBloomUpdatePackageVerifier.verify(data, expectedSHA256: nil))
     }
 
     func testPackageReleaseWritesUpdateManifest() throws {

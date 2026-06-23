@@ -38,7 +38,7 @@ public enum SonicBloomUpdatePackageVerifier {
     }
 
     public static func verify(_ data: Data, expectedSHA256: String?) -> Bool {
-        guard let expectedSHA256, !expectedSHA256.isEmpty else { return true }
+        guard let expectedSHA256, !expectedSHA256.isEmpty else { return false }
         return sha256Hex(for: data).caseInsensitiveCompare(expectedSHA256) == .orderedSame
     }
 }
