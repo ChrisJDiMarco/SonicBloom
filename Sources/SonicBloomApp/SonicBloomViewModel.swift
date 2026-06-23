@@ -237,27 +237,35 @@ final class SonicBloomViewModel: ObservableObject {
     func stopBridge() {
         guard !isTransitioning else { return }
         isTransitioning = true
-        isBridgeRunning = false
         isBypassed = false
         meterModel.meter = DSPMeter()
-        routeState.statusMessage = "Turning enhancement off..."
+        routeState.statusMessage = "Restoring Mac output..."
         perAppTapCoordinator.stop()
 
         audioControlQueue.async { [bridge, routeManager] in
-            bridge.stop()
-            try? routeManager.restorePreviousSystemOutput()
-            DispatchQueue.main.async { [weak self] in
-                self?.refreshRoute()
-                self?.isTransitioning = false
-                self?.routeRecoveryTask?.cancel()
+            do {
+                try routeManager.restorePreviousSystemOutput()
+                bridge.stop()
+                DispatchQueue.main.async { [weak self] in
+                    self?.isBridgeRunning = false
+                    self?.refreshRoute()
+                    self?.isTransitioning = false
+                    self?.routeRecoveryTask?.cancel()
+                }
+            } catch {
+                DispatchQueue.main.async { [weak self] in
+                    self?.lastError = error.localizedDescription
+                    self?.routeState.statusMessage = "Could not restore Mac output; keeping enhancement on."
+                    self?.isTransitioning = false
+                }
             }
         }
     }
 
     func stopBridgeImmediately() {
         perAppTapCoordinator.stop()
-        bridge.stop()
         try? routeManager.restorePreviousSystemOutput()
+        bridge.stop()
         isBridgeRunning = false
         isBypassed = false
         isTransitioning = false

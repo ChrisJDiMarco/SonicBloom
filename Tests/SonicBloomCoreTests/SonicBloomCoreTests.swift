@@ -1482,6 +1482,21 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertFalse(state.isProcessingAvailable)
     }
 
+    func testRoutePlannerRestoresPhysicalOutputWhenDefaultIsSonicBloom() {
+        let devices = [
+            AudioDeviceSnapshot(id: 1, name: "AudioBox USB", inputChannels: 2, outputChannels: 2, sampleRate: 44_100, isVirtual: false),
+            AudioDeviceSnapshot(id: 9, name: "SonicBloom Output", inputChannels: 2, outputChannels: 2, sampleRate: 48_000, isVirtual: true)
+        ]
+
+        let output = AudioRoutePlanner.physicalOutputToRestore(
+            devices: devices,
+            defaultOutputDeviceID: 9,
+            previousOutputDeviceID: nil
+        )
+
+        XCTAssertEqual(output?.id, 1)
+    }
+
     func testHALInstallerScriptInstallsSonicBloomDriver() {
         let driverURL = URL(fileURLWithPath: "/tmp/Driver's Test/SonicBloomHAL.driver")
 

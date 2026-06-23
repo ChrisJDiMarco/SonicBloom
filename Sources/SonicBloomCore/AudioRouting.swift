@@ -208,6 +208,18 @@ public enum AudioRoutePlanner {
         return AudioBridgeSelection(input: input, output: output)
     }
 
+    public static func physicalOutputToRestore(
+        devices: [AudioDeviceSnapshot],
+        defaultOutputDeviceID: UInt32?,
+        previousOutputDeviceID: UInt32?
+    ) -> AudioDeviceSnapshot? {
+        if let previousOutputDeviceID,
+           let previousOutput = devices.first(where: { $0.id == previousOutputDeviceID && $0.isUsablePhysicalOutput }) {
+            return previousOutput
+        }
+        return preferredPhysicalOutput(devices: devices, defaultOutputDeviceID: defaultOutputDeviceID)
+    }
+
     private static func preferredPhysicalOutput(devices: [AudioDeviceSnapshot], defaultOutputDeviceID: UInt32?) -> AudioDeviceSnapshot? {
         if let defaultOutputDeviceID,
            let defaultOutput = devices.first(where: { $0.id == defaultOutputDeviceID && $0.isUsablePhysicalOutput }) {
@@ -319,10 +331,14 @@ public final class CoreAudioRouteManager: AudioRouteManaging, @unchecked Sendabl
         let previousOutputDeviceID = previousOutputDeviceID
         lock.unlock()
 
-        guard let previousOutputDeviceID else {
+        guard let output = AudioRoutePlanner.physicalOutputToRestore(
+            devices: inventory.devices(),
+            defaultOutputDeviceID: inventory.defaultOutputDeviceID(),
+            previousOutputDeviceID: previousOutputDeviceID
+        ) else {
             return
         }
-        try inventory.setDefaultOutputDeviceID(previousOutputDeviceID)
+        try inventory.setDefaultOutputDeviceID(output.id)
         lock.lock()
         self.previousOutputDeviceID = nil
         lock.unlock()
