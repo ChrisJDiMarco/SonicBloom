@@ -1965,6 +1965,20 @@ final class SonicBloomCoreTests: XCTestCase {
         )
     }
 
+    func testCurrentVersionManifestDoesNotValidatePackageMetadata() throws {
+        let manifest = SonicBloomUpdateManifest(
+            version: "0.2.0",
+            minimumSystemVersion: "99.0",
+            packageURL: URL(string: "http://example.com/SonicBloom-0.2.0.pkg")!,
+            packageSHA256: "abc123"
+        )
+
+        XCTAssertEqual(
+            SonicBloomUpdater.decision(currentVersion: "0.2.0", currentSystemVersion: "13.0", manifest: manifest),
+            .upToDate
+        )
+    }
+
     func testUpdatePackageVerifierMatchesSHA256() {
         let data = Data("SonicBloom package".utf8)
         let checksum = SonicBloomUpdatePackageVerifier.sha256Hex(for: data)

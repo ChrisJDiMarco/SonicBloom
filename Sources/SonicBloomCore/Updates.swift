@@ -38,13 +38,16 @@ public enum SonicBloomUpdater {
         currentSystemVersion: String,
         manifest: SonicBloomUpdateManifest
     ) -> SonicBloomUpdateDecision {
+        guard ReleaseVersion(manifest.version) > ReleaseVersion(currentVersion) else {
+            return .upToDate
+        }
         guard ReleaseVersion(currentSystemVersion) >= ReleaseVersion(manifest.minimumSystemVersion) else {
             return .unsupported(manifest)
         }
         guard manifest.packageURL.scheme?.lowercased() == "https" else {
             return .insecurePackageURL(manifest)
         }
-        return ReleaseVersion(manifest.version) > ReleaseVersion(currentVersion) ? .updateAvailable(manifest) : .upToDate
+        return .updateAvailable(manifest)
     }
 
     private static var currentSystemVersion: String {
