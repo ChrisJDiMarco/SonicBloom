@@ -2044,6 +2044,19 @@ final class SonicBloomCoreTests: XCTestCase {
         )
     }
 
+    func testUpdateManifestRequiresPackageChecksum() throws {
+        let manifest = SonicBloomUpdateManifest(
+            version: "0.2.0",
+            minimumSystemVersion: "13.0",
+            packageURL: URL(string: "https://example.com/SonicBloom-0.2.0.pkg")!
+        )
+
+        XCTAssertEqual(
+            SonicBloomUpdater.decision(currentVersion: "0.1.0", currentSystemVersion: "13.0", manifest: manifest),
+            .missingChecksum(manifest)
+        )
+    }
+
     func testCurrentVersionManifestDoesNotValidatePackageMetadata() throws {
         let manifest = SonicBloomUpdateManifest(
             version: "0.2.0",

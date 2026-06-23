@@ -319,6 +319,7 @@ final class SonicBloomAppTests: XCTestCase {
             version: "0.2.0",
             minimumSystemVersion: "13.0",
             packageURL: packageURL,
+            packageSHA256: "abc123",
             notes: "Fixes"
         )
         let viewModel = SonicBloomViewModel.testInstance(
@@ -331,6 +332,28 @@ final class SonicBloomAppTests: XCTestCase {
 
         XCTAssertEqual(viewModel.updateStatusText, "Update 0.2.0 available")
         XCTAssertEqual(viewModel.updateDownloadURL, packageURL)
+    }
+
+    @MainActor
+    func testCheckForUpdatesRejectsMissingPackageChecksum() async throws {
+        let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let manifest = SonicBloomUpdateManifest(
+            version: "0.2.0",
+            minimumSystemVersion: "13.0",
+            packageURL: URL(string: "https://example.com/SonicBloom-0.2.0.pkg")!
+        )
+        let viewModel = SonicBloomViewModel.testInstance(
+            defaults: defaults,
+            currentVersion: "0.1.0",
+            updateManifestLoader: { _ in manifest }
+        )
+
+        await viewModel.checkForUpdates()
+
+        XCTAssertEqual(viewModel.updateStatusText, "Update package checksum missing")
+        XCTAssertNil(viewModel.updateDownloadURL)
     }
 
     @MainActor
@@ -453,7 +476,7 @@ final class SonicBloomAppTests: XCTestCase {
         let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defer { defaults.removePersistentDomain(forName: suiteName) }
-        let packageData = Data("unsigned package".utf8)
+        var downloadAttempted = false
         let packageURL = try XCTUnwrap(URL(string: "https://example.com/SonicBloom-0.2.0.pkg"))
         let manifest = SonicBloomUpdateManifest(
             version: "0.2.0",
@@ -465,14 +488,18 @@ final class SonicBloomAppTests: XCTestCase {
             defaults: defaults,
             currentVersion: "0.1.0",
             updateManifestLoader: { _ in manifest },
-            updatePackageDownloader: { _ in packageData }
+            updatePackageDownloader: { _ in
+                downloadAttempted = true
+                return Data()
+            }
         )
 
         await viewModel.checkForUpdates()
         await viewModel.downloadVerifiedUpdate()
 
+        XCTAssertFalse(downloadAttempted)
         XCTAssertNil(viewModel.verifiedUpdatePackageURL)
-        XCTAssertEqual(viewModel.updateStatusText, "Update checksum failed")
+        XCTAssertEqual(viewModel.updateStatusText, "Update package checksum missing")
     }
 
     func testPerAppMixerLeavesRoomForRouteActionTray() {

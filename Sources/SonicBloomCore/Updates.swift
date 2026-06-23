@@ -25,6 +25,7 @@ public enum SonicBloomUpdateDecision: Equatable, Sendable {
     case updateAvailable(SonicBloomUpdateManifest)
     case unsupported(SonicBloomUpdateManifest)
     case insecurePackageURL(SonicBloomUpdateManifest)
+    case missingChecksum(SonicBloomUpdateManifest)
     case upToDate
 }
 
@@ -46,6 +47,9 @@ public enum SonicBloomUpdater {
         }
         guard manifest.packageURL.scheme?.lowercased() == "https" else {
             return .insecurePackageURL(manifest)
+        }
+        guard manifest.packageSHA256?.isEmpty == false else {
+            return .missingChecksum(manifest)
         }
         return .updateAvailable(manifest)
     }
