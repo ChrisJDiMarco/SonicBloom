@@ -771,6 +771,34 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertEqual(profile.audioUnitEffects, [])
     }
 
+    func testProfileSanitizesPersistedAudioUnitEffects() throws {
+        let supported = AudioUnitEffectSlot(
+            effect: AudioUnitEffectDescriptor(
+                name: "Studio EQ",
+                manufacturerName: "Apple",
+                componentType: kAudioUnitType_Effect,
+                componentSubType: fourCC("eqal"),
+                componentManufacturer: fourCC("appl")
+            )
+        )
+        let unsupported = AudioUnitEffectSlot(
+            effect: AudioUnitEffectDescriptor(
+                name: "Output Device",
+                manufacturerName: "Test",
+                componentType: kAudioUnitType_Output,
+                componentSubType: fourCC("outp"),
+                componentManufacturer: fourCC("test")
+            )
+        )
+
+        let profile = SonicBloomProfile(audioUnitEffects: [supported, unsupported, supported])
+
+        XCTAssertEqual(profile.audioUnitEffects, [supported])
+
+        let data = try JSONEncoder().encode(profile)
+        XCTAssertEqual(try JSONDecoder().decode(SonicBloomProfile.self, from: data).audioUnitEffects, [supported])
+    }
+
     func testProfileRemembersPresetPerOutput() {
         var profile = SonicBloomProfile.default
         let tuned = DSPPreset.movies.with(name: "Movie Desk", bassAmount: 0.44)

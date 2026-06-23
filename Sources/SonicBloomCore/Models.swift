@@ -462,8 +462,11 @@ public struct SonicBloomProfile: Codable, Equatable, Sendable {
         self.preferredOutputName = preferredOutputName
         self.devicePresets = devicePresets
         self.appRules = appRules
-        self.audioUnitEffects = audioUnitEffects
+        self.audioUnitEffects = []
         self.customHeadphoneProfiles = customHeadphoneProfiles
+        for slot in audioUnitEffects {
+            addAudioUnitEffect(slot)
+        }
     }
 
     public static let `default` = SonicBloomProfile()
@@ -537,6 +540,7 @@ public struct SonicBloomProfile: Codable, Equatable, Sendable {
     }
 
     public mutating func addAudioUnitEffect(_ slot: AudioUnitEffectSlot) {
+        guard AudioUnitEffectCatalog.isSupportedEffectType(slot.effect.componentType) else { return }
         guard !audioUnitEffects.contains(where: { $0.id == slot.id }) else { return }
         audioUnitEffects.append(slot)
     }
