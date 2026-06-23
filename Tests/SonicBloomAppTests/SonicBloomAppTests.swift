@@ -8,7 +8,7 @@ final class SonicBloomAppTests: XCTestCase {
         let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defer { defaults.removePersistentDomain(forName: suiteName) }
-        let viewModel = SonicBloomViewModel(defaults: defaults)
+        let viewModel = SonicBloomViewModel.testInstance(defaults: defaults)
 
         viewModel.setForegroundAppBundleIdentifierForTesting("com.google.Chrome")
         viewModel.profileAudioRefreshCountForTesting = 0
@@ -23,7 +23,7 @@ final class SonicBloomAppTests: XCTestCase {
         let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defer { defaults.removePersistentDomain(forName: suiteName) }
-        let viewModel = SonicBloomViewModel(defaults: defaults)
+        let viewModel = SonicBloomViewModel.testInstance(defaults: defaults)
         viewModel.settings = SonicBloomSettings(syncMode: .music)
 
         viewModel.setForegroundAppBundleIdentifierForTesting("com.spotify.client")
@@ -38,7 +38,7 @@ final class SonicBloomAppTests: XCTestCase {
         let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defer { defaults.removePersistentDomain(forName: suiteName) }
-        let viewModel = SonicBloomViewModel(defaults: defaults)
+        let viewModel = SonicBloomViewModel.testInstance(defaults: defaults)
 
         viewModel.profile.upsert(AppAudioRule(
             bundleIdentifier: "com.google.Chrome",
@@ -58,7 +58,7 @@ final class SonicBloomAppTests: XCTestCase {
         let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defer { defaults.removePersistentDomain(forName: suiteName) }
-        let viewModel = SonicBloomViewModel(defaults: defaults)
+        let viewModel = SonicBloomViewModel.testInstance(defaults: defaults)
 
         viewModel.profile.upsert(AppAudioRule(
             bundleIdentifier: "com.google.Chrome",
@@ -79,7 +79,7 @@ final class SonicBloomAppTests: XCTestCase {
         let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defer { defaults.removePersistentDomain(forName: suiteName) }
-        let viewModel = SonicBloomViewModel(defaults: defaults)
+        let viewModel = SonicBloomViewModel.testInstance(defaults: defaults)
 
         viewModel.settings = SonicBloomSettings(applyAppProfilesAutomatically: true)
         viewModel.setForegroundAppBundleIdentifierForTesting("com.google.Chrome")
@@ -93,7 +93,7 @@ final class SonicBloomAppTests: XCTestCase {
         let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defer { defaults.removePersistentDomain(forName: suiteName) }
-        let viewModel = SonicBloomViewModel(defaults: defaults)
+        let viewModel = SonicBloomViewModel.testInstance(defaults: defaults)
         viewModel.selectedPreset = .flat
 
         try viewModel.importAutoEQProfile(
@@ -111,7 +111,7 @@ final class SonicBloomAppTests: XCTestCase {
         let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defer { defaults.removePersistentDomain(forName: suiteName) }
-        let viewModel = SonicBloomViewModel(defaults: defaults)
+        let viewModel = SonicBloomViewModel.testInstance(defaults: defaults)
         viewModel.settings = SonicBloomSettings(smartPresetMatching: true)
         viewModel.isBridgeRunning = true
         viewModel.selectedPreset = .deepBass
@@ -121,6 +121,24 @@ final class SonicBloomAppTests: XCTestCase {
         }
 
         XCTAssertEqual(viewModel.selectedPreset.name, DSPPreset.deepBass.name)
+    }
+
+    @MainActor
+    func testRawCompareOnlyTogglesWhileProcessing() {
+        let suiteName = "SonicBloomAppTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let viewModel = SonicBloomViewModel.testInstance(defaults: defaults)
+
+        viewModel.toggleRawCompare()
+        XCTAssertFalse(viewModel.isBypassed)
+
+        viewModel.isBridgeRunning = true
+        viewModel.toggleRawCompare()
+        XCTAssertTrue(viewModel.isBypassed)
+
+        viewModel.toggleRawCompare()
+        XCTAssertFalse(viewModel.isBypassed)
     }
 
     func testPerAppMixerLeavesRoomForRouteActionTray() {
@@ -145,4 +163,26 @@ final class SonicBloomAppTests: XCTestCase {
         ])
         bridge.stop()
     }
+}
+
+private extension SonicBloomViewModel {
+    @MainActor
+    static func testInstance(defaults: UserDefaults) -> SonicBloomViewModel {
+        SonicBloomViewModel(defaults: defaults, routeState: .testReady, startLiveContext: false)
+    }
+}
+
+private extension AudioRouteState {
+    static let testReady = AudioRouteState(
+        virtualDeviceName: "SonicBloom Output",
+        bridgeInputDeviceID: 1,
+        bridgeInputDeviceName: "SonicBloom Output",
+        selectedPhysicalOutputID: 2,
+        selectedPhysicalOutputName: "Test Speakers",
+        sampleRate: 48_000,
+        channels: 2,
+        bufferSize: 64,
+        installHealth: .active,
+        statusMessage: "Test route ready."
+    )
 }

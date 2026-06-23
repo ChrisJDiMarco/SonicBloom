@@ -95,6 +95,24 @@ struct SonicBloomControlPanel: View {
             Spacer(minLength: 10)
 
             Button {
+                viewModel.toggleRawCompare()
+            } label: {
+                Label(viewModel.isBypassed ? "Raw Audio" : "Compare Raw", systemImage: "arrow.left.arrow.right.circle.fill")
+                    .font(.system(size: 13, weight: .bold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .foregroundStyle(viewModel.isBypassed ? .white : SBColor.blue)
+                    .background(viewModel.isBypassed ? SBColor.blue.opacity(0.82) : SBColor.blue.opacity(0.12))
+                    .overlay { RoundedRectangle(cornerRadius: 8).stroke(SBColor.blue.opacity(0.6), lineWidth: 1) }
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .contentShape(RoundedRectangle(cornerRadius: 8))
+            }
+            .buttonStyle(SonicPressButtonStyle())
+            .disabled(!viewModel.isBridgeRunning || viewModel.isTransitioning)
+            .opacity(viewModel.isBridgeRunning ? 1 : 0.5)
+            .help("Toggle loudness-matched raw audio comparison")
+
+            Button {
                 viewModel.runPrimaryAction()
             } label: {
                 PrimaryActionLabel(viewModel: viewModel)

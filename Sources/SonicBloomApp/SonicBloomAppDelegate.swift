@@ -65,7 +65,7 @@ final class SonicBloomAppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func toggleBypass() {
-        viewModel.isBypassed.toggle()
+        viewModel.toggleRawCompare()
         refreshStatusMenu()
     }
 

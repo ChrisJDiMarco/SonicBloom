@@ -9,7 +9,7 @@ let package = Package(
     ],
     products: [
         .library(name: "SonicBloomCore", targets: ["SonicBloomCore"]),
-        .executable(name: "SonicBloom", targets: ["SonicBloomApp"]),
+        .executable(name: "SonicBloom", targets: ["SonicBloomMain"]),
         .executable(name: "SonicBloomRecovery", targets: ["SonicBloomRecovery"])
     ],
     targets: [
@@ -27,7 +27,7 @@ let package = Package(
                 .linkedFramework("CoreAudio")
             ]
         ),
-        .executableTarget(
+        .target(
             name: "SonicBloomApp",
             dependencies: ["SonicBloomCore", "SonicBloomDSP"],
             resources: [
@@ -38,6 +38,14 @@ let package = Package(
                 .linkedFramework("AVFAudio"),
                 .linkedFramework("CoreAudio"),
                 .linkedFramework("MetalKit")
+            ]
+        ),
+        .executableTarget(
+            name: "SonicBloomMain",
+            dependencies: ["SonicBloomApp"],
+            path: "Sources/SonicBloomMain",
+            linkerSettings: [
+                .linkedFramework("AppKit")
             ]
         ),
         .executableTarget(

@@ -1,0 +1,3 @@
+import SonicBloomApp
+
+runSonicBloomApp()

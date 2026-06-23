@@ -34,7 +34,7 @@ final class SonicBloomViewModel: ObservableObject {
     private let bridge = SonicBloomAudioBridge()
     private let perAppTapCoordinator = PerAppTapCoordinator()
     private let audioProcessInventory = CoreAudioProcessInventory()
-    private let calibrationTonePlayer = CalibrationTonePlayer()
+    private lazy var calibrationTonePlayer = CalibrationTonePlayer()
     private let audioControlQueue = DispatchQueue(label: "com.chrisdimarco.sonicbloom.audio-control")
     private let defaults: UserDefaults
     private var cpuSampler = ProcessCPUUsageSampler()
@@ -43,6 +43,7 @@ final class SonicBloomViewModel: ObservableObject {
     private var appActivationObserver: NSObjectProtocol?
     private var activeProfileOutputName: String?
     private var presetUndoState = PresetUndoState()
+    private let liveContextEnabled: Bool
     private var isApplyingDevicePreset = false
     private var isRememberingSelectedPreset = false
 #if DEBUG
@@ -97,11 +98,12 @@ final class SonicBloomViewModel: ObservableObject {
     @Published private(set) var activeAppRule: AppAudioRule?
     @Published private(set) var hasPlayedSetupTestSound = false
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard, routeState initialRouteState: AudioRouteState? = nil, startLiveContext: Bool = true) {
         self.defaults = defaults
+        liveContextEnabled = startLiveContext
         profile = Self.load(SonicBloomProfile.self, from: defaults, key: DefaultsKey.profile) ?? .default
         settings = Self.load(SonicBloomSettings.self, from: defaults, key: DefaultsKey.settings) ?? .default
-        routeState = routeManager.currentState()
+        routeState = initialRouteState ?? routeManager.currentState()
         activeProfileOutputName = routeState.selectedPhysicalOutputName
         selectedPreset = presetForOutput(routeState.selectedPhysicalOutputName)
         bridge.meterHandler = { [weak self] meter in
@@ -109,10 +111,12 @@ final class SonicBloomViewModel: ObservableObject {
                 self?.handleMeter(meter)
             }
         }
-        refreshAppMixerRules()
-        refreshForegroundApplication()
-        startAppActivationObserver()
-        startCPURefresh()
+        if startLiveContext {
+            refreshAppMixerRules()
+            refreshForegroundApplication()
+            startAppActivationObserver()
+            startCPURefresh()
+        }
     }
 
     deinit {
@@ -161,6 +165,11 @@ final class SonicBloomViewModel: ObservableObject {
 
     func toggleBridge() {
         isBridgeRunning ? stopBridge() : startBridge()
+    }
+
+    func toggleRawCompare() {
+        guard isBridgeRunning, !isTransitioning else { return }
+        isBypassed.toggle()
     }
 
     var primaryActionTitle: String {
@@ -392,6 +401,7 @@ final class SonicBloomViewModel: ObservableObject {
     }
 
     func refreshAppMixerRules() {
+        guard liveContextEnabled else { return }
         appMixerItems = Self.discoveredAppMixerItems(
             profile: profile,
             audioProcesses: audioProcessInventory.processes(),
