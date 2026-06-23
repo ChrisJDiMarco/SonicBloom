@@ -235,6 +235,9 @@ final class SonicBloomAudioBridge: @unchecked Sendable {
             outputRight: &processedRight,
             config: config
         )
+        if config.bypass == 0 {
+            audioUnitHost.process(left: &processedLeft, right: &processedRight, frameCount: frameCount)
+        }
 
         writeOutput(left: processedLeft, right: processedRight, maxQueuedFrames: syncMode.maxQueuedOutputFrames(observedCallbackFrames: frameCount))
         publishMeterIfNeeded(meter, frameCount: frameCount)

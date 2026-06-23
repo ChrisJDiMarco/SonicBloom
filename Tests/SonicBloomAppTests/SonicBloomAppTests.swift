@@ -352,6 +352,25 @@ final class SonicBloomAppTests: XCTestCase {
         XCTAssertEqual(chain.failedEffectIDs, [broken.id])
     }
 
+    func testAudioUnitHostChainProcessesLoadedEffects() {
+        let effect = AudioUnitEffectDescriptor(
+            name: "Gain",
+            manufacturerName: "Test",
+            componentType: kAudioUnitType_Effect,
+            componentSubType: fourCC("gain"),
+            componentManufacturer: fourCC("test")
+        )
+        let chain = AudioUnitEffectHostChain(loader: { _, _ in GainAudioUnitEffectForTesting(gain: 0.5) })
+        var left: [Float] = [1.0, -0.5]
+        var right: [Float] = [0.25, -1.0]
+
+        chain.update(slots: [AudioUnitEffectSlot(effect: effect)], sampleRate: 48_000)
+        chain.process(left: &left, right: &right, frameCount: 2)
+
+        XCTAssertEqual(left, [0.5, -0.25])
+        XCTAssertEqual(right, [0.125, -0.5])
+    }
+
     func testAudioBridgeOwnsAudioUnitHostChain() {
         let effect = AudioUnitEffectDescriptor(
             name: "Studio EQ",
@@ -788,6 +807,22 @@ final class SonicBloomAppTests: XCTestCase {
 
         XCTAssertTrue(controlPanel.contains("Copy Diagnostics"))
         XCTAssertTrue(controlPanel.contains("viewModel.copyDiagnosticsReport()"))
+    }
+}
+
+private final class GainAudioUnitEffectForTesting: AudioUnitEffectProcessing {
+    private let gain: Float
+
+    init(gain: Float) {
+        self.gain = gain
+    }
+
+    func process(left: inout [Float], right: inout [Float], frameCount: Int) -> Bool {
+        for index in 0..<min(frameCount, left.count, right.count) {
+            left[index] *= gain
+            right[index] *= gain
+        }
+        return true
     }
 }
 
