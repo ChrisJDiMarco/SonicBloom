@@ -167,6 +167,14 @@ Run the automated gate:
 Scripts/qa_gate.sh
 ```
 
+Commercial/public release gate:
+
+```bash
+Scripts/qa_gate.sh --strict
+```
+
+Strict mode fails if signing, notarization, or update-manifest signing is not configured.
+
 For long playback checks:
 
 ```bash

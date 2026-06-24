@@ -12,6 +12,14 @@ Scripts/qa_gate.sh
 
 Pass means the DSP, preset, routing planner, installer script, recovery planner, packaged HAL bundle checks, and release-readiness report are green. It does not prove live-device stability.
 
+For a signed/notarized public build, use the strict gate:
+
+```bash
+Scripts/qa_gate.sh --strict
+```
+
+Strict mode fails on unsigned app bundles, unsigned installers, missing notarization profile, or missing update-manifest signing keys.
+
 For a live playback soak, start SonicBloom, play Spotify/YouTube/Zoom audio, then run:
 
 ```bash

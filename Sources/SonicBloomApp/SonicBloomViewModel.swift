@@ -151,6 +151,8 @@ final class SonicBloomViewModel: ObservableObject {
     @Published private(set) var availableAudioUnitEffects: [AudioUnitEffectDescriptor] = []
     @Published private(set) var failedAudioUnitEffectIDs: [String] = []
     @Published private(set) var audioHealth = AudioStreamHealth()
+    @Published private(set) var audioConfidenceStatusText = "Audio self-test not run yet."
+    @Published private(set) var hasPassedAudioConfidenceCheck = false
     private var availableUpdateManifest: SonicBloomUpdateManifest?
 
     init(
@@ -825,7 +827,8 @@ final class SonicBloomViewModel: ObservableObject {
         FirstRunSetupGuide.steps(
             routeState: routeState,
             isBridgeRunning: isBridgeRunning,
-            hasPlayedTestSound: hasPlayedSetupTestSound
+            hasPlayedTestSound: hasPlayedSetupTestSound,
+            hasPassedAudioSelfTest: hasPassedAudioConfidenceCheck
         )
     }
 
@@ -850,6 +853,8 @@ final class SonicBloomViewModel: ObservableObject {
         case .turnOnEnhancement:
             guard routeState.isProcessingAvailable, !isBridgeRunning else { return }
             startBridge()
+        case .audioSelfTest:
+            runAudioConfidenceCheck()
         }
     }
 
@@ -860,6 +865,26 @@ final class SonicBloomViewModel: ObservableObject {
             cpuUsagePercent: cpuUsagePercent,
             lastError: lastError
         )
+    }
+
+    var audioConfidence: AudioConfidenceReport {
+        AudioConfidenceReportBuilder.build(
+            routeState: routeState,
+            meter: meterModel.meter,
+            cpuUsagePercent: cpuUsagePercent,
+            audioHealth: audioHealth,
+            lastError: lastError
+        )
+    }
+
+    func runAudioConfidenceCheck() {
+        refreshRoute()
+        audioHealth = bridge.healthSnapshot()
+        let report = audioConfidence
+        hasPassedAudioConfidenceCheck = report.isPassing
+        audioConfidenceStatusText = [report.route, report.latency, report.clipping, report.cpu, report.recovery].joined(separator: " • ")
+        routeState.statusMessage = report.headline
+        recordSupportEvent("qa", audioConfidenceStatusText)
     }
 
     var diagnosticsReport: String {

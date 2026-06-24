@@ -176,6 +176,7 @@ public enum FirstRunSetupStepID: String, Codable, Equatable, Identifiable, CaseI
     case chooseOutput
     case testSound
     case turnOnEnhancement
+    case audioSelfTest
 
     public var id: String { rawValue }
 }
@@ -197,7 +198,7 @@ public struct FirstRunSetupStep: Equatable, Identifiable, Sendable {
 }
 
 public enum FirstRunSetupGuide {
-    public static func steps(routeState: AudioRouteState, isBridgeRunning: Bool, hasPlayedTestSound: Bool) -> [FirstRunSetupStep] {
+    public static func steps(routeState: AudioRouteState, isBridgeRunning: Bool, hasPlayedTestSound: Bool, hasPassedAudioSelfTest: Bool = false) -> [FirstRunSetupStep] {
         [
             FirstRunSetupStep(
                 id: .installDriver,
@@ -233,6 +234,13 @@ public enum FirstRunSetupGuide {
                 detail: isBridgeRunning ? "SonicBloom is processing Mac audio." : "Start processing once the route is ready.",
                 actionTitle: "Turn On",
                 isComplete: isBridgeRunning
+            ),
+            FirstRunSetupStep(
+                id: .audioSelfTest,
+                title: "Run Audio Self-Test",
+                detail: hasPassedAudioSelfTest ? "Route, latency, CPU, clipping, and recovery checks passed." : "Checks route, latency, CPU, clipping, and recovery status.",
+                actionTitle: "Run Self-Test",
+                isComplete: hasPassedAudioSelfTest
             )
         ]
     }

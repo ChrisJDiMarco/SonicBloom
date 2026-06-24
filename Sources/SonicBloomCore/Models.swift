@@ -861,6 +861,22 @@ public struct DSPPreset: Codable, Equatable, Identifiable, Sendable {
 }
 
 public extension DSPPreset {
+    var story: String {
+        switch name {
+        case "Flat": "Raw reference with safety metering only."
+        case "Clean Loud": "Louder, clearer system audio with protected headroom."
+        case "Deep Bass": "More low-end weight without letting peaks clip."
+        case "Spoken Voice": "Forward mids and softer lows for podcasts, calls, and video."
+        case "Tiny Speakers": "Compensates for small drivers with careful bass and presence."
+        case "AirPods": "AirPods-friendly lift with gentle width and crossfeed."
+        case "Headphones": "Wider headphone image with fatigue-reducing crossfeed."
+        case "Movies": "Bigger cinematic space with controlled late-night peaks."
+        case "Night Mode": "Quieter loud moments, clearer quiet detail."
+        case "Manual": "Your custom live tuning surface."
+        default: "Custom SonicBloom preset."
+        }
+    }
+
     func optimized(for syncMode: AudioSyncMode) -> DSPPreset {
         switch syncMode {
         case .auto:

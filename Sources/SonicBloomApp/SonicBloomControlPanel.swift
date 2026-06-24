@@ -17,7 +17,7 @@ struct SonicBloomControlPanel: View {
             ConsoleBackdrop()
             HStack(alignment: .top, spacing: 18) {
                 sidebar
-                VStack(spacing: 14) {
+                VStack(spacing: 12) {
                     HeroAnalyzer(viewModel: viewModel)
                         .fixedSize(horizontal: false, vertical: true)
                     if viewModel.settings.showAdvancedControls {
@@ -45,10 +45,15 @@ struct SonicBloomControlPanel: View {
                         SimpleModePanel(viewModel: viewModel)
                             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     }
+                    FooterStatusRail(viewModel: viewModel)
+                        .frame(height: 44)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
-            .padding(20)
+            .padding(.horizontal, 22)
+            .padding(.top, 18)
+            .padding(.bottom, 14)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .frame(
@@ -73,7 +78,7 @@ struct SonicBloomControlPanel: View {
             .scrollIndicators(.automatic)
             .clipped()
         }
-        .frame(width: 276)
+        .frame(width: 282)
         .frame(maxHeight: .infinity)
         .consolePanel()
         .clipped()
@@ -352,16 +357,21 @@ private struct HeroAnalyzer: View {
                 VStack(alignment: .leading, spacing: 8) {
                     StatusBadge(text: viewModel.isBridgeRunning ? "LIVE" : "READY", color: viewModel.isBridgeRunning ? SBColor.green : SBColor.subtext)
                     Text(viewModel.selectedPreset.name)
-                        .font(.system(size: 46, weight: .black))
+                        .font(.system(size: 42, weight: .black))
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
+                    Text(viewModel.selectedPreset.story)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(SBColor.blue)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                        .help(viewModel.selectedPreset.story)
                     Text(outputLine)
                         .font(.system(size: 16, weight: .medium))
                         .foregroundStyle(SBColor.subtext)
                         .lineLimit(1)
                         .truncationMode(.middle)
                         .help(outputLine)
-                    PresetStatusLine(viewModel: viewModel)
                 }
                 .layoutPriority(1)
                 Spacer()
@@ -375,11 +385,15 @@ private struct HeroAnalyzer: View {
                 .frame(width: 330, height: 56)
                 .consolePanel()
                 LoudnessScope(meterModel: viewModel.meterModel)
-                    .frame(width: 250, height: 90)
+                    .frame(width: 245, height: 86)
                 HeadroomMeters(meterModel: viewModel.meterModel, compact: true)
-                    .frame(width: 160, height: 90)
+                    .frame(width: 160, height: 86)
             }
-            .frame(height: 98)
+            .frame(height: 104)
+
+            PresetStatusLine(viewModel: viewModel)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .frame(height: 18)
 
             SpectrumAnalyzer(
                 meterModel: viewModel.meterModel,
@@ -387,14 +401,11 @@ private struct HeroAnalyzer: View {
                 isRunning: viewModel.isBridgeRunning,
                 reduceMotion: viewModel.settings.reduceMotion
             )
-            .frame(height: 174)
-
-            SignalChain(viewModel: viewModel)
-                .frame(height: 60)
+            .frame(height: 156)
         }
         .padding(18)
         .frame(maxWidth: .infinity)
-        .frame(height: 400)
+        .frame(height: 330)
         .consolePanel()
     }
 
@@ -414,7 +425,7 @@ private struct ConsoleTabBar: View {
     @Binding var selection: ConsoleTab
 
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 6) {
             ForEach(ConsoleTab.allCases) { tab in
                 let selected = selection == tab
                 Button {
@@ -423,29 +434,30 @@ private struct ConsoleTabBar: View {
                     Label(tab.rawValue, systemImage: tab.icon)
                         .font(.system(size: 13, weight: .bold))
                         .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.vertical, 10)
+                        .padding(.vertical, 11)
                         .background {
-                            RoundedRectangle(cornerRadius: 8)
+                            RoundedRectangle(cornerRadius: 11)
                                 .fill(selected ? SBColor.tabActive : Color.clear)
+                                .shadow(color: selected ? SBColor.green.opacity(0.12) : .clear, radius: 7, x: 0, y: 3)
                         }
                         .overlay(alignment: .bottom) {
                             Capsule()
                                 .fill(selected ? SBColor.green : .clear)
-                                .frame(width: 34, height: 3)
-                                .padding(.bottom, 2)
+                                .frame(width: 38, height: 4)
+                                .padding(.bottom, 3)
                         }
                         .foregroundStyle(selected ? SBColor.green : SBColor.subtext)
-                        .contentShape(RoundedRectangle(cornerRadius: 8))
+                        .contentShape(RoundedRectangle(cornerRadius: 11))
                 }
                 .buttonStyle(SonicPressButtonStyle())
                 .accessibilityLabel(tab.rawValue)
             }
         }
-        .padding(4)
-        .background(SBColor.panel)
-        .overlay { RoundedRectangle(cornerRadius: 11).stroke(SBColor.line.opacity(0.9), lineWidth: 1) }
-        .clipShape(RoundedRectangle(cornerRadius: 11))
-        .shadow(color: SBColor.shadow.opacity(0.65), radius: 7, x: 0, y: 3)
+        .padding(5)
+        .background(SBColor.panel.opacity(0.98))
+        .overlay { RoundedRectangle(cornerRadius: 15).stroke(SBColor.line.opacity(0.78), lineWidth: 1) }
+        .clipShape(RoundedRectangle(cornerRadius: 15))
+        .shadow(color: SBColor.shadow.opacity(0.72), radius: 10, x: 0, y: 4)
     }
 }
 
@@ -661,6 +673,8 @@ private struct RoutingWorkbench: View {
 
     var body: some View {
         VStack(spacing: PerAppMixerLayout.sectionSpacing) {
+            PerAppMixer(viewModel: viewModel)
+                .frame(height: PerAppMixerLayout.panelHeight)
             SignalChain(viewModel: viewModel)
                 .frame(height: 82)
                 .padding(12)
@@ -679,8 +693,6 @@ private struct RoutingWorkbench: View {
                     }
                 }
             }
-            PerAppMixer(viewModel: viewModel)
-                .frame(height: PerAppMixerLayout.panelHeight)
             RouteActionTray(viewModel: viewModel)
         }
     }
@@ -1177,13 +1189,28 @@ private struct TrustPanel: View {
         ConsoleCard(title: "TRUST & HEALTH", icon: "checkmark.shield", color: SBColor.green) {
             VStack(spacing: 7) {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(viewModel.trustSummary.headline)
+                    Text(viewModel.audioConfidence.headline)
                         .font(.headline.weight(.black))
                     TrustSummaryRow(value: viewModel.trustSummary.clipping, color: SBColor.green)
                     TrustSummaryRow(value: viewModel.trustSummary.route, color: viewModel.routeState.isProcessingAvailable ? SBColor.green : SBColor.orange)
                     TrustSummaryRow(value: viewModel.trustSummary.cpu, color: viewModel.cpuUsagePercent > 15 ? SBColor.orange : SBColor.blue)
                 }
                 .padding(.bottom, 5)
+                Text(viewModel.audioConfidenceStatusText)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(SBColor.subtext)
+                    .lineLimit(3)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(8)
+                    .background(SBColor.panel2)
+                    .clipShape(RoundedRectangle(cornerRadius: 7))
+                ConsoleAction(
+                    title: viewModel.audioConfidence.isPassing ? "Self-Test Passed" : "Run Audio Self-Test",
+                    icon: viewModel.audioConfidence.isPassing ? "checkmark.seal" : "waveform.badge.magnifyingglass",
+                    color: viewModel.audioConfidence.isPassing ? SBColor.green : SBColor.blue
+                ) {
+                    viewModel.runAudioConfidenceCheck()
+                }
                 ForEach(viewModel.trustDiagnostics) { item in
                     TrustDiagnosticRow(item: item)
                 }
@@ -1498,11 +1525,11 @@ private struct ProcessingCard: View {
                 .truncationMode(.middle)
                 .help(routeText)
         }
-        .padding(12)
+        .padding(13)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background((viewModel.isBridgeRunning ? SBColor.green : SBColor.orange).opacity(0.13))
-        .overlay { RoundedRectangle(cornerRadius: 8).stroke((viewModel.isBridgeRunning ? SBColor.green : SBColor.orange).opacity(0.55), lineWidth: 1) }
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .background((viewModel.isBridgeRunning ? SBColor.green : SBColor.orange).opacity(0.12))
+        .overlay { RoundedRectangle(cornerRadius: 10).stroke((viewModel.isBridgeRunning ? SBColor.green : SBColor.orange).opacity(0.48), lineWidth: 1) }
+        .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 
     private var routeText: String {
@@ -1528,12 +1555,15 @@ private struct PrimaryActionLabel: View {
         }
         .font(.system(size: 14, weight: .bold))
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
+        .padding(.vertical, 13)
         .foregroundStyle(viewModel.isBridgeRunning ? SBColor.orange : .white)
-        .background(viewModel.isBridgeRunning ? SBColor.orange.opacity(0.22) : SBColor.green.opacity(0.84))
-        .overlay { RoundedRectangle(cornerRadius: 8).stroke(viewModel.isBridgeRunning ? SBColor.orange : SBColor.green, lineWidth: 1) }
-        .clipShape(RoundedRectangle(cornerRadius: 8))
-        .contentShape(RoundedRectangle(cornerRadius: 8))
+        .background {
+            RoundedRectangle(cornerRadius: 11)
+                .fill(viewModel.isBridgeRunning ? SBColor.orange.opacity(0.18) : SBColor.green.opacity(0.88))
+        }
+        .overlay { RoundedRectangle(cornerRadius: 11).stroke(viewModel.isBridgeRunning ? SBColor.orange.opacity(0.85) : SBColor.green, lineWidth: 1) }
+        .clipShape(RoundedRectangle(cornerRadius: 11))
+        .contentShape(RoundedRectangle(cornerRadius: 11))
     }
 }
 
@@ -1541,6 +1571,7 @@ private struct PresetButton: View {
     var preset: DSPPreset
     var selected: Bool
     var action: () -> Void
+    @State private var isHovering = false
 
     var body: some View {
         Button(action: action) {
@@ -1560,18 +1591,27 @@ private struct PresetButton: View {
             .padding(.horizontal, 11)
             .padding(.vertical, 11)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(selected ? SBColor.green.opacity(0.22) : .clear)
+            .background {
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(selected ? SBColor.green.opacity(0.20) : (isHovering ? SBColor.panel2.opacity(0.82) : .clear))
+            }
             .overlay(alignment: .leading) {
                 if selected {
-                    Rectangle()
+                    Capsule()
                         .fill(SBColor.green)
-                        .frame(width: 3)
+                        .frame(width: 4)
+                        .padding(.vertical, 8)
                 }
             }
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .contentShape(RoundedRectangle(cornerRadius: 8))
+            .overlay {
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(selected ? SBColor.green.opacity(0.22) : (isHovering ? SBColor.line.opacity(0.75) : .clear), lineWidth: 1)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            .contentShape(RoundedRectangle(cornerRadius: 10))
         }
         .buttonStyle(SonicPressButtonStyle())
+        .onHover { isHovering = $0 }
         .help("Use \(preset.name)")
     }
 
@@ -1640,6 +1680,133 @@ private struct ChainArrow: View {
             .font(.caption.weight(.bold))
             .foregroundStyle(color)
             .frame(width: 30)
+    }
+}
+
+private struct FooterStatusRail: View {
+    @ObservedObject var viewModel: SonicBloomViewModel
+
+    var body: some View {
+        HStack(spacing: 16) {
+            HStack(spacing: 8) {
+                Circle()
+                    .fill(viewModel.isBridgeRunning ? SBColor.green : SBColor.subtext)
+                    .frame(width: 8, height: 8)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(viewModel.isBridgeRunning ? "PROCESSING" : "STANDBY")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundStyle(SBColor.subtext)
+                    Text(String(format: "%.1f kHz", viewModel.routeState.sampleRate / 1000))
+                        .font(.system(size: 11, weight: .bold, design: .monospaced))
+                        .foregroundStyle(viewModel.isBridgeRunning ? SBColor.green : SBColor.subtext)
+                }
+            }
+            Divider().overlay(SBColor.line)
+            MiniUsageMeter(title: "CPU", value: min(max(viewModel.cpuUsagePercent / 100, 0), 1), label: "\(Int(viewModel.cpuUsagePercent.rounded()))%", color: viewModel.cpuUsagePercent > 20 ? SBColor.orange : SBColor.green)
+                .frame(width: 122)
+            Divider().overlay(SBColor.line)
+            LevelRail(title: "INPUT", value: Double(viewModel.meterModel.meter.inputPeak), color: SBColor.green)
+            LevelRail(title: "OUTPUT", value: Double(viewModel.meterModel.meter.outputPeak), color: SBColor.blue)
+            Divider().overlay(SBColor.line)
+            MetricPill(title: "LATENCY", value: String(format: "%.1f ms", viewModel.routeState.estimatedLatencyMS), color: viewModel.routeState.estimatedLatencyMS > 20 ? SBColor.orange : SBColor.green)
+            MetricPill(title: "MODE", value: viewModel.settings.syncMode.rawValue, color: SBColor.blue)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 7)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(SBColor.panel.opacity(0.96))
+        .overlay { RoundedRectangle(cornerRadius: 14).stroke(SBColor.line.opacity(0.72), lineWidth: 1) }
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .shadow(color: SBColor.shadow.opacity(0.75), radius: 8, x: 0, y: 3)
+    }
+}
+
+private struct MetricPill: View {
+    var title: String
+    var value: String
+    var color: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(title)
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(SBColor.subtext)
+            Text(value)
+                .font(.system(size: 11, weight: .bold, design: .monospaced))
+                .foregroundStyle(color)
+                .lineLimit(1)
+        }
+        .frame(width: 80, alignment: .leading)
+    }
+}
+
+private struct MiniUsageMeter: View {
+    var title: String
+    var value: Double
+    var label: String
+    var color: Color
+
+    var body: some View {
+        HStack(spacing: 8) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(SBColor.subtext)
+                Text(label)
+                    .font(.system(size: 11, weight: .bold, design: .monospaced))
+                    .foregroundStyle(color)
+            }
+            GeometryReader { proxy in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(SBColor.panel2)
+                    Capsule()
+                        .fill(color)
+                        .frame(width: proxy.size.width * min(max(value, 0), 1))
+                }
+            }
+            .frame(height: 6)
+        }
+    }
+}
+
+private struct LevelRail: View {
+    var title: String
+    var value: Double
+    var color: Color
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(title)
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(SBColor.subtext)
+                .frame(width: 42, alignment: .leading)
+            GeometryReader { proxy in
+                let clamped = min(max(value, 0), 1)
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(SBColor.panel2)
+                    HStack(spacing: 2) {
+                        ForEach(0..<38, id: \.self) { index in
+                            let segment = Double(index + 1) / 38
+                            RoundedRectangle(cornerRadius: 1)
+                                .fill(segment <= clamped ? segmentColor(segment) : SBColor.line.opacity(0.20))
+                        }
+                    }
+                    .padding(.horizontal, 3)
+                    .padding(.vertical, 2)
+                }
+                .overlay { Capsule().stroke(SBColor.line.opacity(0.55), lineWidth: 1) }
+                .frame(width: proxy.size.width, height: proxy.size.height)
+            }
+            .frame(height: 13)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private func segmentColor(_ segment: Double) -> Color {
+        if segment > 0.88 { return SBColor.red }
+        if segment > 0.70 { return SBColor.orange }
+        return color
     }
 }
 
@@ -1911,6 +2078,8 @@ private struct CircularKnob: View {
     var body: some View {
         Canvas { context, size in
             let rect = CGRect(origin: .zero, size: size).insetBy(dx: 5, dy: 5)
+            let center = CGPoint(x: size.width / 2, y: size.height / 2)
+            context.fill(Path(ellipseIn: rect.insetBy(dx: -2, dy: -2)), with: .color(SBColor.shadow.opacity(isActive ? 0.12 : 0.06)))
             for tick in 0...10 {
                 let tickAngle = CGFloat(Angle.degrees(-135 + Double(tick) / 10 * 270).radians)
                 let outer = CGPoint(x: size.width / 2 + cos(tickAngle) * rect.width * 0.52, y: size.height / 2 + sin(tickAngle) * rect.height * 0.52)
@@ -1920,21 +2089,28 @@ private struct CircularKnob: View {
                 tickPath.addLine(to: outer)
                 context.stroke(tickPath, with: .color(SBColor.subtext.opacity(tick % 5 == 0 ? 0.75 : 0.34)), lineWidth: tick % 5 == 0 ? 1.2 : 0.7)
             }
-            context.stroke(Path(ellipseIn: rect), with: .color(SBColor.line), lineWidth: 3)
+            context.stroke(Path(ellipseIn: rect), with: .color(SBColor.line.opacity(0.72)), lineWidth: 5)
             let angle = Angle.degrees(-135 + min(max(value, 0), 1) * 270)
             var arc = Path()
             arc.addArc(center: CGPoint(x: size.width / 2, y: size.height / 2), radius: rect.width / 2, startAngle: .degrees(135), endAngle: angle, clockwise: false)
+            context.stroke(arc, with: .color(color.opacity(0.22)), lineWidth: 8)
             context.stroke(arc, with: .color(color), lineWidth: 4)
-            context.fill(Path(ellipseIn: rect.insetBy(dx: 11, dy: 11)), with: .color(SBColor.panel))
-            context.stroke(Path(ellipseIn: rect.insetBy(dx: 11, dy: 11)), with: .color(SBColor.line.opacity(0.9)), lineWidth: 1)
+            let innerRect = rect.insetBy(dx: 11, dy: 11)
+            context.fill(Path(ellipseIn: innerRect), with: .color(SBColor.panel))
+            context.stroke(Path(ellipseIn: innerRect), with: .color(SBColor.line.opacity(0.92)), lineWidth: 1)
+            context.stroke(Path(ellipseIn: innerRect.insetBy(dx: 7, dy: 7)), with: .color(color.opacity(isActive ? 0.18 : 0.10)), lineWidth: 1)
+            var highlight = Path()
+            highlight.addArc(center: center, radius: innerRect.width * 0.38, startAngle: .degrees(210), endAngle: .degrees(300), clockwise: false)
+            context.stroke(highlight, with: .color(.white.opacity(0.74)), lineWidth: 1.1)
             let pointer = CGPoint(
                 x: size.width / 2 + cos(CGFloat(angle.radians)) * rect.width * 0.32,
                 y: size.height / 2 + sin(CGFloat(angle.radians)) * rect.height * 0.32
             )
             var line = Path()
-            line.move(to: CGPoint(x: size.width / 2, y: size.height / 2))
+            line.move(to: center)
             line.addLine(to: pointer)
-            context.stroke(line, with: .color(SBColor.text), lineWidth: 2)
+            context.stroke(line, with: .color(SBColor.text.opacity(0.92)), lineWidth: 2)
+            context.fill(Path(ellipseIn: CGRect(x: pointer.x - 2.2, y: pointer.y - 2.2, width: 4.4, height: 4.4)), with: .color(color))
         }
         .background(SBColor.panel2)
         .clipShape(Circle())
@@ -2124,16 +2300,17 @@ private struct ConsoleCard<Content: View>: View {
                 if let icon {
                     Image(systemName: icon)
                         .foregroundStyle(color)
+                        .font(.system(size: 15, weight: .semibold))
                 }
                 Text(title)
-                    .font(.system(size: 13, weight: .bold))
+                    .font(.system(size: 14, weight: .black))
                 Spacer()
             }
             cardContent
         }
-        .padding(12)
+        .padding(14)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .consolePanel(accent: color.opacity(0.35))
+        .consolePanel(accent: color.opacity(0.32))
     }
 
     @ViewBuilder
@@ -2239,14 +2416,12 @@ private struct ConsoleAction: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 12)
                 .background {
-                    ZStack {
-                        SBColor.panel2
-                        color.opacity(0.14)
-                    }
+                    RoundedRectangle(cornerRadius: 10)
+                        .fill(color.opacity(0.12))
                 }
-                .overlay { RoundedRectangle(cornerRadius: 8).stroke(color.opacity(0.55), lineWidth: 1) }
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-                .contentShape(RoundedRectangle(cornerRadius: 8))
+                .overlay { RoundedRectangle(cornerRadius: 10).stroke(color.opacity(0.48), lineWidth: 1) }
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .contentShape(RoundedRectangle(cornerRadius: 10))
         }
         .buttonStyle(SonicPressButtonStyle())
     }
@@ -2303,13 +2478,23 @@ private struct ConsoleBackdrop: View {
     var body: some View {
         Canvas { context, size in
             var grid = Path()
-            for x in stride(from: 0.0, through: Double(size.width), by: 44.0) {
+            for x in stride(from: 0.0, through: Double(size.width), by: 46.0) {
                 grid.move(to: CGPoint(x: x, y: 0)); grid.addLine(to: CGPoint(x: x, y: size.height))
             }
-            for y in stride(from: 0.0, through: Double(size.height), by: 44.0) {
+            for y in stride(from: 0.0, through: Double(size.height), by: 46.0) {
                 grid.move(to: CGPoint(x: 0, y: y)); grid.addLine(to: CGPoint(x: size.width, y: y))
             }
-            context.stroke(grid, with: .color(SBColor.line.opacity(0.07)), lineWidth: 0.6)
+            context.stroke(grid, with: .color(SBColor.line.opacity(0.06)), lineWidth: 0.55)
+
+            var diagonal = Path()
+            diagonal.move(to: CGPoint(x: size.width * 0.48, y: 0))
+            diagonal.addLine(to: CGPoint(x: size.width, y: size.height * 0.48))
+            context.stroke(diagonal, with: .color(SBColor.blue.opacity(0.035)), lineWidth: 90)
+
+            var warm = Path()
+            warm.move(to: CGPoint(x: size.width * 0.74, y: 0))
+            warm.addLine(to: CGPoint(x: size.width, y: size.height * 0.22))
+            context.stroke(warm, with: .color(SBColor.orange.opacity(0.030)), lineWidth: 120)
         }
         .background(SBColor.canvas)
         .ignoresSafeArea()
@@ -2328,10 +2513,13 @@ private struct SonicPressButtonStyle: ButtonStyle {
 
 private extension View {
     func consolePanel(accent: Color = SBColor.line) -> some View {
-        background(SBColor.panel)
+        background {
+            RoundedRectangle(cornerRadius: 14)
+                .fill(SBColor.panel)
+        }
             .overlay { PanelTexture(accent: accent).allowsHitTesting(false) }
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .shadow(color: SBColor.shadow, radius: 9, x: 0, y: 4)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .shadow(color: SBColor.shadow.opacity(0.86), radius: 12, x: 0, y: 5)
     }
 }
 
@@ -2342,35 +2530,40 @@ private struct PanelTexture: View {
         ZStack {
             Canvas { context, size in
                 var lines = Path()
-                for y in stride(from: 6.0, through: Double(size.height), by: 9.0) {
+                for y in stride(from: 6.0, through: Double(size.height), by: 10.0) {
                     lines.move(to: CGPoint(x: 0, y: y))
                     lines.addLine(to: CGPoint(x: size.width, y: y))
                 }
-                context.stroke(lines, with: .color(SBColor.text.opacity(0.014)), lineWidth: 0.6)
+                context.stroke(lines, with: .color(SBColor.text.opacity(0.012)), lineWidth: 0.55)
+
+                var top = Path()
+                top.move(to: CGPoint(x: 10, y: 1))
+                top.addLine(to: CGPoint(x: size.width - 10, y: 1))
+                context.stroke(top, with: .color(.white.opacity(0.88)), lineWidth: 1)
             }
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(SBColor.text.opacity(0.035), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(SBColor.text.opacity(0.030), lineWidth: 1)
                 .padding(2)
-            RoundedRectangle(cornerRadius: 12)
+            RoundedRectangle(cornerRadius: 14)
                 .stroke(accent.opacity(0.48), lineWidth: 1)
         }
     }
 }
 
 private enum SBColor {
-    static let canvas = Color(light: ns(0.945, 0.962, 0.956), dark: ns(0.01, 0.025, 0.028))
-    static let panel = Color(light: ns(0.992, 0.997, 0.994), dark: ns(0.025, 0.055, 0.058))
-    static let panel2 = Color(light: ns(0.935, 0.957, 0.95), dark: ns(0.045, 0.075, 0.078))
-    static let tabActive = Color(light: ns(0.88, 0.935, 0.91), dark: ns(0.12, 0.14, 0.13))
-    static let scope = Color(light: ns(0.955, 0.98, 0.972), dark: ns(0.015, 0.04, 0.043))
+    static let canvas = Color(light: ns(0.936, 0.957, 0.950), dark: ns(0.01, 0.025, 0.028))
+    static let panel = Color(light: ns(0.995, 0.998, 0.996), dark: ns(0.025, 0.055, 0.058))
+    static let panel2 = Color(light: ns(0.928, 0.952, 0.946), dark: ns(0.045, 0.075, 0.078))
+    static let tabActive = Color(light: ns(0.858, 0.925, 0.895), dark: ns(0.12, 0.14, 0.13))
+    static let scope = Color(light: ns(0.948, 0.978, 0.970), dark: ns(0.015, 0.04, 0.043))
     static let text = Color(light: ns(0.04, 0.06, 0.07), dark: ns(0.88, 0.90, 0.88))
     static let subtext = Color(light: ns(0.35, 0.41, 0.42), dark: ns(0.62, 0.66, 0.66))
-    static let line = Color(light: ns(0.76, 0.82, 0.805), dark: ns(0.17, 0.24, 0.25))
-    static let green = Color(light: ns(0.02, 0.58, 0.27), dark: ns(0.19, 0.95, 0.39))
-    static let blue = Color(light: ns(0.02, 0.45, 0.70), dark: ns(0.15, 0.78, 0.98))
-    static let orange = Color(light: ns(0.86, 0.45, 0.04), dark: ns(1.00, 0.58, 0.08))
-    static let yellow = Color(light: ns(0.78, 0.62, 0.05), dark: ns(0.92, 0.95, 0.18))
-    static let red = Color(light: ns(0.82, 0.22, 0.20), dark: ns(1.00, 0.32, 0.34))
+    static let line = Color(light: ns(0.74, 0.815, 0.795), dark: ns(0.17, 0.24, 0.25))
+    static let green = Color(light: ns(0.00, 0.63, 0.32), dark: ns(0.19, 0.95, 0.39))
+    static let blue = Color(light: ns(0.00, 0.50, 0.76), dark: ns(0.15, 0.78, 0.98))
+    static let orange = Color(light: ns(0.90, 0.48, 0.03), dark: ns(1.00, 0.58, 0.08))
+    static let yellow = Color(light: ns(0.80, 0.64, 0.02), dark: ns(0.92, 0.95, 0.18))
+    static let red = Color(light: ns(0.86, 0.25, 0.22), dark: ns(1.00, 0.32, 0.34))
     static let purple = Color(light: ns(0.56, 0.36, 0.78), dark: ns(0.78, 0.56, 0.98))
     static let shadow = Color(light: .black.withAlphaComponent(0.08), dark: .black.withAlphaComponent(0.45))
 }

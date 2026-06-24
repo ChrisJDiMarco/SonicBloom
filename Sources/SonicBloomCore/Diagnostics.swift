@@ -15,6 +15,51 @@ public struct TrustSummary: Equatable, Sendable {
     }
 }
 
+public struct AudioConfidenceReport: Equatable, Sendable {
+    public var headline: String
+    public var route: String
+    public var latency: String
+    public var clipping: String
+    public var cpu: String
+    public var recovery: String
+    public var isPassing: Bool
+
+    public init(headline: String, route: String, latency: String, clipping: String, cpu: String, recovery: String, isPassing: Bool) {
+        self.headline = headline
+        self.route = route
+        self.latency = latency
+        self.clipping = clipping
+        self.cpu = cpu
+        self.recovery = recovery
+        self.isPassing = isPassing
+    }
+}
+
+public enum AudioConfidenceReportBuilder {
+    public static func build(
+        routeState: AudioRouteState,
+        meter: DSPMeter,
+        cpuUsagePercent: Double,
+        audioHealth: AudioStreamHealth,
+        lastError: String?
+    ) -> AudioConfidenceReport {
+        let routeOK = routeState.isProcessingAvailable && routeState.selectedPhysicalOutputName != nil
+        let latencyOK = routeState.estimatedLatencyMS <= 20
+        let cpuOK = cpuUsagePercent <= 20
+        let healthOK = !audioHealth.needsRepair && lastError == nil
+        let passing = routeOK && latencyOK && cpuOK && healthOK
+        return AudioConfidenceReport(
+            headline: passing ? "Ready for daily use" : "Needs one fix",
+            route: routeOK ? "Route OK -> \(routeState.selectedPhysicalOutputName ?? "Output")" : "Route needs output or driver",
+            latency: latencyOK ? String(format: "Latency OK: %.1f ms", routeState.estimatedLatencyMS) : String(format: "Latency high: %.1f ms", routeState.estimatedLatencyMS),
+            clipping: meter.limitedSamples == 0 ? "No clipping" : "\(meter.limitedSamples) peaks protected",
+            cpu: cpuOK ? String(format: "CPU OK: %.1f%%", cpuUsagePercent) : String(format: "CPU high: %.1f%%", cpuUsagePercent),
+            recovery: healthOK ? "Audio path stable" : (lastError ?? audioHealth.summary),
+            isPassing: passing
+        )
+    }
+}
+
 public enum TrustSummaryBuilder {
     public static func build(
         routeState: AudioRouteState,
@@ -78,6 +123,7 @@ public enum SonicBloomDiagnosticsReport {
             String(format: "Gain Reduction: %.1f dB", meter.gainReductionDB),
             "Clips Protected: \(meter.limitedSamples)",
             "Audio Health: \(audioHealth.summary)",
+            "Confidence: \(AudioConfidenceReportBuilder.build(routeState: routeState, meter: meter, cpuUsagePercent: cpuUsagePercent, audioHealth: audioHealth, lastError: lastError).headline)",
             "Recovery: \(routeState.recoverySummary)",
             "Status: \(routeState.statusMessage)",
             "Last Error: \(lastError ?? "None")"

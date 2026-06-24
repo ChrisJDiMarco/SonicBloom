@@ -1744,7 +1744,7 @@ final class SonicBloomCoreTests: XCTestCase {
             hasPlayedTestSound: false
         )
 
-        XCTAssertEqual(steps.map(\.id), [.installDriver, .recoverOutput, .chooseOutput, .testSound, .turnOnEnhancement])
+        XCTAssertEqual(steps.map(\.id), [.installDriver, .recoverOutput, .chooseOutput, .testSound, .turnOnEnhancement, .audioSelfTest])
         XCTAssertEqual(steps[1].actionTitle, "Recover Output")
         XCTAssertFalse(steps[1].isComplete)
     }
@@ -1766,11 +1766,28 @@ final class SonicBloomCoreTests: XCTestCase {
         let steps = FirstRunSetupGuide.steps(
             routeState: route,
             isBridgeRunning: true,
+            hasPlayedTestSound: true,
+            hasPassedAudioSelfTest: true
+        )
+
+        XCTAssertEqual(steps.map(\.id), [.installDriver, .recoverOutput, .chooseOutput, .testSound, .turnOnEnhancement, .audioSelfTest])
+        XCTAssertTrue(FirstRunSetupGuide.isComplete(steps))
+    }
+
+    func testFirstRunSetupGuideRequiresAudioSelfTest() {
+        var route = AudioRouteState.default
+        route.installHealth = .active
+        route.selectedPhysicalOutputName = "MacBook Speakers"
+
+        let steps = FirstRunSetupGuide.steps(
+            routeState: route,
+            isBridgeRunning: true,
             hasPlayedTestSound: true
         )
 
-        XCTAssertEqual(steps.map(\.id), [.installDriver, .recoverOutput, .chooseOutput, .testSound, .turnOnEnhancement])
-        XCTAssertTrue(FirstRunSetupGuide.isComplete(steps))
+        XCTAssertEqual(steps.last?.id, .audioSelfTest)
+        XCTAssertEqual(steps.last?.actionTitle, "Run Self-Test")
+        XCTAssertFalse(FirstRunSetupGuide.isComplete(steps))
     }
 
     func testRouteStateEstimatesRoundTripLatencyFromBuffer() {
@@ -1965,6 +1982,43 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertEqual(degraded.headline, "Needs attention")
         XCTAssertEqual(degraded.route, "Route degraded")
         XCTAssertEqual(degraded.cpu, "CPU high")
+    }
+
+    func testAudioConfidenceReportSeparatesHealthyAndActionableStates() {
+        var route = AudioRouteState.default
+        route.installHealth = .active
+        route.selectedPhysicalOutputName = "AirPods Pro"
+        route.sampleRate = 48_000
+        route.bufferSize = 64
+
+        let healthy = AudioConfidenceReportBuilder.build(
+            routeState: route,
+            meter: DSPMeter(),
+            cpuUsagePercent: 4,
+            audioHealth: AudioStreamHealth(),
+            lastError: nil
+        )
+        let failing = AudioConfidenceReportBuilder.build(
+            routeState: route.recordingDegradedRecovery("Route unavailable."),
+            meter: DSPMeter(limitedSamples: 8),
+            cpuUsagePercent: 30,
+            audioHealth: AudioStreamHealth(underflowFrames: 512),
+            lastError: "Route unavailable."
+        )
+
+        XCTAssertTrue(healthy.isPassing)
+        XCTAssertEqual(healthy.headline, "Ready for daily use")
+        XCTAssertTrue(healthy.route.contains("AirPods Pro"))
+        XCTAssertFalse(failing.isPassing)
+        XCTAssertEqual(failing.headline, "Needs one fix")
+        XCTAssertTrue(failing.cpu.contains("high"))
+        XCTAssertTrue(failing.recovery.contains("Route unavailable"))
+    }
+
+    func testPresetStoriesAreUserFacingAndStable() {
+        XCTAssertTrue(DSPPreset.cleanLoud.story.contains("protected headroom"))
+        XCTAssertTrue(DSPPreset.movies.story.contains("cinematic"))
+        XCTAssertEqual(DSPPreset.manual.story, "Your custom live tuning surface.")
     }
 
     func testDiagnosticsReportIncludesSupportCriticalState() {
@@ -2314,6 +2368,8 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertTrue(readiness.contains("SONICBLOOM_NOTARY_PROFILE"))
         XCTAssertTrue(readiness.contains("Docs/Support.md"))
         XCTAssertTrue(readiness.contains("Docs/QA-Matrix.md"))
+        XCTAssertTrue(readiness.contains("--strict"))
+        XCTAssertTrue(qaGate.contains("Scripts/release_readiness.sh --strict"))
     }
 
     func testUpdateManifestReportsAvailableRelease() throws {
@@ -2585,6 +2641,8 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertTrue(qaScript.contains("Scripts/build_app.sh"))
         XCTAssertTrue(qaScript.contains("Scripts/test_hal_bundle.sh"))
         XCTAssertTrue(qaScript.contains("Scripts/package_release.sh --skip-build"))
+        XCTAssertTrue(qaScript.contains("--strict"))
+        XCTAssertTrue(qaScript.contains("Scripts/release_readiness.sh --strict"))
         XCTAssertTrue(qaScript.contains("SonicBloomManifestSigner"))
         XCTAssertEqual((permissions?.intValue ?? 0) & 0o111, 0o111)
     }
@@ -2606,6 +2664,8 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertTrue(packageScript.contains("xcrun notarytool submit"))
         XCTAssertTrue(packageScript.contains("xcrun stapler staple"))
         XCTAssertTrue(packageScript.contains("xcrun stapler validate"))
+        XCTAssertTrue(packageScript.contains("pkgutil --check-signature"))
+        XCTAssertTrue(packageScript.contains("spctl -a -vv -t install"))
     }
 
     func testPackageReleaseRequiresSigningIdentityForNotarization() throws {

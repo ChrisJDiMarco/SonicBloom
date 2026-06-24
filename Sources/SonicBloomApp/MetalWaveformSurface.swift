@@ -22,7 +22,7 @@ struct MetalWaveformSurface: NSViewRepresentable {
         let view = MTKView()
         view.device = MTLCreateSystemDefaultDevice()
         view.colorPixelFormat = .bgra8Unorm
-        view.clearColor = MTLClearColor(red: 0.955, green: 0.98, blue: 0.972, alpha: 1)
+        view.clearColor = MTLClearColor(red: 0.948, green: 0.978, blue: 0.970, alpha: 1)
         view.framebufferOnly = true
         view.preferredFramesPerSecond = 60
         view.enableSetNeedsDisplay = false
@@ -213,7 +213,7 @@ struct MetalWaveformSurface: NSViewRepresentable {
         }
 
         private func smoothedSnapshot(from target: Snapshot) -> Snapshot {
-            let alpha: Float = target.reduceMotion ? 1 : 0.18
+            let alpha: Float = target.reduceMotion ? 1 : 0.14
             smoothedInputPeak += (target.inputPeak - smoothedInputPeak) * alpha
             smoothedOutputPeak += (target.outputPeak - smoothedOutputPeak) * alpha
             smoothedLowEnergy += (target.lowEnergy - smoothedLowEnergy) * alpha
@@ -245,12 +245,13 @@ struct MetalWaveformSurface: NSViewRepresentable {
             appendGrid()
             appendFilledSpectrum(snapshot: snapshot, time: time)
             appendBandHighlights(snapshot: snapshot)
+            appendHarmonicRibbons(snapshot: snapshot, time: time)
             appendWaveLine(snapshot: snapshot, time: time)
             appendResponseLine(snapshot: snapshot)
         }
 
         private func appendGrid() {
-            let color = SIMD4<Float>(0.33, 0.46, 0.43, 0.14)
+            let color = SIMD4<Float>(0.31, 0.44, 0.42, 0.12)
             let start = vertices.count
             for index in 0...10 {
                 let x = -1 + Float(index) * 0.2
@@ -260,6 +261,7 @@ struct MetalWaveformSurface: NSViewRepresentable {
                 let y = -0.92 + Float(index) * 0.368
                 appendLine(from: SIMD2<Float>(-0.98, y), to: SIMD2<Float>(0.98, y), color: color)
             }
+            appendLine(from: SIMD2<Float>(-0.98, 0.08), to: SIMD2<Float>(0.98, 0.08), color: SIMD4<Float>(0.00, 0.63, 0.32, 0.18))
             drawRanges.append(DrawRange(primitive: .line, start: start, count: vertices.count - start))
         }
 
@@ -271,8 +273,8 @@ struct MetalWaveformSurface: NSViewRepresentable {
                 let x = -0.98 + t * 1.96
                 let energy = spectrumEnergy(at: t, snapshot: snapshot, time: time)
                 let y = spectrumY(energy)
-                let alpha = 0.12 + energy * 0.26
-                vertices.append(Vertex(position: SIMD4<Float>(x, -0.88, 0, 1), color: spectrumColor(t, alpha: 0.055)))
+                let alpha = 0.09 + energy * 0.30
+                vertices.append(Vertex(position: SIMD4<Float>(x, -0.88, 0, 1), color: spectrumColor(t, alpha: 0.045)))
                 vertices.append(Vertex(position: SIMD4<Float>(x, y, 0, 1), color: spectrumColor(t, alpha: alpha)))
             }
             drawRanges.append(DrawRange(primitive: .triangleStrip, start: start, count: vertices.count - start))
@@ -298,26 +300,45 @@ struct MetalWaveformSurface: NSViewRepresentable {
             }
         }
 
+        private func appendHarmonicRibbons(snapshot: Snapshot, time: Float) {
+            let activity = snapshot.isRunning ? max(snapshot.outputPeak, snapshot.inputPeak, 0.04) : 0.02
+            let ribbons: [(Float, Float, SIMD4<Float>)] = [
+                (0.22, bandLevel(snapshot.lowEnergy), SIMD4<Float>(0.00, 0.63, 0.32, 0.34)),
+                (0.52, bandLevel(snapshot.midEnergy), SIMD4<Float>(0.00, 0.50, 0.76, 0.30)),
+                (0.78, bandLevel(snapshot.highEnergy), SIMD4<Float>(0.86, 0.25, 0.22, 0.24))
+            ]
+            for (center, level, color) in ribbons {
+                let amplitude = max(level, activity * 0.18)
+                appendPolyline(samples: 180, color: color) { t in
+                    let x = -0.98 + t * 1.96
+                    let bell = exp(-pow((t - center) * 5.0, 2.0))
+                    let shimmer = sin(t * 28 + time * (1.4 + center)) * 0.018 * amplitude
+                    let y = spectrumY(amplitude * bell * 0.72) + shimmer - 0.03
+                    return SIMD2<Float>(x, min(max(y, -0.82), 0.72))
+                }
+            }
+        }
+
         private func appendWaveLine(snapshot: Snapshot, time: Float) {
             let outputActivity = snapshot.isRunning ? max(snapshot.outputPeak, 0.04) : 0.02
             let inputActivity = snapshot.isRunning ? max(snapshot.inputPeak, 0.04) : 0.02
-            appendPolyline(samples: 320, color: SIMD4<Float>(0.02, 0.45, 0.70, 0.88)) { t in
+            appendPolyline(samples: 360, color: SIMD4<Float>(0.00, 0.50, 0.76, 0.88)) { t in
                 let x = -0.98 + t * 1.96
                 let energy = spectrumEnergy(at: t, snapshot: snapshot, time: time)
-                let wave = sin(t * 122 + time * 4.2) * 0.045 * outputActivity
-                let fine = sin(t * 361 + time * 7.4) * 0.014 * outputActivity
+                let wave = sin(t * 112 + time * 3.7) * 0.034 * outputActivity
+                let fine = sin(t * 287 + time * 6.2) * 0.010 * outputActivity
                 return SIMD2<Float>(x, spectrumY(energy * 0.92) + wave + fine)
             }
-            appendPolyline(samples: 260, color: SIMD4<Float>(0.86, 0.45, 0.04, 0.50)) { t in
+            appendPolyline(samples: 300, color: SIMD4<Float>(0.90, 0.48, 0.03, 0.46)) { t in
                 let x = -0.98 + t * 1.96
                 let energy = spectrumEnergy(at: t, snapshot: snapshot, time: time) * (0.74 + inputActivity * 0.35)
-                let wave = sin(t * 83 + time * 3.1) * 0.025 * inputActivity
+                let wave = sin(t * 79 + time * 2.8) * 0.020 * inputActivity
                 return SIMD2<Float>(x, spectrumY(energy) - 0.06 + wave)
             }
-            appendPolyline(samples: 220, color: SIMD4<Float>(0.56, 0.36, 0.78, 0.34)) { t in
+            appendPolyline(samples: 260, color: SIMD4<Float>(0.56, 0.36, 0.78, 0.36)) { t in
                 let x = -0.98 + t * 1.96
                 let air = bandLevel(snapshot.highEnergy)
-                let wave = sin(t * 65 + time * 2.2) * 0.022 * air
+                let wave = sin(t * 61 + time * 1.8) * 0.018 * air
                 return SIMD2<Float>(x, spectrumY(air * exp(-pow((t - 0.82) * 3.6, 2.0))) - 0.18 + wave)
             }
         }
@@ -327,7 +348,7 @@ struct MetalWaveformSurface: NSViewRepresentable {
             for glow in 0..<3 {
                 let alpha: Float = glow == 0 ? 0.84 : 0.18
                 let yOffset = Float(glow - 1) * 0.012
-                appendPolyline(samples: max(bands.count - 1, 1), color: SIMD4<Float>(0.02, 0.58, 0.27, alpha)) { t in
+                appendPolyline(samples: max(bands.count - 1, 1), color: SIMD4<Float>(0.00, 0.63, 0.32, alpha)) { t in
                     let rawIndex = t * Float(max(bands.count - 1, 1))
                     let lower = min(max(Int(rawIndex), 0), bands.count - 1)
                     let upper = min(lower + 1, bands.count - 1)
@@ -391,10 +412,10 @@ struct MetalWaveformSurface: NSViewRepresentable {
                 return SIMD4<Float>(0.00, 0.68, 0.66, alpha)
             }
             if t < 0.70 {
-                return SIMD4<Float>(0.02, 0.58, 0.27, alpha)
+                return SIMD4<Float>(0.00, 0.63, 0.32, alpha)
             }
             if t < 0.86 {
-                return SIMD4<Float>(0.86, 0.45, 0.04, alpha)
+                return SIMD4<Float>(0.90, 0.48, 0.03, alpha)
             }
             return SIMD4<Float>(0.56, 0.36, 0.78, alpha)
         }

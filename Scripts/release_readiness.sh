@@ -5,6 +5,20 @@ cd "$(dirname "$0")/.."
 
 warnings=0
 failures=0
+strict=0
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --strict)
+      strict=1
+      ;;
+    *)
+      echo "usage: Scripts/release_readiness.sh [--strict]" >&2
+      exit 64
+      ;;
+  esac
+  shift
+done
 
 pass() { printf 'PASS %s\n' "$1"; }
 warn() { warnings=$((warnings + 1)); printf 'WARN %s\n' "$1"; }
@@ -53,6 +67,11 @@ fi
 
 if [[ "$failures" -gt 0 ]]; then
   printf 'Release readiness failed: %d failure(s), %d warning(s)\n' "$failures" "$warnings" >&2
+  exit 1
+fi
+
+if [[ "$strict" == "1" && "$warnings" -gt 0 ]]; then
+  printf 'Strict release readiness failed: %d warning(s)\n' "$warnings" >&2
   exit 1
 fi
 

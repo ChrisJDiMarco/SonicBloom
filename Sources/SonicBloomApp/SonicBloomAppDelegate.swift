@@ -84,6 +84,16 @@ final class SonicBloomAppDelegate: NSObject, NSApplicationDelegate {
         refreshStatusMenu()
     }
 
+    @objc private func runAudioSelfTest() {
+        viewModel.runAudioConfidenceCheck()
+        refreshStatusMenu()
+    }
+
+    @objc private func copySupportBundle() {
+        viewModel.copySupportBundleReport()
+        refreshStatusMenu()
+    }
+
     @objc private func quit() {
         NSApp.terminate(nil)
     }
@@ -107,7 +117,9 @@ final class SonicBloomAppDelegate: NSObject, NSApplicationDelegate {
         menu.removeAllItems()
 
         menu.addItem(disabledItem(viewModel.isBridgeRunning ? "Live: \(viewModel.selectedPreset.name)" : "Ready: \(viewModel.selectedPreset.name)"))
+        menu.addItem(disabledItem(viewModel.selectedPreset.story))
         menu.addItem(disabledItem("Output: \(viewModel.routeState.selectedPhysicalOutputName ?? "No output")"))
+        menu.addItem(disabledItem("Confidence: \(viewModel.audioConfidence.headline)"))
         menu.addItem(.separator())
         menu.addItem(actionItem("Open SonicBloom", #selector(openControlPanel), "o"))
 
@@ -125,8 +137,10 @@ final class SonicBloomAppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(bypassItem)
 
         menu.addItem(.separator())
+        menu.addItem(actionItem("Run Audio Self-Test", #selector(runAudioSelfTest), "t"))
         menu.addItem(actionItem("Repair Audio Route", #selector(repairAudioRoute), "r"))
         menu.addItem(actionItem("Optimize For Video Sync", #selector(optimizeForVideoSync), "v"))
+        menu.addItem(actionItem("Copy Support Bundle", #selector(copySupportBundle), "d"))
         menu.addItem(.separator())
         menu.addItem(actionItem("Quit", #selector(quit), "q"))
 

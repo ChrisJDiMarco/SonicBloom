@@ -109,6 +109,7 @@ run chmod +x "$pkg_dir/SonicBloom-Uninstall.command"
 run chmod +x "$pkg_dir/SonicBloom-Install-Recovery.command"
 if [[ -n "$identity" ]]; then
   run productbuild --component "$app" /Applications --identifier com.chrisdimarco.sonicbloom.pkg --version "$version" --sign "$identity" "$pkg"
+  run pkgutil --check-signature "$pkg"
 else
   run productbuild --component "$app" /Applications --identifier com.chrisdimarco.sonicbloom.pkg --version "$version" "$pkg"
 fi
@@ -117,6 +118,7 @@ if [[ -n "$notary_profile" ]]; then
   run xcrun notarytool submit "$pkg" --keychain-profile "$notary_profile" --wait
   run xcrun stapler staple "$pkg"
   run xcrun stapler validate "$pkg"
+  run spctl -a -vv -t install "$pkg"
 fi
 
 manifest="$pkg_dir/SonicBloom-update.json"
