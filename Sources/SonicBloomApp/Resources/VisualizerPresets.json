@@ -1,0 +1,1102 @@
+[
+  {
+    "id": "bloom-tunnel",
+    "name": "Bloom Tunnel",
+    "transitionDuration": 3.2,
+    "palette": {
+      "background": { "red": 0.004, "green": 0.010, "blue": 0.014 },
+      "primary": { "red": 0.000, "green": 0.680, "blue": 0.660 },
+      "secondary": { "red": 0.000, "green": 0.630, "blue": 0.320 },
+      "accent": { "red": 0.900, "green": 0.480, "blue": 0.030 }
+    },
+    "modules": { "warp": 0.82, "ribbons": 0.70, "radialSpectrum": 0.84, "particles": 0.52, "bloom": 0.68, "waveform": 0.58 },
+    "generators": { "particleCount": 86, "radialComplexity": 0.66, "ribbonCount": 4, "tunnelDepth": 0.78, "symmetry": 0.46 },
+    "morph": { "rate": 0.54, "chaos": 0.36, "geometry": 0.48, "colorDrift": 0.38, "sceneBlend": 0.70, "feedbackEcho": 0.58, "prism": 0.24, "waveComplexity": 0.54 },
+    "reactiveParameters": {
+      "warp": { "base": 0.18, "bass": 0.32, "beat": 0.18, "flux": 0.08 },
+      "zoom": { "base": 0.09, "bass": 0.14, "peak": 0.06 },
+      "bloom": { "base": 0.36, "high": 0.18, "beat": 0.26 },
+      "rotation": { "base": 0.04, "mid": 0.10, "flux": 0.08 }
+    }
+  },
+  {
+    "id": "glass-cathedral",
+    "name": "Glass Cathedral",
+    "transitionDuration": 4.4,
+    "palette": {
+      "background": { "red": 0.010, "green": 0.012, "blue": 0.026 },
+      "primary": { "red": 0.380, "green": 0.780, "blue": 1.000 },
+      "secondary": { "red": 0.720, "green": 0.940, "blue": 0.880 },
+      "accent": { "red": 0.980, "green": 0.820, "blue": 0.420 }
+    },
+    "modules": { "warp": 0.50, "ribbons": 0.92, "radialSpectrum": 0.58, "particles": 0.36, "bloom": 0.78, "waveform": 0.46 },
+    "generators": { "particleCount": 54, "radialComplexity": 0.38, "ribbonCount": 7, "tunnelDepth": 0.42, "symmetry": 0.90 },
+    "morph": { "rate": 0.32, "chaos": 0.14, "geometry": 0.86, "colorDrift": 0.22, "sceneBlend": 0.46, "feedbackEcho": 0.66, "prism": 0.58, "waveComplexity": 0.76 },
+    "reactiveParameters": {
+      "warp": { "base": 0.10, "mid": 0.16, "high": 0.10, "flux": 0.10 },
+      "zoom": { "base": 0.04, "bass": 0.06, "peak": 0.04 },
+      "bloom": { "base": 0.42, "high": 0.30, "beat": 0.12 },
+      "rotation": { "base": 0.025, "mid": 0.08, "flux": 0.12 }
+    }
+  },
+  {
+    "id": "solar-bass-garden",
+    "name": "Solar Bass Garden",
+    "transitionDuration": 3.6,
+    "palette": {
+      "background": { "red": 0.014, "green": 0.010, "blue": 0.004 },
+      "primary": { "red": 1.000, "green": 0.660, "blue": 0.120 },
+      "secondary": { "red": 0.120, "green": 0.820, "blue": 0.450 },
+      "accent": { "red": 1.000, "green": 0.220, "blue": 0.160 }
+    },
+    "modules": { "warp": 0.90, "ribbons": 0.54, "radialSpectrum": 0.76, "particles": 0.58, "bloom": 0.82, "waveform": 0.42 },
+    "generators": { "particleCount": 98, "radialComplexity": 0.76, "ribbonCount": 3, "tunnelDepth": 0.72, "symmetry": 0.40 },
+    "morph": { "rate": 0.68, "chaos": 0.54, "geometry": 0.34, "colorDrift": 0.44, "sceneBlend": 0.76, "feedbackEcho": 0.48, "prism": 0.18, "waveComplexity": 0.36 },
+    "reactiveParameters": {
+      "warp": { "base": 0.24, "bass": 0.42, "beat": 0.22 },
+      "zoom": { "base": 0.12, "bass": 0.24, "peak": 0.08 },
+      "bloom": { "base": 0.44, "bass": 0.12, "beat": 0.28 },
+      "rotation": { "base": 0.055, "bass": -0.08, "mid": 0.08 }
+    }
+  },
+  {
+    "id": "neon-reef",
+    "name": "Neon Reef",
+    "transitionDuration": 3.0,
+    "palette": {
+      "background": { "red": 0.002, "green": 0.008, "blue": 0.018 },
+      "primary": { "red": 0.000, "green": 0.920, "blue": 0.780 },
+      "secondary": { "red": 0.920, "green": 0.220, "blue": 0.760 },
+      "accent": { "red": 0.200, "green": 0.560, "blue": 1.000 }
+    },
+    "modules": { "warp": 0.70, "ribbons": 0.82, "radialSpectrum": 0.64, "particles": 0.72, "bloom": 0.62, "waveform": 0.62 },
+    "generators": { "particleCount": 110, "radialComplexity": 0.58, "ribbonCount": 5, "tunnelDepth": 0.54, "symmetry": 0.62 },
+    "morph": { "rate": 0.74, "chaos": 0.46, "geometry": 0.58, "colorDrift": 0.72, "sceneBlend": 0.64, "feedbackEcho": 0.42, "prism": 0.44, "waveComplexity": 0.66 },
+    "reactiveParameters": {
+      "warp": { "base": 0.15, "mid": 0.18, "high": 0.16, "flux": 0.14 },
+      "zoom": { "base": 0.07, "bass": 0.10, "peak": 0.06 },
+      "bloom": { "base": 0.34, "high": 0.28, "beat": 0.18 },
+      "rotation": { "base": 0.050, "mid": 0.11, "flux": 0.10 }
+    }
+  },
+  {
+    "id": "aurora-circuit",
+    "name": "Aurora Circuit",
+    "transitionDuration": 3.8,
+    "palette": {
+      "background": { "red": 0.004, "green": 0.008, "blue": 0.020 },
+      "primary": { "red": 0.160, "green": 0.980, "blue": 0.520 },
+      "secondary": { "red": 0.220, "green": 0.520, "blue": 1.000 },
+      "accent": { "red": 0.940, "green": 0.940, "blue": 0.280 }
+    },
+    "modules": { "warp": 0.64, "ribbons": 0.76, "radialSpectrum": 0.72, "particles": 0.46, "bloom": 0.58, "waveform": 0.82 },
+    "generators": { "particleCount": 68, "radialComplexity": 0.68, "ribbonCount": 4, "tunnelDepth": 0.48, "symmetry": 0.72 },
+    "morph": { "rate": 0.50, "chaos": 0.28, "geometry": 0.72, "colorDrift": 0.64, "sceneBlend": 0.58, "feedbackEcho": 0.38, "prism": 0.40, "waveComplexity": 0.68 },
+    "reactiveParameters": {
+      "warp": { "base": 0.12, "mid": 0.22, "beat": 0.10, "flux": 0.14 },
+      "zoom": { "base": 0.06, "bass": 0.08, "peak": 0.05 },
+      "bloom": { "base": 0.30, "mid": 0.12, "high": 0.22 },
+      "rotation": { "base": 0.070, "mid": 0.12, "flux": 0.08 }
+    }
+  },
+  {
+    "id": "velvet-warp",
+    "name": "Velvet Warp",
+    "transitionDuration": 4.8,
+    "palette": {
+      "background": { "red": 0.014, "green": 0.004, "blue": 0.018 },
+      "primary": { "red": 0.760, "green": 0.360, "blue": 0.980 },
+      "secondary": { "red": 0.940, "green": 0.320, "blue": 0.420 },
+      "accent": { "red": 0.980, "green": 0.740, "blue": 0.420 }
+    },
+    "modules": { "warp": 0.96, "ribbons": 0.68, "radialSpectrum": 0.50, "particles": 0.42, "bloom": 0.80, "waveform": 0.50 },
+    "generators": { "particleCount": 62, "radialComplexity": 0.46, "ribbonCount": 6, "tunnelDepth": 0.82, "symmetry": 0.36 },
+    "morph": { "rate": 0.42, "chaos": 0.74, "geometry": 0.52, "colorDrift": 0.56, "sceneBlend": 0.82, "feedbackEcho": 0.72, "prism": 0.36, "waveComplexity": 0.62 },
+    "reactiveParameters": {
+      "warp": { "base": 0.26, "bass": 0.18, "mid": 0.16, "beat": 0.16 },
+      "zoom": { "base": 0.08, "bass": 0.14, "peak": 0.08 },
+      "bloom": { "base": 0.46, "high": 0.14, "beat": 0.24 },
+      "rotation": { "base": -0.040, "mid": 0.10, "flux": 0.16 }
+    }
+  },
+  {
+    "id": "starfield-bloom",
+    "name": "Starfield Bloom",
+    "transitionDuration": 3.4,
+    "palette": {
+      "background": { "red": 0.000, "green": 0.004, "blue": 0.012 },
+      "primary": { "red": 0.820, "green": 0.920, "blue": 1.000 },
+      "secondary": { "red": 0.160, "green": 0.760, "blue": 1.000 },
+      "accent": { "red": 0.980, "green": 0.980, "blue": 0.560 }
+    },
+    "modules": { "warp": 0.58, "ribbons": 0.40, "radialSpectrum": 0.66, "particles": 1.00, "bloom": 0.72, "waveform": 0.36 },
+    "generators": { "particleCount": 150, "radialComplexity": 0.52, "ribbonCount": 2, "tunnelDepth": 0.68, "symmetry": 0.52 },
+    "morph": { "rate": 0.60, "chaos": 0.32, "geometry": 0.22, "colorDrift": 0.34, "sceneBlend": 0.62, "feedbackEcho": 0.78, "prism": 0.50, "waveComplexity": 0.28 },
+    "reactiveParameters": {
+      "warp": { "base": 0.10, "bass": 0.10, "beat": 0.20 },
+      "zoom": { "base": 0.14, "bass": 0.10, "peak": 0.10 },
+      "bloom": { "base": 0.40, "beat": 0.34, "high": 0.12 },
+      "rotation": { "base": 0.032, "mid": 0.05, "flux": 0.06 }
+    }
+  },
+  {
+    "id": "signal-mandala",
+    "name": "Signal Mandala",
+    "transitionDuration": 4.2,
+    "palette": {
+      "background": { "red": 0.008, "green": 0.010, "blue": 0.010 },
+      "primary": { "red": 0.000, "green": 0.900, "blue": 0.540 },
+      "secondary": { "red": 0.980, "green": 0.700, "blue": 0.160 },
+      "accent": { "red": 0.280, "green": 0.680, "blue": 1.000 }
+    },
+    "modules": { "warp": 0.48, "ribbons": 0.60, "radialSpectrum": 0.96, "particles": 0.44, "bloom": 0.56, "waveform": 0.70 },
+    "generators": { "particleCount": 74, "radialComplexity": 0.92, "ribbonCount": 5, "tunnelDepth": 0.36, "symmetry": 0.96 },
+    "morph": { "rate": 0.38, "chaos": 0.20, "geometry": 0.94, "colorDrift": 0.46, "sceneBlend": 0.54, "feedbackEcho": 0.34, "prism": 0.30, "waveComplexity": 0.84 },
+    "reactiveParameters": {
+      "warp": { "base": 0.08, "mid": 0.12, "flux": 0.10 },
+      "zoom": { "base": 0.05, "bass": 0.08, "peak": 0.04 },
+      "bloom": { "base": 0.32, "mid": 0.12, "beat": 0.20 },
+      "rotation": { "base": 0.095, "mid": 0.12, "beat": 0.04 }
+    }
+  },
+  {
+    "id": "chromatic-fold",
+    "name": "Chromatic Fold",
+    "transitionDuration": 3.6,
+    "palette": {
+      "background": { "red": 0.006, "green": 0.006, "blue": 0.016 },
+      "primary": { "red": 0.980, "green": 0.180, "blue": 0.520 },
+      "secondary": { "red": 0.080, "green": 0.860, "blue": 1.000 },
+      "accent": { "red": 1.000, "green": 0.820, "blue": 0.160 }
+    },
+    "modules": { "warp": 0.84, "ribbons": 0.58, "radialSpectrum": 0.74, "particles": 0.38, "bloom": 0.48, "waveform": 0.44 },
+    "generators": { "particleCount": 58, "radialComplexity": 0.82, "ribbonCount": 4, "tunnelDepth": 0.56, "symmetry": 0.92, "folds": 0.96, "cellular": 0.18, "nebula": 0.38, "interference": 0.72 },
+    "morph": { "rate": 0.72, "chaos": 0.42, "geometry": 1.00, "colorDrift": 0.86, "sceneBlend": 0.82, "feedbackEcho": 0.36, "prism": 0.76, "waveComplexity": 0.64 },
+    "reactiveParameters": {
+      "warp": { "base": 0.20, "bass": 0.16, "mid": 0.12, "beat": 0.18, "flux": 0.16 },
+      "zoom": { "base": 0.06, "bass": 0.08, "peak": 0.06 },
+      "bloom": { "base": 0.22, "high": 0.12, "beat": 0.16 },
+      "rotation": { "base": 0.120, "mid": 0.10, "flux": 0.12 }
+    }
+  },
+  {
+    "id": "deep-space-cells",
+    "name": "Deep Space Cells",
+    "transitionDuration": 4.6,
+    "palette": {
+      "background": { "red": 0.000, "green": 0.002, "blue": 0.010 },
+      "primary": { "red": 0.280, "green": 0.700, "blue": 1.000 },
+      "secondary": { "red": 0.020, "green": 0.980, "blue": 0.640 },
+      "accent": { "red": 0.820, "green": 0.940, "blue": 1.000 }
+    },
+    "modules": { "warp": 0.52, "ribbons": 0.24, "radialSpectrum": 0.40, "particles": 0.88, "bloom": 0.34, "waveform": 0.22 },
+    "generators": { "particleCount": 150, "radialComplexity": 0.70, "ribbonCount": 2, "tunnelDepth": 0.78, "symmetry": 0.44, "folds": 0.16, "cellular": 1.00, "nebula": 0.70, "interference": 0.34 },
+    "morph": { "rate": 0.44, "chaos": 0.62, "geometry": 0.26, "colorDrift": 0.28, "sceneBlend": 0.68, "feedbackEcho": 0.74, "prism": 0.42, "waveComplexity": 0.32 },
+    "reactiveParameters": {
+      "warp": { "base": 0.10, "bass": 0.18, "beat": 0.12 },
+      "zoom": { "base": 0.12, "bass": 0.12, "peak": 0.08 },
+      "bloom": { "base": 0.20, "high": 0.08, "beat": 0.18 },
+      "rotation": { "base": 0.020, "mid": 0.04, "flux": 0.06 }
+    }
+  },
+  {
+    "id": "oil-slick-vortex",
+    "name": "Oil Slick Vortex",
+    "transitionDuration": 5.0,
+    "palette": {
+      "background": { "red": 0.010, "green": 0.006, "blue": 0.008 },
+      "primary": { "red": 0.000, "green": 0.880, "blue": 0.720 },
+      "secondary": { "red": 0.760, "green": 0.260, "blue": 1.000 },
+      "accent": { "red": 0.980, "green": 0.520, "blue": 0.180 }
+    },
+    "modules": { "warp": 1.00, "ribbons": 0.46, "radialSpectrum": 0.34, "particles": 0.30, "bloom": 0.42, "waveform": 0.38 },
+    "generators": { "particleCount": 46, "radialComplexity": 0.54, "ribbonCount": 5, "tunnelDepth": 0.92, "symmetry": 0.24, "folds": 0.22, "cellular": 0.42, "nebula": 1.00, "interference": 0.58 },
+    "morph": { "rate": 0.36, "chaos": 0.88, "geometry": 0.38, "colorDrift": 0.74, "sceneBlend": 0.90, "feedbackEcho": 0.86, "prism": 0.56, "waveComplexity": 0.52 },
+    "reactiveParameters": {
+      "warp": { "base": 0.30, "bass": 0.24, "mid": 0.16, "beat": 0.10, "flux": 0.12 },
+      "zoom": { "base": 0.08, "bass": 0.18, "peak": 0.05 },
+      "bloom": { "base": 0.18, "high": 0.10, "beat": 0.10 },
+      "rotation": { "base": -0.090, "mid": 0.16, "flux": 0.18 }
+    }
+  },
+  {
+    "id": "lattice-bloom",
+    "name": "Lattice Bloom",
+    "transitionDuration": 3.8,
+    "palette": {
+      "background": { "red": 0.006, "green": 0.010, "blue": 0.008 },
+      "primary": { "red": 0.880, "green": 1.000, "blue": 0.340 },
+      "secondary": { "red": 0.080, "green": 0.740, "blue": 0.980 },
+      "accent": { "red": 1.000, "green": 0.420, "blue": 0.260 }
+    },
+    "modules": { "warp": 0.44, "ribbons": 0.42, "radialSpectrum": 0.70, "particles": 0.28, "bloom": 0.36, "waveform": 0.66 },
+    "generators": { "particleCount": 42, "radialComplexity": 0.88, "ribbonCount": 3, "tunnelDepth": 0.38, "symmetry": 1.00, "folds": 0.78, "cellular": 0.32, "nebula": 0.18, "interference": 0.84 },
+    "morph": { "rate": 0.28, "chaos": 0.18, "geometry": 0.92, "colorDrift": 0.52, "sceneBlend": 0.50, "feedbackEcho": 0.30, "prism": 0.32, "waveComplexity": 0.88 },
+    "reactiveParameters": {
+      "warp": { "base": 0.08, "mid": 0.16, "flux": 0.12 },
+      "zoom": { "base": 0.04, "bass": 0.06, "peak": 0.04 },
+      "bloom": { "base": 0.16, "high": 0.12, "beat": 0.10 },
+      "rotation": { "base": 0.070, "mid": 0.10, "beat": 0.06 }
+    }
+  },
+  {
+    "id": "smoke-glass",
+    "name": "Smoke Glass",
+    "transitionDuration": 5.4,
+    "palette": {
+      "background": { "red": 0.008, "green": 0.010, "blue": 0.014 },
+      "primary": { "red": 0.620, "green": 0.840, "blue": 0.900 },
+      "secondary": { "red": 0.300, "green": 0.360, "blue": 0.960 },
+      "accent": { "red": 0.900, "green": 0.760, "blue": 0.620 }
+    },
+    "modules": { "warp": 0.68, "ribbons": 0.28, "radialSpectrum": 0.28, "particles": 0.36, "bloom": 0.30, "waveform": 0.30 },
+    "generators": { "particleCount": 64, "radialComplexity": 0.36, "ribbonCount": 2, "tunnelDepth": 0.66, "symmetry": 0.18, "folds": 0.10, "cellular": 0.26, "nebula": 1.00, "interference": 0.18 },
+    "morph": { "rate": 0.24, "chaos": 0.30, "geometry": 0.18, "colorDrift": 0.32, "sceneBlend": 0.56, "feedbackEcho": 0.92, "prism": 0.62, "waveComplexity": 0.22 },
+    "reactiveParameters": {
+      "warp": { "base": 0.18, "bass": 0.12, "mid": 0.10, "flux": 0.08 },
+      "zoom": { "base": 0.05, "bass": 0.07, "peak": 0.04 },
+      "bloom": { "base": 0.14, "high": 0.10, "beat": 0.08 },
+      "rotation": { "base": 0.025, "mid": 0.05, "flux": 0.06 }
+    }
+  },
+  {
+    "id": "pulse-engine",
+    "name": "Pulse Engine",
+    "transitionDuration": 3.1,
+    "palette": {
+      "background": { "red": 0.012, "green": 0.006, "blue": 0.004 },
+      "primary": { "red": 1.000, "green": 0.200, "blue": 0.080 },
+      "secondary": { "red": 1.000, "green": 0.780, "blue": 0.120 },
+      "accent": { "red": 0.240, "green": 0.860, "blue": 1.000 }
+    },
+    "modules": { "warp": 0.72, "ribbons": 0.64, "radialSpectrum": 0.94, "particles": 0.32, "bloom": 0.44, "waveform": 0.76 },
+    "generators": { "particleCount": 52, "radialComplexity": 0.96, "ribbonCount": 4, "tunnelDepth": 0.60, "symmetry": 0.64, "folds": 0.54, "cellular": 0.22, "nebula": 0.20, "interference": 1.00 },
+    "morph": { "rate": 0.82, "chaos": 0.48, "geometry": 0.66, "colorDrift": 0.40, "sceneBlend": 0.76, "feedbackEcho": 0.44, "prism": 0.28, "waveComplexity": 0.80 },
+    "reactiveParameters": {
+      "warp": { "base": 0.16, "bass": 0.32, "beat": 0.26, "flux": 0.10 },
+      "zoom": { "base": 0.10, "bass": 0.28, "peak": 0.08 },
+      "bloom": { "base": 0.18, "bass": 0.10, "beat": 0.22 },
+      "rotation": { "base": 0.050, "mid": 0.08, "beat": 0.10 }
+    }
+  },
+  {
+    "id": "quantum-lattice",
+    "name": "Quantum Lattice",
+    "transitionDuration": 4.0,
+    "palette": {
+      "background": { "red": 0.002, "green": 0.008, "blue": 0.010 },
+      "primary": { "red": 0.200, "green": 1.000, "blue": 0.720 },
+      "secondary": { "red": 0.560, "green": 0.240, "blue": 1.000 },
+      "accent": { "red": 1.000, "green": 0.900, "blue": 0.180 }
+    },
+    "modules": { "warp": 0.58, "ribbons": 0.44, "radialSpectrum": 0.82, "particles": 0.34, "bloom": 0.36, "waveform": 0.54 },
+    "generators": { "particleCount": 60, "radialComplexity": 0.92, "ribbonCount": 3, "tunnelDepth": 0.44, "symmetry": 1.00, "folds": 0.88, "cellular": 0.46, "nebula": 0.22, "interference": 0.94 },
+    "morph": { "rate": 0.58, "chaos": 0.30, "geometry": 1.00, "colorDrift": 0.66, "sceneBlend": 0.74, "feedbackEcho": 0.34, "prism": 0.72, "waveComplexity": 0.92 },
+    "reactiveParameters": {
+      "warp": { "base": 0.10, "mid": 0.18, "high": 0.14, "flux": 0.16 },
+      "zoom": { "base": 0.04, "bass": 0.08, "peak": 0.04 },
+      "bloom": { "base": 0.14, "high": 0.10, "beat": 0.12 },
+      "rotation": { "base": 0.090, "mid": 0.10, "flux": 0.12 }
+    }
+  },
+  {
+    "id": "liquid-prism",
+    "name": "Liquid Prism",
+    "transitionDuration": 5.2,
+    "palette": {
+      "background": { "red": 0.006, "green": 0.004, "blue": 0.012 },
+      "primary": { "red": 0.000, "green": 0.820, "blue": 1.000 },
+      "secondary": { "red": 1.000, "green": 0.240, "blue": 0.760 },
+      "accent": { "red": 0.900, "green": 1.000, "blue": 0.260 }
+    },
+    "modules": { "warp": 0.98, "ribbons": 0.52, "radialSpectrum": 0.38, "particles": 0.26, "bloom": 0.34, "waveform": 0.34 },
+    "generators": { "particleCount": 38, "radialComplexity": 0.46, "ribbonCount": 5, "tunnelDepth": 0.94, "symmetry": 0.30, "folds": 0.36, "cellular": 0.18, "nebula": 1.00, "interference": 0.54 },
+    "morph": { "rate": 0.30, "chaos": 0.84, "geometry": 0.42, "colorDrift": 0.96, "sceneBlend": 0.94, "feedbackEcho": 0.90, "prism": 0.92, "waveComplexity": 0.44 },
+    "reactiveParameters": {
+      "warp": { "base": 0.30, "bass": 0.20, "mid": 0.18, "beat": 0.10, "flux": 0.14 },
+      "zoom": { "base": 0.08, "bass": 0.16, "peak": 0.06 },
+      "bloom": { "base": 0.14, "high": 0.08, "beat": 0.08 },
+      "rotation": { "base": -0.070, "mid": 0.14, "flux": 0.20 }
+    }
+  },
+  {
+    "id": "fractal-ballroom",
+    "name": "Fractal Ballroom",
+    "transitionDuration": 4.8,
+    "palette": {
+      "background": { "red": 0.008, "green": 0.006, "blue": 0.014 },
+      "primary": { "red": 0.760, "green": 0.440, "blue": 1.000 },
+      "secondary": { "red": 0.140, "green": 0.900, "blue": 0.720 },
+      "accent": { "red": 1.000, "green": 0.600, "blue": 0.260 }
+    },
+    "modules": { "warp": 0.76, "ribbons": 0.84, "radialSpectrum": 0.52, "particles": 0.40, "bloom": 0.42, "waveform": 0.48 },
+    "generators": { "particleCount": 70, "radialComplexity": 0.66, "ribbonCount": 8, "tunnelDepth": 0.64, "symmetry": 0.74, "folds": 0.62, "cellular": 0.34, "nebula": 0.62, "interference": 0.48 },
+    "morph": { "rate": 0.46, "chaos": 0.72, "geometry": 0.78, "colorDrift": 0.62, "sceneBlend": 0.88, "feedbackEcho": 0.68, "prism": 0.46, "waveComplexity": 0.74 },
+    "reactiveParameters": {
+      "warp": { "base": 0.22, "bass": 0.18, "mid": 0.18, "beat": 0.12, "flux": 0.12 },
+      "zoom": { "base": 0.06, "bass": 0.12, "peak": 0.05 },
+      "bloom": { "base": 0.18, "high": 0.10, "beat": 0.16 },
+      "rotation": { "base": 0.060, "mid": 0.14, "flux": 0.14 }
+    }
+  },
+  {
+    "id": "bassline-hive",
+    "name": "Bassline Hive",
+    "transitionDuration": 3.5,
+    "palette": {
+      "background": { "red": 0.010, "green": 0.008, "blue": 0.002 },
+      "primary": { "red": 1.000, "green": 0.740, "blue": 0.140 },
+      "secondary": { "red": 0.180, "green": 0.900, "blue": 0.380 },
+      "accent": { "red": 0.200, "green": 0.700, "blue": 1.000 }
+    },
+    "modules": { "warp": 0.86, "ribbons": 0.38, "radialSpectrum": 0.68, "particles": 0.72, "bloom": 0.42, "waveform": 0.44 },
+    "generators": { "particleCount": 132, "radialComplexity": 0.58, "ribbonCount": 3, "tunnelDepth": 0.84, "symmetry": 0.48, "folds": 0.24, "cellular": 0.96, "nebula": 0.34, "interference": 0.62 },
+    "morph": { "rate": 0.78, "chaos": 0.64, "geometry": 0.46, "colorDrift": 0.34, "sceneBlend": 0.78, "feedbackEcho": 0.58, "prism": 0.22, "waveComplexity": 0.42 },
+    "reactiveParameters": {
+      "warp": { "base": 0.24, "bass": 0.46, "beat": 0.22, "flux": 0.08 },
+      "zoom": { "base": 0.12, "bass": 0.28, "peak": 0.08 },
+      "bloom": { "base": 0.16, "bass": 0.12, "beat": 0.18 },
+      "rotation": { "base": 0.040, "bass": -0.12, "mid": 0.08 }
+    }
+  },
+  {
+    "id": "ghost-oscilloscope",
+    "name": "Ghost Oscilloscope",
+    "transitionDuration": 4.4,
+    "palette": {
+      "background": { "red": 0.004, "green": 0.008, "blue": 0.008 },
+      "primary": { "red": 0.740, "green": 1.000, "blue": 0.900 },
+      "secondary": { "red": 0.300, "green": 0.420, "blue": 1.000 },
+      "accent": { "red": 0.980, "green": 0.820, "blue": 0.620 }
+    },
+    "modules": { "warp": 0.42, "ribbons": 0.96, "radialSpectrum": 0.30, "particles": 0.24, "bloom": 0.28, "waveform": 1.00 },
+    "generators": { "particleCount": 36, "radialComplexity": 0.42, "ribbonCount": 8, "tunnelDepth": 0.32, "symmetry": 0.34, "folds": 0.12, "cellular": 0.12, "nebula": 0.52, "interference": 0.26 },
+    "morph": { "rate": 0.52, "chaos": 0.24, "geometry": 0.32, "colorDrift": 0.38, "sceneBlend": 0.62, "feedbackEcho": 0.82, "prism": 0.34, "waveComplexity": 1.00 },
+    "reactiveParameters": {
+      "warp": { "base": 0.08, "mid": 0.12, "high": 0.10, "flux": 0.08 },
+      "zoom": { "base": 0.04, "bass": 0.06, "peak": 0.04 },
+      "bloom": { "base": 0.10, "high": 0.08, "beat": 0.10 },
+      "rotation": { "base": 0.020, "mid": 0.05, "flux": 0.07 }
+    }
+  },
+  {
+    "id": "ion-storm",
+    "name": "Ion Storm",
+    "transitionDuration": 3.7,
+    "palette": {
+      "background": { "red": 0.002, "green": 0.004, "blue": 0.018 },
+      "primary": { "red": 0.100, "green": 0.820, "blue": 1.000 },
+      "secondary": { "red": 0.900, "green": 0.260, "blue": 1.000 },
+      "accent": { "red": 0.920, "green": 1.000, "blue": 0.180 }
+    },
+    "modules": { "warp": 0.70, "ribbons": 0.62, "radialSpectrum": 0.78, "particles": 0.92, "bloom": 0.46, "waveform": 0.36 },
+    "generators": { "particleCount": 156, "radialComplexity": 0.78, "ribbonCount": 5, "tunnelDepth": 0.72, "symmetry": 0.58, "folds": 0.50, "cellular": 0.66, "nebula": 0.48, "interference": 0.82 },
+    "morph": { "rate": 0.88, "chaos": 0.82, "geometry": 0.62, "colorDrift": 0.74, "sceneBlend": 0.86, "feedbackEcho": 0.46, "prism": 0.70, "waveComplexity": 0.72 },
+    "reactiveParameters": {
+      "warp": { "base": 0.18, "bass": 0.18, "mid": 0.14, "high": 0.24, "beat": 0.14, "flux": 0.20 },
+      "zoom": { "base": 0.08, "bass": 0.10, "peak": 0.06 },
+      "bloom": { "base": 0.18, "high": 0.18, "beat": 0.12 },
+      "rotation": { "base": 0.080, "mid": 0.10, "flux": 0.18 }
+    }
+  },
+  {
+    "id": "cathedral-bloomfield",
+    "name": "Cathedral Bloomfield",
+    "transitionDuration": 5.8,
+    "palette": {
+      "background": { "red": 0.006, "green": 0.008, "blue": 0.014 },
+      "primary": { "red": 0.520, "green": 0.900, "blue": 1.000 },
+      "secondary": { "red": 0.860, "green": 0.760, "blue": 1.000 },
+      "accent": { "red": 1.000, "green": 0.780, "blue": 0.380 }
+    },
+    "modules": { "warp": 0.38, "ribbons": 0.88, "radialSpectrum": 0.62, "particles": 0.30, "bloom": 0.50, "waveform": 0.58 },
+    "generators": { "particleCount": 50, "radialComplexity": 0.74, "ribbonCount": 8, "tunnelDepth": 0.40, "symmetry": 1.00, "folds": 0.92, "cellular": 0.20, "nebula": 0.42, "interference": 0.68 },
+    "morph": { "rate": 0.26, "chaos": 0.10, "geometry": 0.98, "colorDrift": 0.30, "sceneBlend": 0.48, "feedbackEcho": 0.62, "prism": 0.52, "waveComplexity": 0.90 },
+    "reactiveParameters": {
+      "warp": { "base": 0.08, "mid": 0.14, "high": 0.10, "flux": 0.10 },
+      "zoom": { "base": 0.04, "bass": 0.06, "peak": 0.04 },
+      "bloom": { "base": 0.18, "high": 0.12, "beat": 0.12 },
+      "rotation": { "base": 0.050, "mid": 0.08, "flux": 0.09 }
+    }
+  },
+  {
+    "id": "velvet-hyperspace",
+    "name": "Velvet Hyperspace",
+    "transitionDuration": 4.9,
+    "palette": {
+      "background": { "red": 0.012, "green": 0.002, "blue": 0.014 },
+      "primary": { "red": 0.940, "green": 0.260, "blue": 0.860 },
+      "secondary": { "red": 0.080, "green": 0.880, "blue": 1.000 },
+      "accent": { "red": 1.000, "green": 0.560, "blue": 0.200 }
+    },
+    "modules": { "warp": 0.94, "ribbons": 0.72, "radialSpectrum": 0.50, "particles": 0.58, "bloom": 0.46, "waveform": 0.50 },
+    "generators": { "particleCount": 96, "radialComplexity": 0.62, "ribbonCount": 6, "tunnelDepth": 0.98, "symmetry": 0.52, "folds": 0.42, "cellular": 0.38, "nebula": 0.88, "interference": 0.74 },
+    "morph": { "rate": 0.62, "chaos": 0.78, "geometry": 0.56, "colorDrift": 0.84, "sceneBlend": 0.96, "feedbackEcho": 0.88, "prism": 0.64, "waveComplexity": 0.70 },
+    "reactiveParameters": {
+      "warp": { "base": 0.28, "bass": 0.18, "mid": 0.18, "beat": 0.18, "flux": 0.16 },
+      "zoom": { "base": 0.10, "bass": 0.16, "peak": 0.08 },
+      "bloom": { "base": 0.18, "high": 0.10, "beat": 0.16 },
+      "rotation": { "base": -0.060, "mid": 0.12, "flux": 0.18 }
+    }
+  },
+  {
+    "id": "opal-reaction",
+    "name": "Opal Reaction",
+    "transitionDuration": 5.6,
+    "palette": {
+      "background": { "red": 0.006, "green": 0.008, "blue": 0.012 },
+      "primary": { "red": 0.520, "green": 0.920, "blue": 0.880 },
+      "secondary": { "red": 0.920, "green": 0.620, "blue": 0.360 },
+      "accent": { "red": 0.540, "green": 0.500, "blue": 1.000 }
+    },
+    "modules": { "warp": 0.82, "ribbons": 0.34, "radialSpectrum": 0.44, "particles": 0.36, "bloom": 0.30, "waveform": 0.28 },
+    "generators": { "particleCount": 58, "radialComplexity": 0.54, "ribbonCount": 3, "tunnelDepth": 0.76, "symmetry": 0.32, "folds": 0.28, "cellular": 0.82, "nebula": 0.92, "interference": 0.66 },
+    "morph": { "rate": 0.34, "chaos": 0.92, "geometry": 0.38, "colorDrift": 0.88, "sceneBlend": 0.94, "feedbackEcho": 0.96, "prism": 0.74, "waveComplexity": 0.40 },
+    "reactiveParameters": {
+      "warp": { "base": 0.24, "bass": 0.18, "mid": 0.16, "beat": 0.10, "flux": 0.16 },
+      "zoom": { "base": 0.06, "bass": 0.12, "peak": 0.05 },
+      "bloom": { "base": 0.12, "high": 0.08, "beat": 0.08 },
+      "rotation": { "base": -0.050, "mid": 0.10, "flux": 0.18 }
+    }
+  },
+  {
+    "id": "meridian-engine",
+    "name": "Meridian Engine",
+    "transitionDuration": 3.4,
+    "palette": {
+      "background": { "red": 0.004, "green": 0.006, "blue": 0.010 },
+      "primary": { "red": 0.980, "green": 0.760, "blue": 0.220 },
+      "secondary": { "red": 0.080, "green": 0.760, "blue": 1.000 },
+      "accent": { "red": 0.100, "green": 0.980, "blue": 0.540 }
+    },
+    "modules": { "warp": 0.58, "ribbons": 0.48, "radialSpectrum": 1.00, "particles": 0.44, "bloom": 0.34, "waveform": 0.62 },
+    "generators": { "particleCount": 76, "radialComplexity": 1.00, "ribbonCount": 4, "tunnelDepth": 0.46, "symmetry": 1.00, "folds": 0.96, "cellular": 0.24, "nebula": 0.24, "interference": 0.92 },
+    "morph": { "rate": 0.64, "chaos": 0.22, "geometry": 1.00, "colorDrift": 0.44, "sceneBlend": 0.62, "feedbackEcho": 0.32, "prism": 0.48, "waveComplexity": 0.96 },
+    "reactiveParameters": {
+      "warp": { "base": 0.12, "mid": 0.12, "high": 0.12, "flux": 0.18 },
+      "zoom": { "base": 0.05, "bass": 0.10, "peak": 0.04 },
+      "bloom": { "base": 0.14, "high": 0.10, "beat": 0.10 },
+      "rotation": { "base": 0.110, "mid": 0.12, "beat": 0.06 }
+    }
+  },
+  {
+    "id": "phosphor-rain",
+    "name": "Phosphor Rain",
+    "transitionDuration": 4.0,
+    "palette": {
+      "background": { "red": 0.002, "green": 0.010, "blue": 0.008 },
+      "primary": { "red": 0.260, "green": 1.000, "blue": 0.540 },
+      "secondary": { "red": 0.720, "green": 0.960, "blue": 0.900 },
+      "accent": { "red": 0.980, "green": 0.520, "blue": 0.160 }
+    },
+    "modules": { "warp": 0.46, "ribbons": 0.92, "radialSpectrum": 0.36, "particles": 0.72, "bloom": 0.28, "waveform": 0.88 },
+    "generators": { "particleCount": 126, "radialComplexity": 0.44, "ribbonCount": 8, "tunnelDepth": 0.34, "symmetry": 0.24, "folds": 0.14, "cellular": 0.18, "nebula": 0.50, "interference": 0.42 },
+    "morph": { "rate": 0.72, "chaos": 0.34, "geometry": 0.28, "colorDrift": 0.28, "sceneBlend": 0.54, "feedbackEcho": 0.82, "prism": 0.22, "waveComplexity": 1.00 },
+    "reactiveParameters": {
+      "warp": { "base": 0.10, "mid": 0.14, "high": 0.16, "flux": 0.10 },
+      "zoom": { "base": 0.04, "bass": 0.06, "peak": 0.04 },
+      "bloom": { "base": 0.10, "high": 0.08, "beat": 0.08 },
+      "rotation": { "base": 0.030, "mid": 0.05, "flux": 0.07 }
+    }
+  },
+  {
+    "id": "helix-bloom",
+    "name": "Helix Bloom",
+    "transitionDuration": 4.7,
+    "palette": {
+      "background": { "red": 0.006, "green": 0.004, "blue": 0.014 },
+      "primary": { "red": 0.200, "green": 0.700, "blue": 1.000 },
+      "secondary": { "red": 1.000, "green": 0.480, "blue": 0.280 },
+      "accent": { "red": 0.780, "green": 1.000, "blue": 0.320 }
+    },
+    "modules": { "warp": 0.92, "ribbons": 0.78, "radialSpectrum": 0.56, "particles": 0.56, "bloom": 0.48, "waveform": 0.40 },
+    "generators": { "particleCount": 104, "radialComplexity": 0.68, "ribbonCount": 6, "tunnelDepth": 0.94, "symmetry": 0.66, "folds": 0.48, "cellular": 0.38, "nebula": 0.78, "interference": 0.64 },
+    "morph": { "rate": 0.58, "chaos": 0.68, "geometry": 0.72, "colorDrift": 0.62, "sceneBlend": 0.92, "feedbackEcho": 0.76, "prism": 0.52, "waveComplexity": 0.66 },
+    "reactiveParameters": {
+      "warp": { "base": 0.26, "bass": 0.22, "mid": 0.12, "beat": 0.18, "flux": 0.12 },
+      "zoom": { "base": 0.10, "bass": 0.16, "peak": 0.06 },
+      "bloom": { "base": 0.16, "high": 0.10, "beat": 0.14 },
+      "rotation": { "base": -0.075, "mid": 0.16, "flux": 0.12 }
+    }
+  },
+  {
+    "id": "chromaflow-basin",
+    "name": "Chromaflow Basin",
+    "transitionDuration": 6.0,
+    "palette": {
+      "background": { "red": 0.006, "green": 0.008, "blue": 0.010 },
+      "primary": { "red": 0.000, "green": 0.780, "blue": 0.920 },
+      "secondary": { "red": 0.940, "green": 0.360, "blue": 0.560 },
+      "accent": { "red": 0.900, "green": 0.860, "blue": 0.360 }
+    },
+    "modules": { "warp": 1.00, "ribbons": 0.30, "radialSpectrum": 0.28, "particles": 0.22, "bloom": 0.24, "waveform": 0.26 },
+    "generators": { "particleCount": 34, "radialComplexity": 0.40, "ribbonCount": 2, "tunnelDepth": 1.00, "symmetry": 0.18, "folds": 0.18, "cellular": 0.52, "nebula": 1.00, "interference": 0.74 },
+    "morph": { "rate": 0.24, "chaos": 1.00, "geometry": 0.34, "colorDrift": 1.00, "sceneBlend": 1.00, "feedbackEcho": 1.00, "prism": 0.88, "waveComplexity": 0.36 },
+    "reactiveParameters": {
+      "warp": { "base": 0.32, "bass": 0.20, "mid": 0.18, "beat": 0.08, "flux": 0.18 },
+      "zoom": { "base": 0.07, "bass": 0.14, "peak": 0.05 },
+      "bloom": { "base": 0.10, "high": 0.06, "beat": 0.06 },
+      "rotation": { "base": 0.035, "mid": 0.12, "flux": 0.22 }
+    }
+  },
+  {
+    "id": "lunar-circuitry",
+    "name": "Lunar Circuitry",
+    "transitionDuration": 5.2,
+    "palette": {
+      "background": { "red": 0.004, "green": 0.006, "blue": 0.012 },
+      "primary": { "red": 0.640, "green": 0.760, "blue": 1.000 },
+      "secondary": { "red": 0.120, "green": 0.920, "blue": 0.700 },
+      "accent": { "red": 1.000, "green": 0.740, "blue": 0.320 }
+    },
+    "modules": { "warp": 0.36, "ribbons": 0.66, "radialSpectrum": 0.82, "particles": 0.24, "bloom": 0.22, "waveform": 0.74 },
+    "generators": { "particleCount": 42, "radialComplexity": 0.96, "ribbonCount": 5, "tunnelDepth": 0.30, "symmetry": 1.00, "folds": 1.00, "cellular": 0.24, "nebula": 0.20, "interference": 1.00 },
+    "morph": { "rate": 0.32, "chaos": 0.12, "geometry": 1.00, "colorDrift": 0.34, "sceneBlend": 0.42, "feedbackEcho": 0.28, "prism": 0.42, "waveComplexity": 0.98 },
+    "reactiveParameters": {
+      "warp": { "base": 0.07, "mid": 0.14, "high": 0.10, "flux": 0.14 },
+      "zoom": { "base": 0.03, "bass": 0.05, "peak": 0.03 },
+      "bloom": { "base": 0.09, "high": 0.08, "beat": 0.06 },
+      "rotation": { "base": 0.085, "mid": 0.09, "beat": 0.04 }
+    }
+  },
+  {
+    "id": "subspace-lattice",
+    "name": "Subspace Lattice",
+    "transitionDuration": 3.9,
+    "palette": {
+      "background": { "red": 0.002, "green": 0.004, "blue": 0.014 },
+      "primary": { "red": 0.760, "green": 0.240, "blue": 1.000 },
+      "secondary": { "red": 0.000, "green": 0.900, "blue": 1.000 },
+      "accent": { "red": 0.960, "green": 0.960, "blue": 0.260 }
+    },
+    "modules": { "warp": 0.74, "ribbons": 0.36, "radialSpectrum": 0.88, "particles": 0.84, "bloom": 0.32, "waveform": 0.34 },
+    "generators": { "particleCount": 150, "radialComplexity": 0.88, "ribbonCount": 3, "tunnelDepth": 0.86, "symmetry": 0.72, "folds": 0.72, "cellular": 0.74, "nebula": 0.42, "interference": 0.96 },
+    "morph": { "rate": 0.86, "chaos": 0.74, "geometry": 0.86, "colorDrift": 0.76, "sceneBlend": 0.88, "feedbackEcho": 0.58, "prism": 0.82, "waveComplexity": 0.82 },
+    "reactiveParameters": {
+      "warp": { "base": 0.18, "bass": 0.16, "mid": 0.12, "high": 0.20, "beat": 0.14, "flux": 0.20 },
+      "zoom": { "base": 0.09, "bass": 0.12, "peak": 0.06 },
+      "bloom": { "base": 0.11, "high": 0.10, "beat": 0.08 },
+      "rotation": { "base": 0.120, "mid": 0.10, "flux": 0.16 }
+    }
+  },
+  {
+    "id": "monolith-bloom",
+    "name": "Monolith Bloom",
+    "transitionDuration": 5.0,
+    "palette": {
+      "background": { "red": 0.006, "green": 0.006, "blue": 0.008 },
+      "primary": { "red": 0.900, "green": 0.900, "blue": 0.760 },
+      "secondary": { "red": 0.180, "green": 0.720, "blue": 1.000 },
+      "accent": { "red": 1.000, "green": 0.380, "blue": 0.220 }
+    },
+    "modules": { "warp": 0.54, "ribbons": 0.58, "radialSpectrum": 0.60, "particles": 0.40, "bloom": 0.26, "waveform": 0.58 },
+    "generators": { "particleCount": 68, "radialComplexity": 0.74, "ribbonCount": 4, "tunnelDepth": 0.58, "symmetry": 0.84, "folds": 0.84, "cellular": 0.58, "nebula": 0.46, "interference": 0.70 },
+    "morph": { "rate": 0.42, "chaos": 0.38, "geometry": 0.92, "colorDrift": 0.36, "sceneBlend": 0.64, "feedbackEcho": 0.52, "prism": 0.38, "waveComplexity": 0.76 },
+    "reactiveParameters": {
+      "warp": { "base": 0.12, "bass": 0.14, "mid": 0.14, "beat": 0.10, "flux": 0.10 },
+      "zoom": { "base": 0.06, "bass": 0.10, "peak": 0.04 },
+      "bloom": { "base": 0.10, "high": 0.08, "beat": 0.08 },
+      "rotation": { "base": -0.030, "mid": 0.08, "flux": 0.08 }
+    }
+  },
+  {
+    "id": "cryo-bloom-forge",
+    "name": "Cryo Bloom Forge",
+    "transitionDuration": 4.2,
+    "palette": {
+      "background": { "red": 0.002, "green": 0.008, "blue": 0.014 },
+      "primary": { "red": 0.320, "green": 0.900, "blue": 1.000 },
+      "secondary": { "red": 0.860, "green": 0.960, "blue": 0.880 },
+      "accent": { "red": 1.000, "green": 0.380, "blue": 0.200 }
+    },
+    "modules": { "warp": 0.62, "ribbons": 0.44, "radialSpectrum": 0.86, "particles": 0.66, "bloom": 0.40, "waveform": 0.42 },
+    "generators": { "particleCount": 118, "radialComplexity": 0.86, "ribbonCount": 3, "tunnelDepth": 0.62, "symmetry": 0.82, "folds": 0.70, "cellular": 0.76, "nebula": 0.58, "interference": 0.78 },
+    "morph": { "rate": 0.58, "chaos": 0.50, "geometry": 0.82, "colorDrift": 0.48, "sceneBlend": 0.76, "feedbackEcho": 0.56, "prism": 0.54, "waveComplexity": 0.70 },
+    "reactiveParameters": {
+      "warp": { "base": 0.16, "bass": 0.20, "mid": 0.12, "beat": 0.14, "flux": 0.12 },
+      "zoom": { "base": 0.08, "bass": 0.12, "peak": 0.05 },
+      "bloom": { "base": 0.18, "high": 0.12, "beat": 0.12 },
+      "rotation": { "base": 0.055, "mid": 0.10, "flux": 0.12 }
+    }
+  },
+  {
+    "id": "plasma-scripture",
+    "name": "Plasma Scripture",
+    "transitionDuration": 5.1,
+    "palette": {
+      "background": { "red": 0.012, "green": 0.004, "blue": 0.012 },
+      "primary": { "red": 1.000, "green": 0.260, "blue": 0.680 },
+      "secondary": { "red": 0.240, "green": 0.860, "blue": 1.000 },
+      "accent": { "red": 1.000, "green": 0.820, "blue": 0.180 }
+    },
+    "modules": { "warp": 0.94, "ribbons": 0.64, "radialSpectrum": 0.58, "particles": 0.36, "bloom": 0.44, "waveform": 0.62 },
+    "generators": { "particleCount": 62, "radialComplexity": 0.66, "ribbonCount": 6, "tunnelDepth": 0.90, "symmetry": 0.54, "folds": 0.58, "cellular": 0.32, "nebula": 0.86, "interference": 0.86 },
+    "morph": { "rate": 0.50, "chaos": 0.82, "geometry": 0.68, "colorDrift": 0.92, "sceneBlend": 0.94, "feedbackEcho": 0.88, "prism": 0.74, "waveComplexity": 0.62 },
+    "reactiveParameters": {
+      "warp": { "base": 0.28, "bass": 0.18, "mid": 0.18, "beat": 0.12, "flux": 0.18 },
+      "zoom": { "base": 0.08, "bass": 0.15, "peak": 0.06 },
+      "bloom": { "base": 0.16, "high": 0.10, "beat": 0.10 },
+      "rotation": { "base": -0.085, "mid": 0.14, "flux": 0.18 }
+    }
+  },
+  {
+    "id": "hyperglass-loom",
+    "name": "Hyperglass Loom",
+    "transitionDuration": 4.8,
+    "palette": {
+      "background": { "red": 0.004, "green": 0.006, "blue": 0.018 },
+      "primary": { "red": 0.680, "green": 0.920, "blue": 1.000 },
+      "secondary": { "red": 0.920, "green": 0.560, "blue": 1.000 },
+      "accent": { "red": 0.660, "green": 1.000, "blue": 0.420 }
+    },
+    "modules": { "warp": 0.42, "ribbons": 1.00, "radialSpectrum": 0.64, "particles": 0.28, "bloom": 0.38, "waveform": 0.72 },
+    "generators": { "particleCount": 44, "radialComplexity": 0.78, "ribbonCount": 8, "tunnelDepth": 0.42, "symmetry": 1.00, "folds": 0.96, "cellular": 0.16, "nebula": 0.44, "interference": 0.72 },
+    "morph": { "rate": 0.36, "chaos": 0.20, "geometry": 1.00, "colorDrift": 0.52, "sceneBlend": 0.54, "feedbackEcho": 0.48, "prism": 0.86, "waveComplexity": 1.00 },
+    "reactiveParameters": {
+      "warp": { "base": 0.08, "mid": 0.16, "high": 0.12, "flux": 0.14 },
+      "zoom": { "base": 0.04, "bass": 0.06, "peak": 0.03 },
+      "bloom": { "base": 0.15, "high": 0.12, "beat": 0.08 },
+      "rotation": { "base": 0.072, "mid": 0.12, "flux": 0.10 }
+    }
+  },
+  {
+    "id": "electric-mycelium",
+    "name": "Electric Mycelium",
+    "transitionDuration": 3.7,
+    "palette": {
+      "background": { "red": 0.004, "green": 0.010, "blue": 0.004 },
+      "primary": { "red": 0.240, "green": 1.000, "blue": 0.480 },
+      "secondary": { "red": 0.980, "green": 0.760, "blue": 0.220 },
+      "accent": { "red": 0.220, "green": 0.620, "blue": 1.000 }
+    },
+    "modules": { "warp": 0.78, "ribbons": 0.34, "radialSpectrum": 0.48, "particles": 0.94, "bloom": 0.36, "waveform": 0.38 },
+    "generators": { "particleCount": 156, "radialComplexity": 0.54, "ribbonCount": 3, "tunnelDepth": 0.76, "symmetry": 0.38, "folds": 0.28, "cellular": 1.00, "nebula": 0.62, "interference": 0.54 },
+    "morph": { "rate": 0.82, "chaos": 0.76, "geometry": 0.40, "colorDrift": 0.54, "sceneBlend": 0.78, "feedbackEcho": 0.62, "prism": 0.28, "waveComplexity": 0.46 },
+    "reactiveParameters": {
+      "warp": { "base": 0.22, "bass": 0.36, "beat": 0.18, "flux": 0.10 },
+      "zoom": { "base": 0.12, "bass": 0.22, "peak": 0.08 },
+      "bloom": { "base": 0.14, "bass": 0.12, "beat": 0.12 },
+      "rotation": { "base": 0.040, "bass": -0.08, "mid": 0.08 }
+    }
+  },
+  {
+    "id": "cobalt-sundial",
+    "name": "Cobalt Sundial",
+    "transitionDuration": 5.4,
+    "palette": {
+      "background": { "red": 0.002, "green": 0.006, "blue": 0.018 },
+      "primary": { "red": 0.120, "green": 0.460, "blue": 1.000 },
+      "secondary": { "red": 1.000, "green": 0.700, "blue": 0.160 },
+      "accent": { "red": 0.760, "green": 1.000, "blue": 0.940 }
+    },
+    "modules": { "warp": 0.50, "ribbons": 0.38, "radialSpectrum": 0.98, "particles": 0.46, "bloom": 0.30, "waveform": 0.50 },
+    "generators": { "particleCount": 70, "radialComplexity": 1.00, "ribbonCount": 2, "tunnelDepth": 0.48, "symmetry": 1.00, "folds": 0.86, "cellular": 0.38, "nebula": 0.32, "interference": 0.98 },
+    "morph": { "rate": 0.30, "chaos": 0.18, "geometry": 1.00, "colorDrift": 0.40, "sceneBlend": 0.52, "feedbackEcho": 0.36, "prism": 0.46, "waveComplexity": 0.82 },
+    "reactiveParameters": {
+      "warp": { "base": 0.09, "mid": 0.14, "high": 0.10, "flux": 0.12 },
+      "zoom": { "base": 0.04, "bass": 0.07, "peak": 0.03 },
+      "bloom": { "base": 0.12, "high": 0.08, "beat": 0.08 },
+      "rotation": { "base": 0.105, "mid": 0.08, "beat": 0.04 }
+    }
+  },
+  {
+    "id": "infrared-tidepool",
+    "name": "Infrared Tidepool",
+    "transitionDuration": 6.2,
+    "palette": {
+      "background": { "red": 0.014, "green": 0.004, "blue": 0.004 },
+      "primary": { "red": 1.000, "green": 0.260, "blue": 0.160 },
+      "secondary": { "red": 0.940, "green": 0.860, "blue": 0.260 },
+      "accent": { "red": 0.000, "green": 0.780, "blue": 0.860 }
+    },
+    "modules": { "warp": 1.00, "ribbons": 0.26, "radialSpectrum": 0.28, "particles": 0.30, "bloom": 0.26, "waveform": 0.28 },
+    "generators": { "particleCount": 48, "radialComplexity": 0.44, "ribbonCount": 2, "tunnelDepth": 1.00, "symmetry": 0.18, "folds": 0.20, "cellular": 0.64, "nebula": 1.00, "interference": 0.64 },
+    "morph": { "rate": 0.22, "chaos": 0.94, "geometry": 0.30, "colorDrift": 0.82, "sceneBlend": 1.00, "feedbackEcho": 1.00, "prism": 0.62, "waveComplexity": 0.34 },
+    "reactiveParameters": {
+      "warp": { "base": 0.34, "bass": 0.20, "mid": 0.16, "beat": 0.08, "flux": 0.14 },
+      "zoom": { "base": 0.08, "bass": 0.18, "peak": 0.05 },
+      "bloom": { "base": 0.10, "high": 0.06, "beat": 0.05 },
+      "rotation": { "base": -0.055, "mid": 0.12, "flux": 0.16 }
+    }
+  },
+  {
+    "id": "neon-origami-engine",
+    "name": "Neon Origami Engine",
+    "transitionDuration": 4.1,
+    "palette": {
+      "background": { "red": 0.004, "green": 0.004, "blue": 0.016 },
+      "primary": { "red": 0.940, "green": 0.200, "blue": 0.760 },
+      "secondary": { "red": 0.000, "green": 0.940, "blue": 1.000 },
+      "accent": { "red": 0.960, "green": 1.000, "blue": 0.260 }
+    },
+    "modules": { "warp": 0.72, "ribbons": 0.72, "radialSpectrum": 0.76, "particles": 0.34, "bloom": 0.42, "waveform": 0.56 },
+    "generators": { "particleCount": 58, "radialComplexity": 0.88, "ribbonCount": 7, "tunnelDepth": 0.62, "symmetry": 0.96, "folds": 1.00, "cellular": 0.20, "nebula": 0.38, "interference": 0.90 },
+    "morph": { "rate": 0.74, "chaos": 0.34, "geometry": 1.00, "colorDrift": 0.88, "sceneBlend": 0.80, "feedbackEcho": 0.42, "prism": 0.90, "waveComplexity": 0.88 },
+    "reactiveParameters": {
+      "warp": { "base": 0.18, "bass": 0.16, "mid": 0.14, "beat": 0.14, "flux": 0.16 },
+      "zoom": { "base": 0.06, "bass": 0.10, "peak": 0.04 },
+      "bloom": { "base": 0.18, "high": 0.10, "beat": 0.12 },
+      "rotation": { "base": 0.130, "mid": 0.10, "flux": 0.12 }
+    }
+  },
+  {
+    "id": "thundercell-cathedral",
+    "name": "Thundercell Cathedral",
+    "transitionDuration": 5.7,
+    "palette": {
+      "background": { "red": 0.006, "green": 0.006, "blue": 0.014 },
+      "primary": { "red": 0.520, "green": 0.720, "blue": 1.000 },
+      "secondary": { "red": 0.880, "green": 0.840, "blue": 1.000 },
+      "accent": { "red": 1.000, "green": 0.620, "blue": 0.180 }
+    },
+    "modules": { "warp": 0.48, "ribbons": 0.84, "radialSpectrum": 0.74, "particles": 0.38, "bloom": 0.32, "waveform": 0.82 },
+    "generators": { "particleCount": 66, "radialComplexity": 0.90, "ribbonCount": 8, "tunnelDepth": 0.42, "symmetry": 1.00, "folds": 0.94, "cellular": 0.42, "nebula": 0.54, "interference": 0.88 },
+    "morph": { "rate": 0.40, "chaos": 0.28, "geometry": 1.00, "colorDrift": 0.32, "sceneBlend": 0.58, "feedbackEcho": 0.56, "prism": 0.56, "waveComplexity": 0.94 },
+    "reactiveParameters": {
+      "warp": { "base": 0.10, "mid": 0.18, "high": 0.12, "flux": 0.14 },
+      "zoom": { "base": 0.04, "bass": 0.08, "peak": 0.04 },
+      "bloom": { "base": 0.12, "high": 0.12, "beat": 0.08 },
+      "rotation": { "base": 0.062, "mid": 0.10, "flux": 0.08 }
+    }
+  },
+  {
+    "id": "mirror-orchard",
+    "name": "Mirror Orchard",
+    "transitionDuration": 4.9,
+    "palette": {
+      "background": { "red": 0.004, "green": 0.010, "blue": 0.008 },
+      "primary": { "red": 0.100, "green": 0.900, "blue": 0.540 },
+      "secondary": { "red": 0.900, "green": 0.500, "blue": 0.940 },
+      "accent": { "red": 1.000, "green": 0.840, "blue": 0.260 }
+    },
+    "modules": { "warp": 0.66, "ribbons": 0.60, "radialSpectrum": 0.66, "particles": 0.54, "bloom": 0.30, "waveform": 0.50 },
+    "generators": { "particleCount": 92, "radialComplexity": 0.74, "ribbonCount": 5, "tunnelDepth": 0.70, "symmetry": 0.92, "folds": 0.90, "cellular": 0.72, "nebula": 0.48, "interference": 0.68 },
+    "morph": { "rate": 0.46, "chaos": 0.58, "geometry": 0.92, "colorDrift": 0.68, "sceneBlend": 0.78, "feedbackEcho": 0.70, "prism": 0.46, "waveComplexity": 0.70 },
+    "reactiveParameters": {
+      "warp": { "base": 0.18, "bass": 0.14, "mid": 0.18, "beat": 0.10, "flux": 0.12 },
+      "zoom": { "base": 0.07, "bass": 0.10, "peak": 0.05 },
+      "bloom": { "base": 0.12, "high": 0.08, "beat": 0.08 },
+      "rotation": { "base": -0.045, "mid": 0.13, "flux": 0.10 }
+    }
+  },
+  {
+    "id": "synapse-carnival",
+    "name": "Synapse Carnival",
+    "transitionDuration": 3.2,
+    "palette": {
+      "background": { "red": 0.006, "green": 0.004, "blue": 0.018 },
+      "primary": { "red": 1.000, "green": 0.240, "blue": 0.520 },
+      "secondary": { "red": 0.180, "green": 1.000, "blue": 0.720 },
+      "accent": { "red": 0.220, "green": 0.580, "blue": 1.000 }
+    },
+    "modules": { "warp": 0.86, "ribbons": 0.80, "radialSpectrum": 0.72, "particles": 0.90, "bloom": 0.52, "waveform": 0.64 },
+    "generators": { "particleCount": 160, "radialComplexity": 0.80, "ribbonCount": 7, "tunnelDepth": 0.82, "symmetry": 0.64, "folds": 0.58, "cellular": 0.58, "nebula": 0.62, "interference": 0.86 },
+    "morph": { "rate": 1.00, "chaos": 0.88, "geometry": 0.72, "colorDrift": 1.00, "sceneBlend": 0.94, "feedbackEcho": 0.56, "prism": 0.78, "waveComplexity": 0.82 },
+    "reactiveParameters": {
+      "warp": { "base": 0.22, "bass": 0.22, "mid": 0.16, "high": 0.20, "beat": 0.18, "flux": 0.20 },
+      "zoom": { "base": 0.10, "bass": 0.14, "peak": 0.06 },
+      "bloom": { "base": 0.22, "high": 0.12, "beat": 0.16 },
+      "rotation": { "base": 0.095, "mid": 0.12, "flux": 0.18 }
+    }
+  },
+  {
+    "id": "halation-spiral",
+    "name": "Halation Spiral",
+    "transitionDuration": 5.5,
+    "palette": {
+      "background": { "red": 0.010, "green": 0.008, "blue": 0.006 },
+      "primary": { "red": 1.000, "green": 0.760, "blue": 0.420 },
+      "secondary": { "red": 0.200, "green": 0.820, "blue": 1.000 },
+      "accent": { "red": 0.940, "green": 0.300, "blue": 0.760 }
+    },
+    "modules": { "warp": 0.92, "ribbons": 0.44, "radialSpectrum": 0.58, "particles": 0.42, "bloom": 0.58, "waveform": 0.36 },
+    "generators": { "particleCount": 74, "radialComplexity": 0.64, "ribbonCount": 4, "tunnelDepth": 0.96, "symmetry": 0.42, "folds": 0.28, "cellular": 0.44, "nebula": 0.92, "interference": 0.58 },
+    "morph": { "rate": 0.38, "chaos": 0.76, "geometry": 0.46, "colorDrift": 0.72, "sceneBlend": 0.96, "feedbackEcho": 0.94, "prism": 0.40, "waveComplexity": 0.48 },
+    "reactiveParameters": {
+      "warp": { "base": 0.30, "bass": 0.20, "mid": 0.12, "beat": 0.14, "flux": 0.10 },
+      "zoom": { "base": 0.09, "bass": 0.16, "peak": 0.06 },
+      "bloom": { "base": 0.26, "high": 0.12, "beat": 0.14 },
+      "rotation": { "base": -0.062, "mid": 0.12, "flux": 0.14 }
+    }
+  },
+  {
+    "id": "velvet-monsoon",
+    "name": "Velvet Monsoon",
+    "transitionDuration": 6.4,
+    "palette": {
+      "background": { "red": 0.008, "green": 0.006, "blue": 0.014 },
+      "primary": { "red": 0.540, "green": 0.420, "blue": 1.000 },
+      "secondary": { "red": 0.000, "green": 0.860, "blue": 0.820 },
+      "accent": { "red": 1.000, "green": 0.560, "blue": 0.340 }
+    },
+    "modules": { "warp": 0.88, "ribbons": 0.24, "radialSpectrum": 0.32, "particles": 0.30, "bloom": 0.28, "waveform": 0.24 },
+    "generators": { "particleCount": 40, "radialComplexity": 0.40, "ribbonCount": 2, "tunnelDepth": 0.88, "symmetry": 0.24, "folds": 0.16, "cellular": 0.36, "nebula": 1.00, "interference": 0.36 },
+    "morph": { "rate": 0.20, "chaos": 0.72, "geometry": 0.28, "colorDrift": 0.78, "sceneBlend": 0.92, "feedbackEcho": 1.00, "prism": 0.66, "waveComplexity": 0.28 },
+    "reactiveParameters": {
+      "warp": { "base": 0.28, "bass": 0.14, "mid": 0.16, "beat": 0.08, "flux": 0.10 },
+      "zoom": { "base": 0.06, "bass": 0.12, "peak": 0.04 },
+      "bloom": { "base": 0.10, "high": 0.06, "beat": 0.06 },
+      "rotation": { "base": 0.025, "mid": 0.10, "flux": 0.14 }
+    }
+  },
+  {
+    "id": "prism-hive-mind",
+    "name": "Prism Hive Mind",
+    "transitionDuration": 4.4,
+    "palette": {
+      "background": { "red": 0.002, "green": 0.008, "blue": 0.010 },
+      "primary": { "red": 0.200, "green": 1.000, "blue": 0.760 },
+      "secondary": { "red": 0.940, "green": 0.240, "blue": 1.000 },
+      "accent": { "red": 1.000, "green": 0.900, "blue": 0.200 }
+    },
+    "modules": { "warp": 0.70, "ribbons": 0.48, "radialSpectrum": 0.84, "particles": 0.78, "bloom": 0.34, "waveform": 0.42 },
+    "generators": { "particleCount": 140, "radialComplexity": 0.86, "ribbonCount": 4, "tunnelDepth": 0.76, "symmetry": 0.78, "folds": 0.80, "cellular": 1.00, "nebula": 0.34, "interference": 0.90 },
+    "morph": { "rate": 0.66, "chaos": 0.66, "geometry": 0.84, "colorDrift": 0.82, "sceneBlend": 0.82, "feedbackEcho": 0.52, "prism": 0.94, "waveComplexity": 0.78 },
+    "reactiveParameters": {
+      "warp": { "base": 0.18, "bass": 0.18, "mid": 0.14, "high": 0.16, "beat": 0.14, "flux": 0.18 },
+      "zoom": { "base": 0.08, "bass": 0.12, "peak": 0.06 },
+      "bloom": { "base": 0.12, "high": 0.10, "beat": 0.10 },
+      "rotation": { "base": 0.115, "mid": 0.10, "flux": 0.14 }
+    }
+  },
+  {
+    "id": "gravity-petals",
+    "name": "Gravity Petals",
+    "transitionDuration": 5.9,
+    "palette": {
+      "background": { "red": 0.006, "green": 0.004, "blue": 0.010 },
+      "primary": { "red": 1.000, "green": 0.520, "blue": 0.700 },
+      "secondary": { "red": 0.300, "green": 0.900, "blue": 1.000 },
+      "accent": { "red": 0.920, "green": 1.000, "blue": 0.420 }
+    },
+    "modules": { "warp": 0.76, "ribbons": 0.70, "radialSpectrum": 0.54, "particles": 0.50, "bloom": 0.36, "waveform": 0.52 },
+    "generators": { "particleCount": 82, "radialComplexity": 0.66, "ribbonCount": 6, "tunnelDepth": 0.70, "symmetry": 0.70, "folds": 0.66, "cellular": 0.48, "nebula": 0.72, "interference": 0.52 },
+    "morph": { "rate": 0.44, "chaos": 0.62, "geometry": 0.82, "colorDrift": 0.56, "sceneBlend": 0.88, "feedbackEcho": 0.78, "prism": 0.44, "waveComplexity": 0.68 },
+    "reactiveParameters": {
+      "warp": { "base": 0.22, "bass": 0.18, "mid": 0.14, "beat": 0.12, "flux": 0.10 },
+      "zoom": { "base": 0.07, "bass": 0.14, "peak": 0.05 },
+      "bloom": { "base": 0.14, "high": 0.08, "beat": 0.10 },
+      "rotation": { "base": -0.050, "mid": 0.14, "flux": 0.12 }
+    }
+  },
+  {
+    "id": "tachyon-lace",
+    "name": "Tachyon Lace",
+    "transitionDuration": 3.5,
+    "palette": {
+      "background": { "red": 0.002, "green": 0.004, "blue": 0.016 },
+      "primary": { "red": 0.720, "green": 0.260, "blue": 1.000 },
+      "secondary": { "red": 0.000, "green": 0.940, "blue": 1.000 },
+      "accent": { "red": 1.000, "green": 0.940, "blue": 0.260 }
+    },
+    "modules": { "warp": 0.64, "ribbons": 0.94, "radialSpectrum": 0.92, "particles": 0.56, "bloom": 0.38, "waveform": 0.80 },
+    "generators": { "particleCount": 100, "radialComplexity": 1.00, "ribbonCount": 8, "tunnelDepth": 0.58, "symmetry": 1.00, "folds": 1.00, "cellular": 0.30, "nebula": 0.26, "interference": 1.00 },
+    "morph": { "rate": 0.92, "chaos": 0.34, "geometry": 1.00, "colorDrift": 0.86, "sceneBlend": 0.74, "feedbackEcho": 0.36, "prism": 0.96, "waveComplexity": 1.00 },
+    "reactiveParameters": {
+      "warp": { "base": 0.14, "mid": 0.18, "high": 0.18, "beat": 0.12, "flux": 0.20 },
+      "zoom": { "base": 0.05, "bass": 0.08, "peak": 0.05 },
+      "bloom": { "base": 0.14, "high": 0.10, "beat": 0.10 },
+      "rotation": { "base": 0.155, "mid": 0.10, "flux": 0.18 }
+    }
+  },
+  {
+    "id": "acid-snowglobe",
+    "name": "Acid Snowglobe",
+    "transitionDuration": 4.0,
+    "palette": {
+      "background": { "red": 0.004, "green": 0.008, "blue": 0.014 },
+      "primary": { "red": 0.820, "green": 1.000, "blue": 0.260 },
+      "secondary": { "red": 0.180, "green": 0.780, "blue": 1.000 },
+      "accent": { "red": 1.000, "green": 0.320, "blue": 0.720 }
+    },
+    "modules": { "warp": 0.52, "ribbons": 0.32, "radialSpectrum": 0.70, "particles": 1.00, "bloom": 0.46, "waveform": 0.34 },
+    "generators": { "particleCount": 160, "radialComplexity": 0.72, "ribbonCount": 2, "tunnelDepth": 0.64, "symmetry": 0.54, "folds": 0.34, "cellular": 0.68, "nebula": 0.62, "interference": 0.60 },
+    "morph": { "rate": 0.70, "chaos": 0.58, "geometry": 0.46, "colorDrift": 0.92, "sceneBlend": 0.68, "feedbackEcho": 0.74, "prism": 0.58, "waveComplexity": 0.44 },
+    "reactiveParameters": {
+      "warp": { "base": 0.13, "bass": 0.12, "beat": 0.18, "flux": 0.12 },
+      "zoom": { "base": 0.10, "bass": 0.12, "peak": 0.08 },
+      "bloom": { "base": 0.22, "high": 0.12, "beat": 0.16 },
+      "rotation": { "base": 0.045, "mid": 0.06, "flux": 0.08 }
+    }
+  },
+  {
+    "id": "ember-circuit-reef",
+    "name": "Ember Circuit Reef",
+    "transitionDuration": 4.6,
+    "palette": {
+      "background": { "red": 0.012, "green": 0.006, "blue": 0.004 },
+      "primary": { "red": 1.000, "green": 0.560, "blue": 0.140 },
+      "secondary": { "red": 0.000, "green": 0.840, "blue": 0.780 },
+      "accent": { "red": 0.300, "green": 0.520, "blue": 1.000 }
+    },
+    "modules": { "warp": 0.76, "ribbons": 0.58, "radialSpectrum": 0.82, "particles": 0.64, "bloom": 0.40, "waveform": 0.54 },
+    "generators": { "particleCount": 112, "radialComplexity": 0.78, "ribbonCount": 5, "tunnelDepth": 0.72, "symmetry": 0.58, "folds": 0.46, "cellular": 0.86, "nebula": 0.52, "interference": 0.76 },
+    "morph": { "rate": 0.68, "chaos": 0.62, "geometry": 0.64, "colorDrift": 0.48, "sceneBlend": 0.78, "feedbackEcho": 0.58, "prism": 0.34, "waveComplexity": 0.66 },
+    "reactiveParameters": {
+      "warp": { "base": 0.20, "bass": 0.30, "beat": 0.18, "flux": 0.10 },
+      "zoom": { "base": 0.10, "bass": 0.20, "peak": 0.06 },
+      "bloom": { "base": 0.16, "bass": 0.10, "beat": 0.14 },
+      "rotation": { "base": 0.035, "bass": -0.10, "mid": 0.09 }
+    }
+  },
+  {
+    "id": "bluefire-mandala",
+    "name": "Bluefire Mandala",
+    "transitionDuration": 5.0,
+    "palette": {
+      "background": { "red": 0.000, "green": 0.006, "blue": 0.016 },
+      "primary": { "red": 0.060, "green": 0.720, "blue": 1.000 },
+      "secondary": { "red": 0.640, "green": 1.000, "blue": 0.700 },
+      "accent": { "red": 1.000, "green": 0.720, "blue": 0.280 }
+    },
+    "modules": { "warp": 0.54, "ribbons": 0.42, "radialSpectrum": 1.00, "particles": 0.48, "bloom": 0.34, "waveform": 0.64 },
+    "generators": { "particleCount": 88, "radialComplexity": 1.00, "ribbonCount": 4, "tunnelDepth": 0.50, "symmetry": 1.00, "folds": 0.96, "cellular": 0.40, "nebula": 0.34, "interference": 0.96 },
+    "morph": { "rate": 0.52, "chaos": 0.28, "geometry": 1.00, "colorDrift": 0.46, "sceneBlend": 0.62, "feedbackEcho": 0.44, "prism": 0.54, "waveComplexity": 0.90 },
+    "reactiveParameters": {
+      "warp": { "base": 0.10, "mid": 0.14, "high": 0.14, "flux": 0.14 },
+      "zoom": { "base": 0.05, "bass": 0.08, "peak": 0.04 },
+      "bloom": { "base": 0.14, "high": 0.10, "beat": 0.10 },
+      "rotation": { "base": 0.125, "mid": 0.10, "beat": 0.04 }
+    }
+  },
+  {
+    "id": "magnetic-aurora-bloom",
+    "name": "Magnetic Aurora Bloom",
+    "transitionDuration": 6.0,
+    "palette": {
+      "background": { "red": 0.002, "green": 0.006, "blue": 0.014 },
+      "primary": { "red": 0.140, "green": 1.000, "blue": 0.600 },
+      "secondary": { "red": 0.240, "green": 0.600, "blue": 1.000 },
+      "accent": { "red": 1.000, "green": 0.380, "blue": 0.800 }
+    },
+    "modules": { "warp": 0.84, "ribbons": 0.76, "radialSpectrum": 0.60, "particles": 0.62, "bloom": 0.50, "waveform": 0.46 },
+    "generators": { "particleCount": 108, "radialComplexity": 0.68, "ribbonCount": 7, "tunnelDepth": 0.86, "symmetry": 0.62, "folds": 0.40, "cellular": 0.56, "nebula": 0.90, "interference": 0.74 },
+    "morph": { "rate": 0.42, "chaos": 0.72, "geometry": 0.62, "colorDrift": 0.82, "sceneBlend": 0.96, "feedbackEcho": 0.86, "prism": 0.64, "waveComplexity": 0.72 },
+    "reactiveParameters": {
+      "warp": { "base": 0.25, "bass": 0.18, "mid": 0.16, "high": 0.14, "beat": 0.12, "flux": 0.16 },
+      "zoom": { "base": 0.08, "bass": 0.14, "peak": 0.05 },
+      "bloom": { "base": 0.22, "high": 0.14, "beat": 0.14 },
+      "rotation": { "base": -0.070, "mid": 0.12, "flux": 0.18 }
+    }
+  },
+  {
+    "id": "spectral-city-grid",
+    "name": "Spectral City Grid",
+    "transitionDuration": 4.3,
+    "palette": {
+      "background": { "red": 0.004, "green": 0.006, "blue": 0.010 },
+      "primary": { "red": 0.760, "green": 0.940, "blue": 1.000 },
+      "secondary": { "red": 0.060, "green": 0.940, "blue": 0.660 },
+      "accent": { "red": 1.000, "green": 0.500, "blue": 0.220 }
+    },
+    "modules": { "warp": 0.40, "ribbons": 0.62, "radialSpectrum": 0.84, "particles": 0.34, "bloom": 0.24, "waveform": 0.92 },
+    "generators": { "particleCount": 52, "radialComplexity": 0.96, "ribbonCount": 6, "tunnelDepth": 0.36, "symmetry": 1.00, "folds": 1.00, "cellular": 0.28, "nebula": 0.16, "interference": 1.00 },
+    "morph": { "rate": 0.44, "chaos": 0.18, "geometry": 1.00, "colorDrift": 0.42, "sceneBlend": 0.48, "feedbackEcho": 0.26, "prism": 0.50, "waveComplexity": 1.00 },
+    "reactiveParameters": {
+      "warp": { "base": 0.07, "mid": 0.16, "high": 0.10, "flux": 0.16 },
+      "zoom": { "base": 0.03, "bass": 0.05, "peak": 0.03 },
+      "bloom": { "base": 0.08, "high": 0.08, "beat": 0.06 },
+      "rotation": { "base": 0.080, "mid": 0.08, "flux": 0.10 }
+    }
+  },
+  {
+    "id": "obsidian-mirror",
+    "name": "Obsidian Mirror",
+    "transitionDuration": 5.8,
+    "palette": {
+      "background": { "red": 0.004, "green": 0.004, "blue": 0.008 },
+      "primary": { "red": 0.820, "green": 0.340, "blue": 1.000 },
+      "secondary": { "red": 0.000, "green": 0.820, "blue": 0.760 },
+      "accent": { "red": 1.000, "green": 0.740, "blue": 0.360 }
+    },
+    "modules": { "warp": 0.96, "ribbons": 0.54, "radialSpectrum": 0.42, "particles": 0.40, "bloom": 0.30, "waveform": 0.36 },
+    "generators": { "particleCount": 64, "radialComplexity": 0.52, "ribbonCount": 5, "tunnelDepth": 0.96, "symmetry": 0.36, "folds": 0.34, "cellular": 0.62, "nebula": 1.00, "interference": 0.50 },
+    "morph": { "rate": 0.28, "chaos": 0.92, "geometry": 0.48, "colorDrift": 0.78, "sceneBlend": 0.98, "feedbackEcho": 1.00, "prism": 0.72, "waveComplexity": 0.42 },
+    "reactiveParameters": {
+      "warp": { "base": 0.34, "bass": 0.16, "mid": 0.16, "beat": 0.08, "flux": 0.14 },
+      "zoom": { "base": 0.07, "bass": 0.14, "peak": 0.05 },
+      "bloom": { "base": 0.10, "high": 0.08, "beat": 0.06 },
+      "rotation": { "base": -0.040, "mid": 0.13, "flux": 0.18 }
+    }
+  },
+  {
+    "id": "sunken-opera",
+    "name": "Sunken Opera",
+    "transitionDuration": 6.6,
+    "palette": {
+      "background": { "red": 0.002, "green": 0.008, "blue": 0.012 },
+      "primary": { "red": 0.280, "green": 0.860, "blue": 1.000 },
+      "secondary": { "red": 0.760, "green": 0.940, "blue": 0.820 },
+      "accent": { "red": 1.000, "green": 0.560, "blue": 0.320 }
+    },
+    "modules": { "warp": 0.58, "ribbons": 0.82, "radialSpectrum": 0.46, "particles": 0.34, "bloom": 0.34, "waveform": 0.60 },
+    "generators": { "particleCount": 56, "radialComplexity": 0.58, "ribbonCount": 8, "tunnelDepth": 0.70, "symmetry": 0.88, "folds": 0.70, "cellular": 0.28, "nebula": 0.84, "interference": 0.44 },
+    "morph": { "rate": 0.26, "chaos": 0.44, "geometry": 0.76, "colorDrift": 0.48, "sceneBlend": 0.82, "feedbackEcho": 0.88, "prism": 0.50, "waveComplexity": 0.74 },
+    "reactiveParameters": {
+      "warp": { "base": 0.18, "bass": 0.12, "mid": 0.12, "flux": 0.10 },
+      "zoom": { "base": 0.05, "bass": 0.08, "peak": 0.04 },
+      "bloom": { "base": 0.14, "high": 0.10, "beat": 0.08 },
+      "rotation": { "base": 0.032, "mid": 0.08, "flux": 0.08 }
+    }
+  },
+  {
+    "id": "laser-moss-temple",
+    "name": "Laser Moss Temple",
+    "transitionDuration": 4.7,
+    "palette": {
+      "background": { "red": 0.004, "green": 0.010, "blue": 0.006 },
+      "primary": { "red": 0.120, "green": 1.000, "blue": 0.500 },
+      "secondary": { "red": 0.900, "green": 0.820, "blue": 0.220 },
+      "accent": { "red": 0.260, "green": 0.620, "blue": 1.000 }
+    },
+    "modules": { "warp": 0.68, "ribbons": 0.70, "radialSpectrum": 0.78, "particles": 0.72, "bloom": 0.34, "waveform": 0.66 },
+    "generators": { "particleCount": 122, "radialComplexity": 0.88, "ribbonCount": 6, "tunnelDepth": 0.68, "symmetry": 0.92, "folds": 0.82, "cellular": 0.88, "nebula": 0.40, "interference": 0.84 },
+    "morph": { "rate": 0.60, "chaos": 0.54, "geometry": 0.90, "colorDrift": 0.50, "sceneBlend": 0.72, "feedbackEcho": 0.50, "prism": 0.46, "waveComplexity": 0.86 },
+    "reactiveParameters": {
+      "warp": { "base": 0.18, "bass": 0.24, "mid": 0.12, "beat": 0.15, "flux": 0.12 },
+      "zoom": { "base": 0.08, "bass": 0.14, "peak": 0.05 },
+      "bloom": { "base": 0.12, "high": 0.10, "beat": 0.10 },
+      "rotation": { "base": 0.070, "mid": 0.11, "flux": 0.10 }
+    }
+  },
+  {
+    "id": "ruby-telemetry",
+    "name": "Ruby Telemetry",
+    "transitionDuration": 3.8,
+    "palette": {
+      "background": { "red": 0.014, "green": 0.004, "blue": 0.008 },
+      "primary": { "red": 1.000, "green": 0.220, "blue": 0.360 },
+      "secondary": { "red": 0.220, "green": 0.880, "blue": 1.000 },
+      "accent": { "red": 1.000, "green": 0.860, "blue": 0.220 }
+    },
+    "modules": { "warp": 0.46, "ribbons": 0.74, "radialSpectrum": 0.96, "particles": 0.48, "bloom": 0.32, "waveform": 1.00 },
+    "generators": { "particleCount": 84, "radialComplexity": 1.00, "ribbonCount": 6, "tunnelDepth": 0.42, "symmetry": 0.96, "folds": 0.90, "cellular": 0.20, "nebula": 0.18, "interference": 1.00 },
+    "morph": { "rate": 0.80, "chaos": 0.24, "geometry": 0.98, "colorDrift": 0.72, "sceneBlend": 0.58, "feedbackEcho": 0.30, "prism": 0.58, "waveComplexity": 1.00 },
+    "reactiveParameters": {
+      "warp": { "base": 0.10, "mid": 0.18, "high": 0.16, "flux": 0.18 },
+      "zoom": { "base": 0.04, "bass": 0.08, "peak": 0.04 },
+      "bloom": { "base": 0.12, "high": 0.10, "beat": 0.10 },
+      "rotation": { "base": 0.110, "mid": 0.11, "beat": 0.05 }
+    }
+  },
+  {
+    "id": "polar-nebula-gate",
+    "name": "Polar Nebula Gate",
+    "transitionDuration": 6.8,
+    "palette": {
+      "background": { "red": 0.000, "green": 0.004, "blue": 0.012 },
+      "primary": { "red": 0.460, "green": 0.940, "blue": 1.000 },
+      "secondary": { "red": 0.740, "green": 0.520, "blue": 1.000 },
+      "accent": { "red": 1.000, "green": 0.780, "blue": 0.420 }
+    },
+    "modules": { "warp": 0.82, "ribbons": 0.36, "radialSpectrum": 0.38, "particles": 0.52, "bloom": 0.42, "waveform": 0.30 },
+    "generators": { "particleCount": 96, "radialComplexity": 0.48, "ribbonCount": 3, "tunnelDepth": 1.00, "symmetry": 0.30, "folds": 0.24, "cellular": 0.36, "nebula": 1.00, "interference": 0.52 },
+    "morph": { "rate": 0.18, "chaos": 0.86, "geometry": 0.36, "colorDrift": 0.68, "sceneBlend": 1.00, "feedbackEcho": 1.00, "prism": 0.68, "waveComplexity": 0.36 },
+    "reactiveParameters": {
+      "warp": { "base": 0.30, "bass": 0.16, "mid": 0.14, "beat": 0.08, "flux": 0.12 },
+      "zoom": { "base": 0.09, "bass": 0.14, "peak": 0.06 },
+      "bloom": { "base": 0.18, "high": 0.10, "beat": 0.08 },
+      "rotation": { "base": -0.034, "mid": 0.10, "flux": 0.14 }
+    }
+  }
+]

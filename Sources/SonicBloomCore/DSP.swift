@@ -56,6 +56,11 @@ public extension DSPPreset {
 
 public final class SonicBloomProcessor {
     private let handle: OpaquePointer
+    private var frameInputLeft: [Float] = []
+    private var frameInputRight: [Float] = []
+    private var frameOutputLeft: [Float] = []
+    private var frameOutputRight: [Float] = []
+    private var frameOutputFrames: [StereoFrame] = []
     public private(set) var sampleRate: Double
 
     public init(sampleRate: Double) {
@@ -74,23 +79,35 @@ public final class SonicBloomProcessor {
 
     public func process(_ frames: [StereoFrame], preset: DSPPreset, bypass: Bool) -> ProcessResult {
         guard !frames.isEmpty else {
+            frameInputLeft.removeAll(keepingCapacity: true)
+            frameInputRight.removeAll(keepingCapacity: true)
+            frameOutputLeft.removeAll(keepingCapacity: true)
+            frameOutputRight.removeAll(keepingCapacity: true)
+            frameOutputFrames.removeAll(keepingCapacity: true)
             return ProcessResult(frames: [], meter: DSPMeter())
         }
 
-        let left = frames.map(\.left)
-        let right = frames.map(\.right)
-        var outputLeft: [Float] = []
-        var outputRight: [Float] = []
+        frameInputLeft.resizeAudioBuffer(to: frames.count)
+        frameInputRight.resizeAudioBuffer(to: frames.count)
+        for index in frames.indices {
+            frameInputLeft[index] = frames[index].left
+            frameInputRight[index] = frames[index].right
+        }
         let meter = process(
-            left: left,
-            right: right,
-            outputLeft: &outputLeft,
-            outputRight: &outputRight,
+            left: frameInputLeft,
+            right: frameInputRight,
+            outputLeft: &frameOutputLeft,
+            outputRight: &frameOutputRight,
             preset: preset,
             bypass: bypass
         )
-        let output = zip(outputLeft, outputRight).map { StereoFrame(left: $0, right: $1) }
-        return ProcessResult(frames: output, meter: meter)
+        let frameCount = min(frameOutputLeft.count, frameOutputRight.count)
+        frameOutputFrames.removeAll(keepingCapacity: true)
+        frameOutputFrames.reserveCapacity(frameCount)
+        for index in 0..<frameCount {
+            frameOutputFrames.append(StereoFrame(left: frameOutputLeft[index], right: frameOutputRight[index]))
+        }
+        return ProcessResult(frames: frameOutputFrames, meter: meter)
     }
 
     public func process(

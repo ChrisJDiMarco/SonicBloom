@@ -11,6 +11,7 @@ Scripts/build_hal_driver.sh >/dev/null
 
 app="dist/SonicBloom.app"
 contents="$app/Contents"
+entitlements="BuildAssets/SonicBloom.entitlements"
 rm -rf "$app"
 mkdir -p "$contents/MacOS" "$contents/Resources"
 
@@ -61,7 +62,7 @@ if [[ -n "${SONICBLOOM_UPDATE_MANIFEST_PUBLIC_KEY_HEX:-}" ]]; then
 fi
 
 printf 'APPL????' > "$contents/PkgInfo"
-codesign_args=(--force --deep --sign "$sign_identity")
+codesign_args=(--force --deep --sign "$sign_identity" --entitlements "$entitlements")
 if [[ "$sign_identity" != "-" ]]; then
   codesign_args+=(--options runtime --timestamp)
 fi

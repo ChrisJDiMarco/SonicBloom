@@ -77,7 +77,8 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertEqual(try JSONDecoder().decode(DSPPreset.self, from: data), cleanLoud)
     }
 
-    func testFlatPresetBypassIsNearTransparent() {
+    func testFlatPresetBypassIsNearTransparent() throws {
+        let dspSource = try String(contentsOf: URL(fileURLWithPath: "Sources/SonicBloomCore/DSP.swift"))
         let frames = (0..<256).map { index in
             StereoFrame(
                 left: Float(sin(Double(index) * 0.07) * 0.35),
@@ -93,6 +94,9 @@ final class SonicBloomCoreTests: XCTestCase {
             XCTAssertEqual(output.left, input.left, accuracy: 0.000_01)
             XCTAssertEqual(output.right, input.right, accuracy: 0.000_01)
         }
+        XCTAssertTrue(dspSource.contains("frameInputLeft.resizeAudioBuffer"))
+        XCTAssertFalse(dspSource.contains("frames.map(\\.left)"))
+        XCTAssertFalse(dspSource.contains("zip(outputLeft, outputRight).map"))
     }
 
     func testBypassDoesNotApplyLimiterCeiling() {
@@ -290,6 +294,53 @@ final class SonicBloomCoreTests: XCTestCase {
 
         XCTAssertGreaterThan(toneMagnitude(bass, frequency: 110), toneMagnitude(dry, frequency: 110) + 0.01)
         XCTAssertGreaterThan(toneMagnitude(bass, frequency: 165), toneMagnitude(dry, frequency: 165) + 0.006)
+    }
+
+    func testBassBloomBacksOffWhenLowEndIsAlreadyCrowded() {
+        let moderate = sineMix(lowFrequency: 55, lowAmplitude: 0.24, highFrequency: 0, highAmplitude: 0, count: 4_096)
+        let loud = sineMix(lowFrequency: 55, lowAmplitude: 0.72, highFrequency: 0, highAmplitude: 0, count: 4_096)
+        let dryPreset = DSPPreset.manual.with(limiterCeilingDB: -0.1)
+        let bassPreset = dryPreset.with(bassAmount: 1)
+
+        let moderateDry = SonicBloomProcessor(sampleRate: 48_000).process(moderate, preset: dryPreset, bypass: false).frames
+        let moderateBass = SonicBloomProcessor(sampleRate: 48_000).process(moderate, preset: bassPreset, bypass: false).frames
+        let loudDry = SonicBloomProcessor(sampleRate: 48_000).process(loud, preset: dryPreset, bypass: false).frames
+        let loudBass = SonicBloomProcessor(sampleRate: 48_000).process(loud, preset: bassPreset, bypass: false).frames
+
+        let moderateLift = (toneMagnitude(moderateBass, frequency: 110) - toneMagnitude(moderateDry, frequency: 110))
+            / max(toneMagnitude(moderateDry, frequency: 55), 0.000_001)
+        let loudLift = (toneMagnitude(loudBass, frequency: 110) - toneMagnitude(loudDry, frequency: 110))
+            / max(toneMagnitude(loudDry, frequency: 55), 0.000_001)
+
+        XCTAssertGreaterThan(moderateLift, 0.03)
+        XCTAssertLessThan(loudLift, moderateLift * 0.85)
+    }
+
+    func testStereoWidthAvoidsOverWideningAntiPhaseAudio() {
+        let frames = (0..<4_096).map { index in
+            let sample = Float(sin(2 * Double.pi * 440 * Double(index) / 48_000) * 0.32)
+            return StereoFrame(left: sample, right: -sample)
+        }
+        let dryPreset = DSPPreset.manual.with(limiterCeilingDB: -0.1)
+        let widePreset = dryPreset.with(widthAmount: 1, spatialAmount: 1)
+
+        let dry = SonicBloomProcessor(sampleRate: 48_000).process(frames, preset: dryPreset, bypass: false).frames
+        let wide = SonicBloomProcessor(sampleRate: 48_000).process(frames, preset: widePreset, bypass: false).frames
+
+        XCTAssertLessThan(sideRMS(wide), sideRMS(dry) * 1.15)
+        XCTAssertLessThanOrEqual(wide.map { max(abs($0.left), abs($0.right)) }.max() ?? 0, widePreset.limiterCeilingLinear + 0.000_1)
+    }
+
+    func testEnhancedSoftKneeReducesLimiterWorkOnHotProgram() {
+        let frames = sineMix(lowFrequency: 1_000, lowAmplitude: 0.96, highFrequency: 0, highAmplitude: 0, count: 4_096)
+        let hardPreset = DSPPreset.manual.with(inputGainDB: 5, limiterCeilingDB: -1, limiterReleaseMS: 20)
+        let softPreset = hardPreset.with(bassAmount: 1)
+
+        let hard = SonicBloomProcessor(sampleRate: 48_000).process(frames, preset: hardPreset, bypass: false)
+        let soft = SonicBloomProcessor(sampleRate: 48_000).process(frames, preset: softPreset, bypass: false)
+
+        XCTAssertLessThan(soft.meter.gainReductionDB, hard.meter.gainReductionDB)
+        XCTAssertLessThanOrEqual(soft.frames.map { max(abs($0.left), abs($0.right)) }.max() ?? 0, softPreset.limiterCeilingLinear + 0.000_1)
     }
 
     func testMeterReportsContentBandEnergy() {
@@ -1245,7 +1296,8 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertEqual(events, ["create 888", "destroy 888"])
     }
 
-    func testTapInputBufferExtractsInterleavedStereoFrames() {
+    func testTapInputBufferExtractsInterleavedStereoFrames() throws {
+        let routingSource = try String(contentsOf: URL(fileURLWithPath: "Sources/SonicBloomCore/AudioRouting.swift"))
         var samples: [Float] = [0.1, 0.2, 0.3, 0.4]
         let byteSize = UInt32(samples.count * MemoryLayout<Float>.size)
         let frames = samples.withUnsafeMutableBufferPointer { pointer in
@@ -1262,9 +1314,12 @@ final class SonicBloomCoreTests: XCTestCase {
             StereoFrame(left: 0.1, right: 0.2),
             StereoFrame(left: 0.3, right: 0.4)
         ])
+        XCTAssertTrue(routingSource.contains("frames.reserveCapacity(frameCount)"))
+        XCTAssertFalse(routingSource.contains("return (0..<frameCount).map { frame in"))
     }
 
-    func testTapInputBufferExtractsPlanarStereoFrames() {
+    func testTapInputBufferExtractsPlanarStereoFrames() throws {
+        let routingSource = try String(contentsOf: URL(fileURLWithPath: "Sources/SonicBloomCore/AudioRouting.swift"))
         var left: [Float] = [0.1, 0.3]
         var right: [Float] = [0.2, 0.4]
         let leftByteSize = UInt32(left.count * MemoryLayout<Float>.size)
@@ -1290,6 +1345,8 @@ final class SonicBloomCoreTests: XCTestCase {
             StereoFrame(left: 0.1, right: 0.2),
             StereoFrame(left: 0.3, right: 0.4)
         ])
+        XCTAssertTrue(routingSource.contains("frames.reserveCapacity(frameCount)"))
+        XCTAssertFalse(routingSource.contains("return (0..<frameCount).map { frame in"))
     }
 
     func testTapSourceEmitsDecodedStereoFrames() throws {
@@ -1348,7 +1405,8 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertLessThan(abs(frames[0].right), 0.001)
     }
 
-    func testPerAppAudioLaneMixesIntoBaseFrames() {
+    func testPerAppAudioLaneMixesIntoBaseFrames() throws {
+        let routingSource = try String(contentsOf: URL(fileURLWithPath: "Sources/SonicBloomCore/AudioRouting.swift"))
         let mixed = PerAppAudioLane.mix(
             [StereoFrame(left: 0.2, right: -0.2), StereoFrame(left: 0.1, right: 0.1)],
             into: [StereoFrame(left: 0.1, right: 0.1)]
@@ -1358,6 +1416,8 @@ final class SonicBloomCoreTests: XCTestCase {
             StereoFrame(left: 0.3, right: -0.1),
             StereoFrame(left: 0.1, right: 0.1)
         ])
+        XCTAssertTrue(routingSource.contains("mixed.reserveCapacity(frameCount)"))
+        XCTAssertFalse(routingSource.contains("return (0..<frameCount).map { index in"))
     }
 
     func testPerAppTapCoordinatorStartsLaneAndEmitsProcessedFrames() throws {
@@ -1585,14 +1645,26 @@ final class SonicBloomCoreTests: XCTestCase {
     func testSettingsClampVisualizerIntensity() throws {
         let quiet = SonicBloomSettings(waveformIntensity: -3)
         let loud = SonicBloomSettings(waveformIntensity: 4)
+        let mutedVisualizer = VisualizerSettings(selectedPresetID: "", intensity: -2, cycleSeconds: 1, detailDensity: -4, bloomStrength: -1)
+        let maxedVisualizer = VisualizerSettings(intensity: 2, cycleSeconds: 999, detailDensity: 3, bloomStrength: 8)
 
         XCTAssertEqual(quiet.waveformIntensity, 0)
         XCTAssertEqual(loud.waveformIntensity, 1)
+        XCTAssertEqual(mutedVisualizer.selectedPresetID, "bloom-tunnel")
+        XCTAssertEqual(mutedVisualizer.intensity, 0)
+        XCTAssertEqual(mutedVisualizer.cycleSeconds, 8)
+        XCTAssertEqual(mutedVisualizer.detailDensity, 0)
+        XCTAssertEqual(mutedVisualizer.bloomStrength, 0)
+        XCTAssertEqual(maxedVisualizer.intensity, 1)
+        XCTAssertEqual(maxedVisualizer.cycleSeconds, 300)
+        XCTAssertEqual(maxedVisualizer.detailDensity, 1)
+        XCTAssertEqual(maxedVisualizer.bloomStrength, 1)
         XCTAssertEqual(SonicBloomSettings.default.syncMode, .auto)
         XCTAssertTrue(SonicBloomSettings.default.smartPresetMatching)
         XCTAssertFalse(SonicBloomSettings.default.showAdvancedControls)
         XCTAssertFalse(SonicBloomSettings.default.applyAppProfilesAutomatically)
         XCTAssertFalse(SonicBloomSettings.default.loudnessMatchedCompare)
+        XCTAssertEqual(SonicBloomSettings.default.visualizerSettings, .default)
 
         let studio = SonicBloomSettings(showAdvancedControls: true)
         let data = try JSONEncoder().encode(studio)
@@ -1608,6 +1680,18 @@ final class SonicBloomCoreTests: XCTestCase {
         XCTAssertFalse(settings.loudnessMatchedCompare)
         XCTAssertFalse(settings.smartPresetMatching)
         XCTAssertFalse(settings.applyAppProfilesAutomatically)
+        XCTAssertEqual(settings.visualizerSettings, .default)
+
+        let oldVisualizerData = #"{"selectedPresetID":"neon-reef","intensity":0.4,"quality":"cinematic","autoCycleEnabled":false,"cycleSeconds":20,"flashLimitEnabled":true}"#.data(using: .utf8)!
+        let oldVisualizerSettings = try JSONDecoder().decode(VisualizerSettings.self, from: oldVisualizerData)
+        XCTAssertEqual(oldVisualizerSettings.selectedPresetID, "neon-reef")
+        XCTAssertEqual(oldVisualizerSettings.intensity, 0.4)
+        XCTAssertEqual(oldVisualizerSettings.quality, .cinematic)
+        XCTAssertFalse(oldVisualizerSettings.autoCycleEnabled)
+        XCTAssertEqual(oldVisualizerSettings.cycleSeconds, 20)
+        XCTAssertTrue(oldVisualizerSettings.flashLimitEnabled)
+        XCTAssertEqual(oldVisualizerSettings.detailDensity, 0.62)
+        XCTAssertEqual(oldVisualizerSettings.bloomStrength, 0.56)
     }
 
     func testSyncModeOptimizesSpatialLatencyCost() {
@@ -2186,6 +2270,14 @@ final class SonicBloomCoreTests: XCTestCase {
         )
     }
 
+    func testRouteManagerLeavesDefaultInputAloneWhileProcessing() throws {
+        let source = try String(contentsOf: URL(fileURLWithPath: "Sources/SonicBloomCore/AudioRouting.swift"))
+
+        XCTAssertFalse(source.contains("setDefaultInputDeviceID"))
+        XCTAssertFalse(source.contains("restorePreviousInputDevice()"))
+        XCTAssertFalse(source.contains("kAudioHardwarePropertyDefaultInputDevice"))
+    }
+
     func testRouteLeaseTracksFreshStaleAndClearedHeartbeats() throws {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -2692,6 +2784,9 @@ final class SonicBloomCoreTests: XCTestCase {
     func testPackageReleaseRequiresAppSigningIdentityForBuiltNotarization() throws {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        var environment = ProcessInfo.processInfo.environment
+        environment.removeValue(forKey: "SONICBLOOM_APP_IDENTITY")
+        process.environment = environment
         process.arguments = [
             "SONICBLOOM_INSTALLER_IDENTITY=Developer ID Installer: Test (TEAMID)",
             "SONICBLOOM_NOTARY_PROFILE=test-profile",
@@ -2728,6 +2823,15 @@ final class SonicBloomCoreTests: XCTestCase {
             partial + frame.left * frame.left + frame.right * frame.right
         }
         return sqrt(sum / Float(frames.count * 2))
+    }
+
+    private func sideRMS(_ frames: [StereoFrame]) -> Float {
+        guard !frames.isEmpty else { return 0 }
+        let sum = frames.reduce(Float(0)) { partial, frame in
+            let side = (frame.left - frame.right) * 0.5
+            return partial + side * side
+        }
+        return sqrt(sum / Float(frames.count))
     }
 
     private func highFrequencyEnergy(_ frames: [StereoFrame]) -> Float {

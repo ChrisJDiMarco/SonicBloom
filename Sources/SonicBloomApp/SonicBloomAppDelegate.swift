@@ -9,6 +9,7 @@ final class SonicBloomAppDelegate: NSObject, NSApplicationDelegate {
     private var enhancementMenuItem: NSMenuItem?
     private var bypassMenuItem: NSMenuItem?
     private var window: NSWindow?
+    private var visualizerWindowController: SonicBloomVisualizerWindowController?
     private let viewModel = SonicBloomViewModel()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -39,7 +40,10 @@ final class SonicBloomAppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func openControlPanel() {
         if window == nil {
-            let controller = SonicBloomHostingController(rootView: SonicBloomControlPanel(viewModel: viewModel))
+            let controller = SonicBloomHostingController(rootView: SonicBloomControlPanel(
+                viewModel: viewModel,
+                openVisualizer: { [weak self] in self?.openVisualizer() }
+            ))
             let newWindow = NSWindow(contentViewController: controller)
             newWindow.title = "SonicBloom"
             newWindow.setContentSize(SonicBloomWindowMetrics.defaultSize)
@@ -55,6 +59,13 @@ final class SonicBloomAppDelegate: NSObject, NSApplicationDelegate {
         window?.center()
         window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    @objc private func openVisualizer() {
+        if visualizerWindowController == nil {
+            visualizerWindowController = SonicBloomVisualizerWindowController(viewModel: viewModel)
+        }
+        visualizerWindowController?.showVisualizer()
     }
 
     @objc private func toggleBypass() {
@@ -122,6 +133,7 @@ final class SonicBloomAppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(disabledItem("Confidence: \(viewModel.audioConfidence.headline)"))
         menu.addItem(.separator())
         menu.addItem(actionItem("Open SonicBloom", #selector(openControlPanel), "o"))
+        menu.addItem(actionItem("Open Visualizer", #selector(openVisualizer), "i"))
 
         let enhancementItem = actionItem(viewModel.isBridgeRunning ? "Turn Off Enhancement" : viewModel.primaryActionTitle, #selector(toggleEnhancement), "e")
         enhancementItem.isEnabled = !viewModel.isTransitioning

@@ -1,6 +1,7 @@
 import XCTest
 import AudioToolbox
 import Foundation
+import Metal
 import SonicBloomCore
 @testable import SonicBloomApp
 
@@ -31,16 +32,24 @@ final class SonicBloomAppTests: XCTestCase {
         XCTAssertTrue(viewModel.contains("startRouteLease()"))
         XCTAssertTrue(viewModel.contains("SonicBloomRouteLease.touch()"))
         XCTAssertTrue(viewModel.contains("SonicBloomRouteLease.clear()"))
+        XCTAssertTrue(viewModel.contains("AVCaptureDevice.authorizationStatus(for: .audio)"))
+        XCTAssertLessThan(
+            viewModel.range(of: "try bridge.start(")!.lowerBound,
+            viewModel.range(of: "let selection = try routeManager.activateBridgeSystemOutput()")!.lowerBound
+        )
         XCTAssertTrue(recovery.contains("restoreAbandonedBridgeSystemOutput"))
     }
 
     func testAppBundleShipsLocalizedPermissionCopy() throws {
         let buildScript = try String(contentsOf: URL(fileURLWithPath: "Scripts/build_app.sh"))
         let infoPlistStrings = try String(contentsOf: URL(fileURLWithPath: "Sources/SonicBloomApp/Resources/en.lproj/InfoPlist.strings"))
+        let entitlements = try String(contentsOf: URL(fileURLWithPath: "BuildAssets/SonicBloom.entitlements"))
 
         XCTAssertTrue(buildScript.contains("Sources/SonicBloomApp/Resources/en.lproj"))
+        XCTAssertTrue(buildScript.contains("--entitlements \"$entitlements\""))
         XCTAssertTrue(infoPlistStrings.contains("NSMicrophoneUsageDescription"))
         XCTAssertTrue(infoPlistStrings.contains("not to listen to your physical microphone"))
+        XCTAssertTrue(entitlements.contains("com.apple.security.device.audio-input"))
     }
 
     func testAppBundleCanEmbedTrustedUpdateManifestPublicKey() throws {
@@ -93,6 +102,36 @@ final class SonicBloomAppTests: XCTestCase {
         XCTAssertTrue(controlPanel.contains("@AppStorage(\"sonicbloom.quickSetupDismissed\")"))
         XCTAssertTrue(controlPanel.contains("Dismiss quick setup"))
         XCTAssertTrue(controlPanel.contains("xmark"))
+        XCTAssertTrue(controlPanel.contains("TimelineView(.animation)"))
+        XCTAssertTrue(controlPanel.contains("stereoScaleX"))
+        XCTAssertTrue(controlPanel.contains("stereoScaleY"))
+    }
+
+    func testDarkModeToggleDrivesConsoleAppearance() throws {
+        let controlPanel = try String(contentsOf: URL(fileURLWithPath: "Sources/SonicBloomApp/SonicBloomControlPanel.swift"))
+        let waveformSurface = try String(contentsOf: URL(fileURLWithPath: "Sources/SonicBloomApp/MetalWaveformSurface.swift"))
+
+        XCTAssertTrue(controlPanel.contains("@AppStorage(\"sonicbloom.darkModeEnabled\")"))
+        XCTAssertTrue(controlPanel.contains("Dark Mode"))
+        XCTAssertTrue(controlPanel.contains(".preferredColorScheme(isDarkModeEnabled ? .dark : .light)"))
+        XCTAssertTrue(controlPanel.contains("NSAppearance(named: isDarkModeEnabled ? .darkAqua : .aqua)"))
+        XCTAssertTrue(controlPanel.contains("HeroAnalyzer(viewModel: viewModel, isDarkModeEnabled: isDarkModeEnabled)"))
+        XCTAssertTrue(controlPanel.contains("isDarkModeEnabled: isDarkModeEnabled"))
+        XCTAssertTrue(waveformSurface.contains("var isDarkModeEnabled: Bool"))
+        XCTAssertTrue(waveformSurface.contains("clearColor(isDarkModeEnabled: isDarkModeEnabled)"))
+        XCTAssertTrue(waveformSurface.contains("MTLClearColor(red: 0.015, green: 0.040, blue: 0.043, alpha: 1)"))
+        XCTAssertTrue(waveformSurface.contains("MTLClearColor(red: 0.948, green: 0.978, blue: 0.970, alpha: 1)"))
+        XCTAssertTrue(waveformSurface.contains("static func dismantleNSView"))
+        XCTAssertTrue(waveformSurface.contains("view.delegate = nil"))
+        XCTAssertTrue(waveformSurface.contains("snapshot.spectrumBands[index]"))
+        XCTAssertTrue(waveformSurface.contains("snapshot.eqBands[index]"))
+        XCTAssertTrue(waveformSurface.contains("let spectrumDisplayCeiling = max(snapshot.spectrumBands.max()"))
+        XCTAssertTrue(waveformSurface.contains("displayCeiling: spectrumDisplayCeiling"))
+        XCTAssertFalse(waveformSurface.contains("let displayCeiling = max(bands.max()"))
+        XCTAssertFalse(waveformSurface.contains("eqBandsDB.prefix(31).map"))
+        XCTAssertFalse(waveformSurface.contains("spectrumBands.prefix(31).map"))
+        XCTAssertFalse(waveformSurface.contains("view.effectiveAppearance"))
+        XCTAssertFalse(controlPanel.contains(".preferredColorScheme(.light)"))
     }
 
     func testMenuBarExposesQuickPresetAndRepairControls() throws {
@@ -102,6 +141,453 @@ final class SonicBloomAppTests: XCTestCase {
         XCTAssertTrue(delegate.contains("Repair Audio Route"))
         XCTAssertTrue(delegate.contains("Optimize For Video Sync"))
         XCTAssertTrue(delegate.contains("selectPresetFromMenu"))
+    }
+
+    func testVisualizerModeIsOpenedBySimpleButtonAndMenuItem() throws {
+        let controlPanel = try String(contentsOf: URL(fileURLWithPath: "Sources/SonicBloomApp/SonicBloomControlPanel.swift"))
+        let delegate = try String(contentsOf: URL(fileURLWithPath: "Sources/SonicBloomApp/SonicBloomAppDelegate.swift"))
+
+        XCTAssertTrue(controlPanel.contains("var openVisualizer: () -> Void"))
+        XCTAssertTrue(controlPanel.contains("visualizerButton"))
+        XCTAssertTrue(controlPanel.contains("Text(\"Visualizer\")"))
+        XCTAssertTrue(controlPanel.contains("Open Visualizer"))
+        XCTAssertTrue(delegate.contains("SonicBloomVisualizerWindowController"))
+        XCTAssertTrue(delegate.contains("openVisualizer()"))
+        XCTAssertTrue(delegate.contains("Open Visualizer"))
+    }
+
+    func testVisualizerPresetLibraryShipsCuratedNativePresets() throws {
+        let presets = VisualizerPresetLibrary.bundledPresets()
+        let ids = presets.map(\.id)
+
+        XCTAssertEqual(presets.count, 55)
+        XCTAssertEqual(Set(ids).count, presets.count)
+        XCTAssertEqual(ids, [
+            "bloom-tunnel",
+            "glass-cathedral",
+            "solar-bass-garden",
+            "neon-reef",
+            "aurora-circuit",
+            "velvet-warp",
+            "starfield-bloom",
+            "signal-mandala",
+            "chromatic-fold",
+            "deep-space-cells",
+            "oil-slick-vortex",
+            "lattice-bloom",
+            "smoke-glass",
+            "pulse-engine",
+            "quantum-lattice",
+            "liquid-prism",
+            "fractal-ballroom",
+            "bassline-hive",
+            "ghost-oscilloscope",
+            "ion-storm",
+            "cathedral-bloomfield",
+            "velvet-hyperspace",
+            "opal-reaction",
+            "meridian-engine",
+            "phosphor-rain",
+            "helix-bloom",
+            "chromaflow-basin",
+            "lunar-circuitry",
+            "subspace-lattice",
+            "monolith-bloom",
+            "cryo-bloom-forge",
+            "plasma-scripture",
+            "hyperglass-loom",
+            "electric-mycelium",
+            "cobalt-sundial",
+            "infrared-tidepool",
+            "neon-origami-engine",
+            "thundercell-cathedral",
+            "mirror-orchard",
+            "synapse-carnival",
+            "halation-spiral",
+            "velvet-monsoon",
+            "prism-hive-mind",
+            "gravity-petals",
+            "tachyon-lace",
+            "acid-snowglobe",
+            "ember-circuit-reef",
+            "bluefire-mandala",
+            "magnetic-aurora-bloom",
+            "spectral-city-grid",
+            "obsidian-mirror",
+            "sunken-opera",
+            "laser-moss-temple",
+            "ruby-telemetry",
+            "polar-nebula-gate"
+        ])
+        XCTAssertTrue(presets.allSatisfy { !$0.name.isEmpty })
+        let morphSignatures = Set(presets.map {
+            "\($0.morph.rate)-\($0.morph.chaos)-\($0.morph.geometry)-\($0.morph.sceneBlend)-\($0.morph.waveComplexity)"
+        })
+        XCTAssertGreaterThanOrEqual(morphSignatures.count, 48)
+        XCTAssertGreaterThanOrEqual(presets.filter { $0.modules.bloom <= 0.34 }.count, 18)
+    }
+
+    func testVisualizerOverlayExposesSecondPassControlsAndPausedRendererState() throws {
+        let visualizerView = try String(contentsOf: URL(fileURLWithPath: "Sources/SonicBloomApp/SonicBloomVisualizerView.swift"))
+        let visualizerSurface = try String(contentsOf: URL(fileURLWithPath: "Sources/SonicBloomApp/MetalVisualizerSurface.swift"))
+        let visualizerWindow = try String(contentsOf: URL(fileURLWithPath: "Sources/SonicBloomApp/SonicBloomVisualizerWindowController.swift"))
+
+        XCTAssertTrue(visualizerView.contains("windowState.isRenderingEnabled"))
+        XCTAssertTrue(visualizerView.contains("detailDensity"))
+        XCTAssertTrue(visualizerView.contains("bloomStrength"))
+        XCTAssertTrue(visualizerView.contains("Performance quality"))
+        XCTAssertTrue(visualizerView.contains("Cinematic quality"))
+        XCTAssertTrue(visualizerView.contains("Flash limit"))
+        XCTAssertTrue(visualizerView.contains("ScrollView(.horizontal"))
+        XCTAssertTrue(visualizerView.contains("VisualizerWindowControlButton"))
+        XCTAssertTrue(visualizerView.contains("VisualizerHoverLabel"))
+        XCTAssertTrue(visualizerView.contains("VisualizerMouseActivityView"))
+        XCTAssertTrue(visualizerView.contains("bottomControlHelp"))
+        XCTAssertTrue(visualizerView.contains("setBottomControlHelp"))
+        XCTAssertTrue(visualizerView.contains("onHoverHelp"))
+        XCTAssertTrue(visualizerView.contains("Intensity - overall visual energy, motion, and brightness"))
+        XCTAssertTrue(visualizerView.contains("Flash limit - caps rapid brightness spikes"))
+        XCTAssertTrue(visualizerView.contains("fullScreenControlsIdleSeconds"))
+        XCTAssertTrue(visualizerView.contains("registerPointerActivity()"))
+        XCTAssertTrue(visualizerView.contains("updateControlVisibility(at: time)"))
+        XCTAssertTrue(visualizerView.contains("NSCursor.setHiddenUntilMouseMoves(true)"))
+        XCTAssertTrue(visualizerView.contains("NSCursor.setHiddenUntilMouseMoves(false)"))
+        XCTAssertTrue(visualizerView.contains("restoreInteractiveOverlay()"))
+        XCTAssertTrue(visualizerView.contains("windowState.isFullScreen"))
+        XCTAssertTrue(visualizerView.contains("Minimize visualizer"))
+        XCTAssertTrue(visualizerView.contains("Reset visual seed"))
+        XCTAssertTrue(visualizerSurface.contains("view.isPaused = !isRenderingEnabled"))
+        XCTAssertTrue(visualizerSurface.contains("targetFramesPerSecond"))
+        XCTAssertTrue(visualizerSurface.contains("case .adaptive: return 40"))
+        XCTAssertTrue(visualizerSurface.contains("case .performance: return 30"))
+        XCTAssertTrue(visualizerSurface.contains("if view.delegate == nil"))
+        XCTAssertTrue(visualizerSurface.contains("view.delegate = context.coordinator"))
+        XCTAssertTrue(visualizerSurface.contains("view.draw()"))
+        XCTAssertTrue(visualizerSurface.contains("guard isRenderingEnabled else { return }"))
+        XCTAssertTrue(visualizerWindow.contains("@Published var isFullScreen"))
+        XCTAssertTrue(visualizerWindow.contains("@Published var interactionResetToken"))
+        XCTAssertTrue(visualizerWindow.contains("resetInteractionState()"))
+        XCTAssertTrue(visualizerWindow.contains("toggleFullScreenMode()"))
+        XCTAssertFalse(visualizerWindow.contains("windowState.isFullScreen = !window.styleMask.contains(.fullScreen)"))
+        XCTAssertTrue(visualizerWindow.contains("windowWillEnterFullScreen"))
+        XCTAssertTrue(visualizerWindow.contains("windowDidExitFullScreen"))
+        XCTAssertTrue(visualizerWindow.contains("windowWillClose"))
+        XCTAssertTrue(visualizerWindow.contains("windowState.isRenderingEnabled = false"))
+        XCTAssertTrue(visualizerWindow.contains("window.isMovableByWindowBackground = true"))
+        XCTAssertTrue(visualizerWindow.contains("standardWindowButton(.closeButton)?.isHidden = true"))
+        XCTAssertTrue(visualizerWindow.contains("miniaturize(nil)"))
+    }
+
+    func testVisualizerEngineUsesTransientBandsAdaptiveQualityAndAdvancedShaderFamilies() throws {
+        let engine = try String(contentsOf: URL(fileURLWithPath: "Sources/SonicBloomApp/MetalVisualizerEngine.swift"))
+
+        XCTAssertTrue(engine.contains("bandDeltas"))
+        XCTAssertTrue(engine.contains("bandDeltaAt"))
+        XCTAssertTrue(engine.contains("bandBuffer.contents().bindMemory"))
+        XCTAssertFalse(engine.contains("Array(audio.bands.prefix"))
+        XCTAssertFalse(engine.contains("Array(audio.bandDeltas.prefix"))
+        XCTAssertTrue(engine.contains("moebiusFold"))
+        XCTAssertTrue(engine.contains("logPolarLine"))
+        XCTAssertTrue(engine.contains("caustic"))
+        XCTAssertTrue(engine.contains("megapixels"))
+        XCTAssertTrue(engine.contains("1.08 - max(0, megapixels - 1.0) * 0.10"))
+        XCTAssertTrue(engine.contains("bloomRadius"))
+        XCTAssertTrue(engine.contains("feedbackEdge"))
+        XCTAssertTrue(engine.contains("var comboPreset: VisualizerPreset?"))
+        XCTAssertTrue(engine.contains("comboStrength"))
+        XCTAssertTrue(engine.contains("float4 combo"))
+        XCTAssertTrue(engine.contains("comboPortal"))
+        XCTAssertTrue(engine.contains("comboRing"))
+        XCTAssertTrue(engine.contains("compositionMask"))
+        XCTAssertTrue(engine.contains("compositionDirector"))
+        XCTAssertTrue(engine.contains("detailGate"))
+        XCTAssertTrue(engine.contains("accentGate"))
+        XCTAssertTrue(engine.contains("negativeSpaceMask"))
+        XCTAssertTrue(engine.contains("focalMask"))
+        XCTAssertTrue(engine.contains("whiteWash"))
+        XCTAssertTrue(engine.contains("rescuePalette"))
+        XCTAssertTrue(engine.contains("chromaPreservingVibrance"))
+        XCTAssertTrue(engine.contains("clarityGrade"))
+        XCTAssertTrue(engine.contains("toneLocalAverage"))
+        XCTAssertTrue(engine.contains("softCeiling"))
+        XCTAssertTrue(engine.contains("spatialTransitionMask"))
+        XCTAssertTrue(engine.contains("butterchurnBlendPattern"))
+        XCTAssertTrue(engine.contains("blendBand"))
+        XCTAssertTrue(engine.contains("transitionEdge"))
+        XCTAssertTrue(engine.contains("motionVectorGlyph"))
+        XCTAssertTrue(engine.contains("butterchurnWarpMotionVectors"))
+        XCTAssertTrue(engine.contains("warpMotionVectors"))
+        XCTAssertTrue(engine.contains("motionVectors"))
+        XCTAssertTrue(engine.contains("customWaveLoopField"))
+        XCTAssertTrue(engine.contains("borderGlow"))
+        XCTAssertTrue(engine.contains("darkenCenterAmount"))
+        XCTAssertTrue(engine.contains("echoUV"))
+        XCTAssertTrue(engine.contains("echo_orientation"))
+        XCTAssertTrue(engine.contains("echo_zoom"))
+        XCTAssertTrue(engine.contains("milkdropVideoEchoUV"))
+        XCTAssertTrue(engine.contains("solarizeGrade"))
+        XCTAssertTrue(engine.contains("butterchurnCompositeFlags"))
+        XCTAssertTrue(engine.contains("gammaAdj"))
+        XCTAssertTrue(engine.contains("spectrumLead"))
+        XCTAssertTrue(engine.contains("waveLead"))
+        XCTAssertTrue(engine.contains("shapeLead"))
+        XCTAssertTrue(engine.contains("mipmapped: true"))
+        XCTAssertTrue(engine.contains("generateMipmaps"))
+        XCTAssertTrue(engine.contains("classicWaveformModes"))
+        XCTAssertTrue(engine.contains("butterchurnSmoothWave"))
+        XCTAssertTrue(engine.contains("float c1 = -0.15"))
+        XCTAssertTrue(engine.contains("angledSingle"))
+        XCTAssertTrue(engine.contains("angledDouble"))
+        XCTAssertTrue(engine.contains("milkdropWaveStackField"))
+        XCTAssertTrue(engine.contains("customShapeActorField"))
+        XCTAssertTrue(engine.contains("numInst"))
+        XCTAssertTrue(engine.contains("texZoom"))
+        XCTAssertTrue(engine.contains("thickoutline"))
+        XCTAssertTrue(engine.contains("regularPolygonDistance"))
+        XCTAssertTrue(engine.contains("blurPyramid"))
+        XCTAssertTrue(engine.contains("mip_filter::linear"))
+        XCTAssertTrue(engine.contains("level(3.0)"))
+        XCTAssertTrue(engine.contains("fxaaResolve"))
+        XCTAssertTrue(engine.contains("edgeSmoother"))
+        XCTAssertTrue(engine.contains("phraseA"))
+        XCTAssertTrue(engine.contains("phraseB"))
+        XCTAssertTrue(engine.contains("sourceSignature"))
+        XCTAssertTrue(engine.contains("targetSignature"))
+        XCTAssertTrue(engine.contains("butterchurnSnapGate"))
+        XCTAssertTrue(engine.contains("butterchurnSnapValue"))
+        XCTAssertTrue(engine.contains("butterchurnMorphMask"))
+        XCTAssertTrue(engine.contains("butterchurnMorphEdge"))
+        XCTAssertTrue(engine.contains("distinctHeroGeometry"))
+        XCTAssertTrue(engine.contains("heroGeometry"))
+        XCTAssertTrue(engine.contains("heroEnergy"))
+        XCTAssertTrue(engine.contains("heroPresence"))
+        XCTAssertTrue(engine.contains("worldMix"))
+        XCTAssertTrue(engine.contains("worldSeed"))
+        XCTAssertTrue(engine.contains("worldFamily"))
+        XCTAssertTrue(engine.contains("spectrumFamily"))
+        XCTAssertTrue(engine.contains("hueShader"))
+        XCTAssertTrue(engine.contains("proceduralTextureBank"))
+        XCTAssertTrue(engine.contains("curlFlowField"))
+        XCTAssertTrue(engine.contains("liquidGlassField"))
+        XCTAssertTrue(engine.contains("reactionDiffusionField"))
+        XCTAssertTrue(engine.contains("metaballField"))
+        XCTAssertTrue(engine.contains("fbm3"))
+        XCTAssertTrue(engine.contains("motionEnergy"))
+        XCTAssertTrue(engine.contains("audioLift"))
+        XCTAssertTrue(engine.contains("audioPunch"))
+        XCTAssertTrue(engine.contains("heroPulse"))
+        XCTAssertTrue(engine.contains("directionalEcho"))
+        XCTAssertTrue(engine.contains("compHue"))
+        XCTAssertTrue(engine.contains("mirrorTileFold"))
+        XCTAssertTrue(engine.contains("recursiveTileField"))
+        XCTAssertTrue(engine.contains("beatShockwaveField"))
+        XCTAssertTrue(engine.contains("waveformTunnelField"))
+        XCTAssertTrue(engine.contains("superscopeBraidField"))
+        XCTAssertTrue(engine.contains("tileEchoUV"))
+        XCTAssertTrue(engine.contains("tileEchoMix"))
+        XCTAssertTrue(engine.contains("bassLensDistortion"))
+        XCTAssertTrue(engine.contains("juliaOrbitTrapField"))
+        XCTAssertTrue(engine.contains("harmonicScopeKnotField"))
+        XCTAssertTrue(engine.contains("starburstLatticeField"))
+        XCTAssertTrue(engine.contains("bassLens"))
+        XCTAssertTrue(engine.contains("juliaOrbitTrap"))
+        XCTAssertTrue(engine.contains("harmonicScopeKnot"))
+        XCTAssertTrue(engine.contains("starburstLattice"))
+        XCTAssertTrue(engine.contains("sceneA"))
+        XCTAssertTrue(engine.contains("sceneB"))
+        XCTAssertTrue(engine.contains("sceneCycleSeconds"))
+        XCTAssertTrue(engine.contains("sceneFamilyGate"))
+        XCTAssertTrue(engine.contains("sceneBlendGate"))
+        XCTAssertTrue(engine.contains("sceneFamilyGate(worldFamily, 0.22, 0.13)"))
+        XCTAssertTrue(engine.contains("sceneFamilyGate(u.sceneA.x, family, 0.22)"))
+        XCTAssertTrue(engine.contains("0.38 + spectrumFamily * 0.86"))
+        XCTAssertTrue(engine.contains("Float(target.transitionDuration) * (1.05 + Float(target.morph.sceneBlend) * 0.70)"))
+        XCTAssertTrue(engine.contains("sceneChangeRibbon"))
+        XCTAssertTrue(engine.contains("atmosphereScene"))
+        XCTAssertTrue(engine.contains("spectrumScene"))
+        XCTAssertTrue(engine.contains("geometryScene"))
+        XCTAssertTrue(engine.contains("waveScene"))
+        XCTAssertTrue(engine.contains("tunnelScene"))
+        XCTAssertTrue(engine.contains("particleScene"))
+        XCTAssertTrue(engine.contains("sceneGrade"))
+        XCTAssertTrue(engine.contains("sceneCrossChroma"))
+        XCTAssertTrue(engine.contains("equationA"))
+        XCTAssertTrue(engine.contains("equationB"))
+        XCTAssertTrue(engine.contains("equationCycleSeconds"))
+        XCTAssertTrue(engine.contains("equationBlendGate"))
+        XCTAssertTrue(engine.contains("equationClock"))
+        XCTAssertTrue(engine.contains("equationChangeRibbon"))
+        XCTAssertTrue(engine.contains("moireInterferenceField"))
+        XCTAssertTrue(engine.contains("spectralRainField"))
+        XCTAssertTrue(engine.contains("irisShutterField"))
+        XCTAssertTrue(engine.contains("chromaticVectorField"))
+        XCTAssertTrue(engine.contains("moireEquation"))
+        XCTAssertTrue(engine.contains("rainEquation"))
+        XCTAssertTrue(engine.contains("irisEquation"))
+        XCTAssertTrue(engine.contains("vectorEquation"))
+        XCTAssertTrue(engine.contains("equationGrade"))
+        XCTAssertTrue(engine.contains("milkdropPerPixelWarp"))
+        XCTAssertTrue(engine.contains("warpf0"))
+        XCTAssertTrue(engine.contains("warpTimeV"))
+        XCTAssertTrue(engine.contains("videoEchoMix"))
+        XCTAssertTrue(engine.contains("stackGate"))
+        XCTAssertTrue(engine.contains("liquidGate"))
+        XCTAssertTrue(engine.contains("director.w"))
+        XCTAssertTrue(engine.contains("1.18 + u.intensity * 0.24"))
+        XCTAssertTrue(engine.contains("luma > 0.83"))
+    }
+
+    func testVisualizerPresetDecodingClampsAndDefaults() throws {
+        let data = #"{"id":"","name":"","transitionDuration":99,"modules":{"warp":2,"particles":-1},"generators":{"particleCount":999,"ribbonCount":0,"folds":2,"cellular":-1,"nebula":3,"interference":-2},"morph":{"rate":9,"chaos":-2,"geometry":3,"colorDrift":-1,"sceneBlend":2,"feedbackEcho":-2,"prism":4,"waveComplexity":-7}}"#.data(using: .utf8)!
+
+        let preset = try JSONDecoder().decode(VisualizerPreset.self, from: data)
+
+        XCTAssertEqual(preset.id, "bloom-tunnel")
+        XCTAssertEqual(preset.name, "Bloom Tunnel")
+        XCTAssertEqual(preset.transitionDuration, 12)
+        XCTAssertEqual(preset.modules.warp, 1)
+        XCTAssertEqual(preset.modules.particles, 0)
+        XCTAssertEqual(preset.generators.particleCount, 160)
+        XCTAssertEqual(preset.generators.ribbonCount, 1)
+        XCTAssertEqual(preset.generators.folds, 1)
+        XCTAssertEqual(preset.generators.cellular, 0)
+        XCTAssertEqual(preset.generators.nebula, 1)
+        XCTAssertEqual(preset.generators.interference, 0)
+        XCTAssertEqual(preset.morph.rate, 1)
+        XCTAssertEqual(preset.morph.chaos, 0)
+        XCTAssertEqual(preset.morph.geometry, 1)
+        XCTAssertEqual(preset.morph.colorDrift, 0)
+        XCTAssertEqual(preset.morph.sceneBlend, 1)
+        XCTAssertEqual(preset.morph.feedbackEcho, 0)
+        XCTAssertEqual(preset.morph.prism, 1)
+        XCTAssertEqual(preset.morph.waveComplexity, 0)
+        XCTAssertEqual(preset.palette, .default)
+    }
+
+    func testVisualizerAudioAnalyzerTracksBandsAndBeats() throws {
+        let models = try String(contentsOf: URL(fileURLWithPath: "Sources/SonicBloomApp/VisualizerModels.swift"))
+        let lowAnalyzer = VisualizerAudioAnalyzer()
+        var lowBands = Array(repeating: Float(0), count: DSPPreset.bandCount)
+        lowBands[4] = 0.8
+        let low = lowAnalyzer.ingest(DSPMeter(outputPeak: 0.45, lowEnergy: 0.42, spectrumBands: lowBands), at: 0)
+
+        let highAnalyzer = VisualizerAudioAnalyzer()
+        var highBands = Array(repeating: Float(0), count: DSPPreset.bandCount)
+        highBands[27] = 0.8
+        let high = highAnalyzer.ingest(DSPMeter(outputPeak: 0.45, highEnergy: 0.42, spectrumBands: highBands), at: 0)
+
+        XCTAssertGreaterThan(low.lowEnvelope, low.highEnvelope)
+        XCTAssertGreaterThan(high.highEnvelope, high.lowEnvelope)
+
+        let beatAnalyzer = VisualizerAudioAnalyzer()
+        _ = beatAnalyzer.ingest(DSPMeter(), at: 0)
+        let pulseBands = Array(repeating: Float(0.85), count: DSPPreset.bandCount)
+        let beat = beatAnalyzer.ingest(DSPMeter(inputPeak: 0.80, outputPeak: 0.92, lowEnergy: 0.70, midEnergy: 0.45, highEnergy: 0.32, spectrumBands: pulseBands), at: 0.22)
+
+        XCTAssertGreaterThan(beat.spectralFlux, 0.2)
+        XCTAssertGreaterThan(beat.onset, 0.2)
+        XCTAssertGreaterThan(beat.beatConfidence, 0.1)
+
+        let peakOnlyAnalyzer = VisualizerAudioAnalyzer()
+        _ = peakOnlyAnalyzer.ingest(DSPMeter(), at: 0)
+        let peakOnly = peakOnlyAnalyzer.ingest(DSPMeter(inputPeak: 0.74, outputPeak: 0.76), at: 0.18)
+        XCTAssertGreaterThan(peakOnly.lowEnvelope, 0.05)
+        XCTAssertGreaterThan(peakOnly.midEnvelope, 0.03)
+        XCTAssertGreaterThan(peakOnly.onset, 0.1)
+        XCTAssertTrue(models.contains("normalizedBandsScratch"))
+        XCTAssertTrue(models.contains("updateNormalizedBands(from:"))
+        XCTAssertFalse(models.contains("Array(bands.prefix"))
+        XCTAssertFalse(models.contains("previousBands = smoothedBands"))
+    }
+
+    func testVisualizerPresetDeckTransitionsLockAndAutoCycle() {
+        let presets = [
+            VisualizerPreset(id: "one", name: "One", transitionDuration: 2),
+            VisualizerPreset(id: "two", name: "Two", transitionDuration: 2),
+            VisualizerPreset(id: "three", name: "Three", transitionDuration: 2)
+        ]
+        var deck = VisualizerPresetDeck(presets: presets, selectedPresetID: "two", autoCycleEnabled: true, cycleSeconds: 8, startTime: 0, seed: 1)
+
+        XCTAssertEqual(deck.currentPreset.id, "two")
+        deck.next(at: 1)
+        XCTAssertEqual(deck.currentPreset.id, "three")
+        XCTAssertEqual(deck.sourcePreset(at: 1)?.id, "two")
+        XCTAssertEqual(deck.transitionProgress(at: 1), 0, accuracy: 0.001)
+        XCTAssertEqual(deck.transitionProgress(at: 3), 1, accuracy: 0.001)
+        deck.update(at: 3)
+        XCTAssertNil(deck.sourcePreset(at: 3))
+
+        deck.toggleLock()
+        deck.update(at: 20)
+        XCTAssertEqual(deck.currentPreset.id, "three")
+        deck.toggleLock()
+        let autoCycleSourceID = deck.currentPreset.id
+        deck.update(at: 20)
+        XCTAssertNotEqual(deck.currentPreset.id, autoCycleSourceID)
+        XCTAssertTrue(presets.contains(deck.currentPreset))
+
+        let seed = deck.renderSeed
+        deck.resetSeed()
+        XCTAssertNotEqual(deck.renderSeed, seed)
+
+        var comboDeck = VisualizerPresetDeck(presets: presets, selectedPresetID: "one", autoCycleEnabled: true, cycleSeconds: 8, startTime: 0, seed: 7)
+        XCTAssertNil(comboDeck.comboPreset(at: 0))
+        comboDeck.randomCombo(at: 1)
+        let comboPreset = comboDeck.comboPreset(at: 2)
+        XCTAssertNotNil(comboPreset)
+        XCTAssertNotEqual(comboPreset?.id, comboDeck.currentPreset.id)
+        XCTAssertGreaterThan(comboDeck.comboProgress(at: 2), 0)
+        XCTAssertEqual(comboDeck.comboProgress(at: 40), 0, accuracy: 0.001)
+        comboDeck.update(at: 40)
+        XCTAssertNil(comboDeck.comboPreset(at: 40))
+
+        var autoComboDeck = VisualizerPresetDeck(presets: presets, selectedPresetID: "one", autoCycleEnabled: true, cycleSeconds: 8, startTime: 0, seed: 11)
+        autoComboDeck.update(at: 6)
+        XCTAssertNotNil(autoComboDeck.comboPreset(at: 6.2))
+    }
+
+    func testMetalVisualizerEngineRendersOffscreenFrame() throws {
+        guard let device = MTLCreateSystemDefaultDevice() else {
+            throw XCTSkip("Metal is unavailable in this environment.")
+        }
+        let engine = try MetalVisualizerEngine(device: device, pixelFormat: .bgra8Unorm)
+        let preset = try XCTUnwrap(VisualizerPresetLibrary.bundledPresets().first)
+        let audio = VisualizerAudioFrame(
+            bands: Array(repeating: 0.5, count: DSPPreset.bandCount),
+            bandDeltas: Array(repeating: 0.1, count: DSPPreset.bandCount),
+            lowEnvelope: 0.55,
+            midEnvelope: 0.36,
+            highEnvelope: 0.24,
+            spectralFlux: 0.42,
+            onset: 0.55,
+            beatConfidence: 0.65,
+            beatPhase: 0.18,
+            inputPeak: 0.54,
+            outputPeak: 0.62
+        )
+
+        let bytes = try XCTUnwrap(engine.renderOffscreen(
+            size: CGSize(width: 128, height: 128),
+            state: VisualizerRenderState(
+                audio: audio,
+                sourcePreset: nil,
+                targetPreset: preset,
+                comboPreset: nil,
+                transitionProgress: 1,
+                comboProgress: 0,
+                settings: .default,
+                reduceMotion: false,
+                renderSeed: 7
+            )
+        ))
+
+        XCTAssertTrue(bytes.contains { $0 > 0 })
+        let pixelCount = bytes.count / 4
+        let hotPixels = stride(from: 0, to: bytes.count, by: 4).reduce(0) { count, index in
+            let hottestChannel = max(bytes[index], bytes[index + 1], bytes[index + 2])
+            return count + (hottestChannel > 248 ? 1 : 0)
+        }
+        XCTAssertLessThan(hotPixels, max(1, pixelCount / 20))
     }
 
     @MainActor
@@ -885,15 +1371,24 @@ final class SonicBloomAppTests: XCTestCase {
         XCTAssertTrue(controlPanel.contains(".accessibilityValue(label)"))
     }
 
-    func testBridgeEnqueuesPerAppFramesIntoPlaybackRing() {
+    func testBridgeEnqueuesPerAppFramesIntoPlaybackRing() throws {
         let bridge = SonicBloomAudioBridge()
         bridge.prepareRingForTesting(capacity: 8)
+        let bridgeSource = try String(contentsOf: URL(fileURLWithPath: "Sources/SonicBloomApp/SonicBloomAudioBridge.swift"))
 
         bridge.enqueueAppFrames([StereoFrame(left: 0.25, right: -0.5)], observedCallbackFrames: 1)
 
         XCTAssertEqual(bridge.drainFramesForTesting(count: 1), [
             StereoFrame(left: 0.25, right: -0.5)
         ])
+        XCTAssertTrue(bridgeSource.contains("appScratchLeft.resizeAudioBuffer"))
+        XCTAssertFalse(bridgeSource.contains("frames.map(\\.left)"))
+        XCTAssertFalse(bridgeSource.contains("frames.map(\\.right)"))
+        XCTAssertLessThan(
+            bridgeSource.range(of: "try startPlayback(deviceID: outputID)")!.lowerBound,
+            bridgeSource.range(of: "try startCapture(deviceID: inputID)")!.lowerBound
+        )
+        XCTAssertFalse(bridgeSource.contains("kAudioDevicePropertyIOProcStreamUsage"))
         bridge.stop()
     }
 

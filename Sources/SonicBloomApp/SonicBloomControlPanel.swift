@@ -9,7 +9,9 @@ enum SonicBloomWindowMetrics {
 
 struct SonicBloomControlPanel: View {
     @ObservedObject var viewModel: SonicBloomViewModel
+    var openVisualizer: () -> Void = {}
     @State private var tab = ConsoleTab.studio
+    @AppStorage("sonicbloom.darkModeEnabled") private var isDarkModeEnabled = false
     @AppStorage("sonicbloom.quickSetupDismissed") private var isQuickSetupDismissed = false
 
     var body: some View {
@@ -18,7 +20,7 @@ struct SonicBloomControlPanel: View {
             HStack(alignment: .top, spacing: 18) {
                 sidebar
                 VStack(spacing: 12) {
-                    HeroAnalyzer(viewModel: viewModel)
+                    HeroAnalyzer(viewModel: viewModel, isDarkModeEnabled: isDarkModeEnabled)
                         .fixedSize(horizontal: false, vertical: true)
                     if viewModel.settings.showAdvancedControls {
                         ConsoleTabBar(selection: $tab)
@@ -64,7 +66,9 @@ struct SonicBloomControlPanel: View {
         .background(SBColor.canvas)
         .foregroundStyle(SBColor.text)
         .tint(SBColor.green)
-        .preferredColorScheme(.light)
+        .preferredColorScheme(isDarkModeEnabled ? .dark : .light)
+        .onAppear(perform: applyAppearance)
+        .onChange(of: isDarkModeEnabled) { _ in applyAppearance() }
     }
 
     private var sidebar: some View {
@@ -127,6 +131,10 @@ struct SonicBloomControlPanel: View {
             .buttonStyle(SonicPressButtonStyle())
             .help(viewModel.settings.showAdvancedControls ? "Switch to simple controls" : "Switch to studio controls")
 
+            visualizerButton
+
+            darkModeToggle
+
             Text("PRESETS")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(SBColor.subtext)
@@ -182,6 +190,67 @@ struct SonicBloomControlPanel: View {
             .opacity(viewModel.isTransitioning ? 0.72 : 1)
             .help(viewModel.isBridgeRunning ? "Restore Mac output and stop enhancement" : "Start enhancing Mac audio")
         }
+    }
+
+    private var visualizerButton: some View {
+        Button(action: openVisualizer) {
+            HStack(spacing: 10) {
+                Image(systemName: "sparkles.tv")
+                    .font(.system(size: 15, weight: .semibold))
+                    .frame(width: 22)
+                Text("Visualizer")
+                    .font(.system(size: 14, weight: .bold))
+                Spacer()
+                Image(systemName: "arrow.up.forward")
+                    .font(.system(size: 12, weight: .bold))
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .foregroundStyle(SBColor.green)
+            .background(SBColor.green.opacity(0.12))
+            .overlay { RoundedRectangle(cornerRadius: 8).stroke(SBColor.green.opacity(0.36), lineWidth: 1) }
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .contentShape(RoundedRectangle(cornerRadius: 8))
+        }
+        .buttonStyle(SonicPressButtonStyle())
+        .accessibilityLabel("Open Visualizer")
+        .help("Open Visualizer")
+    }
+
+    private var darkModeToggle: some View {
+        Button {
+            isDarkModeEnabled.toggle()
+        } label: {
+            let color = isDarkModeEnabled ? SBColor.green : SBColor.blue
+            HStack(spacing: 10) {
+                Image(systemName: "moon.fill")
+                    .font(.system(size: 15, weight: .semibold))
+                    .frame(width: 22)
+                Text("Dark Mode")
+                    .font(.system(size: 14, weight: .bold))
+                Spacer()
+                if isDarkModeEnabled {
+                    Image(systemName: "checkmark")
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .foregroundStyle(color)
+            .background(color.opacity(isDarkModeEnabled ? 0.18 : 0.10))
+            .overlay { RoundedRectangle(cornerRadius: 8).stroke(color.opacity(isDarkModeEnabled ? 0.48 : 0.25), lineWidth: 1) }
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .contentShape(RoundedRectangle(cornerRadius: 8))
+        }
+        .buttonStyle(SonicPressButtonStyle())
+        .accessibilityLabel("Dark Mode")
+        .accessibilityValue(isDarkModeEnabled ? "On" : "Off")
+        .help(isDarkModeEnabled ? "Use light console" : "Use dark console")
+    }
+
+    private func applyAppearance() {
+        NSApp.appearance = NSAppearance(named: isDarkModeEnabled ? .darkAqua : .aqua)
     }
 
     @ViewBuilder
@@ -350,6 +419,7 @@ private struct SimpleModePanel: View {
 
 private struct HeroAnalyzer: View {
     @ObservedObject var viewModel: SonicBloomViewModel
+    var isDarkModeEnabled: Bool
 
     var body: some View {
         VStack(spacing: 14) {
@@ -399,7 +469,8 @@ private struct HeroAnalyzer: View {
                 meterModel: viewModel.meterModel,
                 preset: viewModel.selectedPreset,
                 isRunning: viewModel.isBridgeRunning,
-                reduceMotion: viewModel.settings.reduceMotion
+                reduceMotion: viewModel.settings.reduceMotion,
+                isDarkModeEnabled: isDarkModeEnabled
             )
             .frame(height: 156)
         }
@@ -1815,6 +1886,7 @@ private struct SpectrumAnalyzer: View {
     var preset: DSPPreset
     var isRunning: Bool
     var reduceMotion: Bool
+    var isDarkModeEnabled: Bool
 
     var body: some View {
         ZStack {
@@ -1827,7 +1899,8 @@ private struct SpectrumAnalyzer: View {
                 spectrumBands: meterModel.meter.spectrumBands,
                 eqBandsDB: preset.eqBandsDB,
                 isRunning: isRunning,
-                reduceMotion: reduceMotion
+                reduceMotion: reduceMotion,
+                isDarkModeEnabled: isDarkModeEnabled
             )
             .allowsHitTesting(false)
             VStack {
@@ -2253,34 +2326,108 @@ private struct StereoVectorscope: View {
     var spatial: Double
 
     var body: some View {
-        ZStack {
-            Canvas { context, size in
-                let center = CGPoint(x: size.width / 2, y: size.height / 2)
-                let radius = min(size.width, size.height) * 0.42
-                context.stroke(Path(ellipseIn: CGRect(x: center.x - radius, y: center.y - radius, width: radius * 2, height: radius * 2)), with: .color(SBColor.line), lineWidth: 1)
-                var cross = Path()
-                cross.move(to: CGPoint(x: center.x - radius, y: center.y)); cross.addLine(to: CGPoint(x: center.x + radius, y: center.y))
-                cross.move(to: CGPoint(x: center.x, y: center.y - radius)); cross.addLine(to: CGPoint(x: center.x, y: center.y + radius))
-                context.stroke(cross, with: .color(SBColor.line.opacity(0.8)), lineWidth: 0.8)
-                let output = CGFloat(min(max(meterModel.meter.outputPeak, 0.04), 1))
-                for i in 0..<160 {
-                    let t = CGFloat(i) / 160
-                    let angle = t * .pi * 2
-                    let r = radius * CGFloat(0.12 + output * 0.8) * CGFloat((sin(t * 31 + CGFloat(width) * 3) + 1) * 0.5)
-                    let x = center.x + cos(angle) * r * CGFloat(0.38 + width)
-                    let y = center.y + sin(angle) * r * CGFloat(0.3 + spatial)
-                    context.fill(Path(ellipseIn: CGRect(x: x - 1, y: y - 1, width: 2, height: 2)), with: .color(SBColor.green.opacity(0.64)))
+        TimelineView(.animation) { timeline in
+            ZStack {
+                Canvas { context, size in
+                    let center = CGPoint(x: size.width / 2, y: size.height / 2)
+                    let radius = min(size.width, size.height) * 0.43
+                    let time = CGFloat(timeline.date.timeIntervalSinceReferenceDate)
+                    let meter = meterModel.meter
+                    let output = CGFloat(min(max(meter.outputPeak, 0.10), 1))
+                    let input = CGFloat(min(max(meter.inputPeak, 0.08), 1))
+                    let low = CGFloat(min(max(meter.lowEnergy, 0), 1))
+                    let mid = CGFloat(min(max(meter.midEnergy, 0), 1))
+                    let high = CGFloat(min(max(meter.highEnergy, 0), 1))
+                    let widthAmount = CGFloat(width)
+                    let spatialAmount = CGFloat(spatial)
+                    let phase = time * (0.75 + output * 1.15 + spatialAmount * 0.45)
+                    let rect = CGRect(origin: .zero, size: size)
+
+                    context.fill(Path(roundedRect: rect, cornerRadius: 6), with: .color(SBColor.scope))
+
+                    for ring in 1...3 {
+                        let ringRadius = radius * CGFloat(ring) / 3
+                        let opacity = 0.08 + Double(output) * 0.045
+                        context.stroke(
+                            Path(ellipseIn: CGRect(x: center.x - ringRadius, y: center.y - ringRadius, width: ringRadius * 2, height: ringRadius * 2)),
+                            with: .color(SBColor.green.opacity(opacity)),
+                            lineWidth: ring == 3 ? 1.2 : 0.7
+                        )
+                    }
+
+                    var cross = Path()
+                    cross.move(to: CGPoint(x: center.x - radius, y: center.y))
+                    cross.addLine(to: CGPoint(x: center.x + radius, y: center.y))
+                    cross.move(to: CGPoint(x: center.x, y: center.y - radius))
+                    cross.addLine(to: CGPoint(x: center.x, y: center.y + radius))
+                    context.stroke(cross, with: .color(SBColor.line.opacity(0.62)), lineWidth: 0.8)
+
+                    let stereoScaleX = radius * (0.30 + widthAmount * 0.72 + output * 0.18)
+                    let stereoScaleY = radius * (0.24 + spatialAmount * 0.56 + mid * 0.20)
+                    var ribbon = Path()
+                    var glow = Path()
+                    for i in 0...240 {
+                        let t = CGFloat(i) / 240
+                        let a = t * .pi * 2
+                        let band = CGFloat(meter.spectrumBands[min(Int(t * CGFloat(DSPPreset.bandCount)), DSPPreset.bandCount - 1)])
+                        let fold = sin(a * (2.0 + widthAmount * 3.0) + phase) * (0.25 + high * 0.24)
+                        let bloom = 0.58 + output * 0.44 + band * 0.34
+                        let x = center.x + sin(a + phase * 0.24 + fold) * stereoScaleX * bloom
+                        let y = center.y + sin(a * (1.0 + spatialAmount * 0.55) - phase * 0.31) * stereoScaleY * (0.72 + low * 0.32 + band * 0.22)
+                        let point = CGPoint(x: x, y: y)
+                        if i == 0 {
+                            ribbon.move(to: point)
+                            glow.move(to: point)
+                        } else {
+                            ribbon.addLine(to: point)
+                            glow.addLine(to: point)
+                        }
+                    }
+
+                    context.stroke(glow, with: .color(SBColor.blue.opacity(0.20 + Double(output) * 0.14)), lineWidth: 7.0)
+                    context.stroke(glow, with: .color(SBColor.green.opacity(0.22 + Double(spatialAmount) * 0.16)), lineWidth: 4.2)
+                    context.stroke(ribbon, with: .color(SBColor.green.opacity(0.92)), lineWidth: 1.8)
+                    context.stroke(ribbon, with: .color(SBColor.yellow.opacity(0.45 + Double(high) * 0.22)), lineWidth: 0.8)
+
+                    for trail in 0..<5 {
+                        let offset = CGFloat(trail) * 0.42
+                        var orbit = Path()
+                        for i in 0...96 {
+                            let t = CGFloat(i) / 96
+                            let a = t * .pi * 2
+                            let r = radius * (0.18 + output * 0.52 + CGFloat(trail) * 0.035)
+                            let x = center.x + cos(a * (1.0 + widthAmount) + phase * 0.32 - offset) * r * (0.62 + widthAmount * 0.42)
+                            let y = center.y + sin(a * (2.0 + spatialAmount) - phase * 0.22 + offset) * r * (0.42 + spatialAmount * 0.48)
+                            let point = CGPoint(x: x, y: y)
+                            i == 0 ? orbit.move(to: point) : orbit.addLine(to: point)
+                        }
+                        context.stroke(orbit, with: .color(SBColor.blue.opacity(0.10 + Double(output) * 0.045)), lineWidth: 1)
+                    }
+
+                    for i in 0..<36 {
+                        let t = CGFloat(i) / 36
+                        let band = CGFloat(meter.spectrumBands[min(i % DSPPreset.bandCount, DSPPreset.bandCount - 1)])
+                        let angle = t * .pi * 2 + phase * (0.18 + band * 0.24)
+                        let r = radius * (0.28 + band * 0.62 + output * 0.18)
+                        let x = center.x + cos(angle) * r * (0.70 + widthAmount * 0.48)
+                        let y = center.y + sin(angle) * r * (0.56 + spatialAmount * 0.48)
+                        let dot = 1.5 + band * 3.5 + output * 1.2
+                        context.fill(Path(ellipseIn: CGRect(x: x - dot / 2, y: y - dot / 2, width: dot, height: dot)), with: .color(SBColor.yellow.opacity(0.22 + Double(band) * 0.42)))
+                    }
+
+                    let core = 5 + output * 7 + input * 3
+                    context.fill(Path(ellipseIn: CGRect(x: center.x - core / 2, y: center.y - core / 2, width: core, height: core)), with: .color(SBColor.yellow.opacity(0.92)))
+                    context.stroke(Path(ellipseIn: CGRect(x: center.x - core, y: center.y - core, width: core * 2, height: core * 2)), with: .color(SBColor.green.opacity(0.72)), lineWidth: 1.1)
                 }
-                context.fill(Path(ellipseIn: CGRect(x: center.x - 3, y: center.y - 3, width: 6, height: 6)), with: .color(SBColor.yellow))
+                HStack {
+                    Text("L")
+                    Spacer()
+                    Text("R")
+                }
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(SBColor.subtext)
+                .padding(.horizontal, 8)
             }
-            HStack {
-                Text("L")
-                Spacer()
-                Text("R")
-            }
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(SBColor.subtext)
-            .padding(.horizontal, 8)
         }
         .background(SBColor.scope)
         .clipShape(RoundedRectangle(cornerRadius: 6))

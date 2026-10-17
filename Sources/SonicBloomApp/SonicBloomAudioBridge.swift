@@ -45,6 +45,8 @@ final class SonicBloomAudioBridge: @unchecked Sendable {
     private var scratchRight: [Float] = []
     private var processedLeft: [Float] = []
     private var processedRight: [Float] = []
+    private var appScratchLeft: [Float] = []
+    private var appScratchRight: [Float] = []
     private var framesSinceMeterUpdate = 0
     private var pendingMeter = MeterAccumulator()
 
@@ -170,6 +172,8 @@ final class SonicBloomAudioBridge: @unchecked Sendable {
         scratchRight.removeAll(keepingCapacity: true)
         processedLeft.removeAll(keepingCapacity: true)
         processedRight.removeAll(keepingCapacity: true)
+        appScratchLeft.removeAll(keepingCapacity: true)
+        appScratchRight.removeAll(keepingCapacity: true)
         framesSinceMeterUpdate = 0
         pendingMeter.reset()
         audioUnitHost.reset()
@@ -308,8 +312,7 @@ final class SonicBloomAudioBridge: @unchecked Sendable {
     func enqueueAppFrames(_ frames: [StereoFrame], observedCallbackFrames: Int) {
         guard !frames.isEmpty else { return }
         writeOutput(
-            left: frames.map(\.left),
-            right: frames.map(\.right),
+            frames: frames,
             maxQueuedFrames: syncMode.maxQueuedOutputFrames(observedCallbackFrames: max(observedCallbackFrames, frames.count))
         )
     }
@@ -330,6 +333,25 @@ final class SonicBloomAudioBridge: @unchecked Sendable {
         _ = left.withUnsafeBufferPointer { leftPointer in
             right.withUnsafeBufferPointer { rightPointer in
                 SonicBloomRingBufferWrite(ring, leftPointer.baseAddress, rightPointer.baseAddress, left.count)
+            }
+        }
+        SonicBloomRingBufferTrim(ring, max(1, maxQueuedFrames))
+    }
+
+    private func writeOutput(frames: [StereoFrame], maxQueuedFrames: Int) {
+        guard let ring else { return }
+        outputWriteLock.lock()
+        defer { outputWriteLock.unlock() }
+
+        appScratchLeft.resizeAudioBuffer(to: frames.count, reserveAtLeast: Self.maxRealtimeScratchFrames)
+        appScratchRight.resizeAudioBuffer(to: frames.count, reserveAtLeast: Self.maxRealtimeScratchFrames)
+        for index in frames.indices {
+            appScratchLeft[index] = frames[index].left
+            appScratchRight[index] = frames[index].right
+        }
+        _ = appScratchLeft.withUnsafeBufferPointer { leftPointer in
+            appScratchRight.withUnsafeBufferPointer { rightPointer in
+                SonicBloomRingBufferWrite(ring, leftPointer.baseAddress, rightPointer.baseAddress, frames.count)
             }
         }
         SonicBloomRingBufferTrim(ring, max(1, maxQueuedFrames))
@@ -399,6 +421,8 @@ final class SonicBloomAudioBridge: @unchecked Sendable {
         scratchRight.resizeAudioBuffer(to: 0, reserveAtLeast: Self.maxRealtimeScratchFrames)
         processedLeft.resizeAudioBuffer(to: 0, reserveAtLeast: Self.maxRealtimeScratchFrames)
         processedRight.resizeAudioBuffer(to: 0, reserveAtLeast: Self.maxRealtimeScratchFrames)
+        appScratchLeft.resizeAudioBuffer(to: 0, reserveAtLeast: Self.maxRealtimeScratchFrames)
+        appScratchRight.resizeAudioBuffer(to: 0, reserveAtLeast: Self.maxRealtimeScratchFrames)
     }
 
     private func clear(_ buffers: UnsafeMutableAudioBufferListPointer) {

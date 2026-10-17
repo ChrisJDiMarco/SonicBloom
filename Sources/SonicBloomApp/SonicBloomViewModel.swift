@@ -353,6 +353,35 @@ final class SonicBloomViewModel: ObservableObject {
     }
 
     func startBridge() {
+        switch AVCaptureDevice.authorizationStatus(for: .audio) {
+        case .authorized:
+            break
+        case .notDetermined:
+            isTransitioning = true
+            routeState.statusMessage = "Waiting for microphone permission..."
+            AVCaptureDevice.requestAccess(for: .audio) { [weak self] granted in
+                DispatchQueue.main.async {
+                    guard let self else { return }
+                    self.isTransitioning = false
+                    if granted {
+                        self.startBridge()
+                    } else {
+                        self.lastError = "Microphone permission is required to read SonicBloom Output."
+                        self.routeState.statusMessage = "Enable Microphone permission for SonicBloom."
+                        self.recordSupportEvent("error", "Microphone permission denied.")
+                    }
+                }
+            }
+            return
+        case .denied, .restricted:
+            lastError = "Microphone permission is required to read SonicBloom Output."
+            routeState.statusMessage = "Enable Microphone permission for SonicBloom."
+            recordSupportEvent("error", "Microphone permission unavailable.")
+            return
+        @unknown default:
+            break
+        }
+
         isTransitioning = true
         defer { isTransitioning = false }
         do {

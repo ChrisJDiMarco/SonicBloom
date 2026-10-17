@@ -1186,20 +1186,26 @@ public struct CoreAudioStereoBuffer: Equatable, Sendable {
     private static func interleavedFrames(buffer: AudioBuffer, frameCount: Int) -> [StereoFrame] {
         let channels = max(Int(buffer.mNumberChannels), 1)
         guard let data = buffer.mData?.assumingMemoryBound(to: Float.self) else { return [] }
-        return (0..<frameCount).map { frame in
+        var frames: [StereoFrame] = []
+        frames.reserveCapacity(frameCount)
+        for frame in 0..<frameCount {
             let base = frame * channels
             let left = data[base]
-            return StereoFrame(left: left, right: channels > 1 ? data[base + 1] : left)
+            frames.append(StereoFrame(left: left, right: channels > 1 ? data[base + 1] : left))
         }
+        return frames
     }
 
     private static func planarFrames(buffers: UnsafeMutableAudioBufferListPointer, frameCount: Int) -> [StereoFrame] {
         guard let leftData = buffers[0].mData?.assumingMemoryBound(to: Float.self) else { return [] }
         let rightData = buffers.count > 1 ? buffers[1].mData?.assumingMemoryBound(to: Float.self) : nil
-        return (0..<frameCount).map { frame in
+        var frames: [StereoFrame] = []
+        frames.reserveCapacity(frameCount)
+        for frame in 0..<frameCount {
             let left = leftData[frame]
-            return StereoFrame(left: left, right: rightData?[frame] ?? left)
+            frames.append(StereoFrame(left: left, right: rightData?[frame] ?? left))
         }
+        return frames
     }
 }
 
@@ -1227,11 +1233,14 @@ public final class PerAppAudioLane {
 
     public static func mix(_ appFrames: [StereoFrame], into baseFrames: [StereoFrame]) -> [StereoFrame] {
         let frameCount = max(baseFrames.count, appFrames.count)
-        return (0..<frameCount).map { index in
+        var mixed: [StereoFrame] = []
+        mixed.reserveCapacity(frameCount)
+        for index in 0..<frameCount {
             let base = index < baseFrames.count ? baseFrames[index] : StereoFrame(left: 0, right: 0)
             let app = index < appFrames.count ? appFrames[index] : StereoFrame(left: 0, right: 0)
-            return StereoFrame(left: base.left + app.left, right: base.right + app.right)
+            mixed.append(StereoFrame(left: base.left + app.left, right: base.right + app.right))
         }
+        return mixed
     }
 }
 

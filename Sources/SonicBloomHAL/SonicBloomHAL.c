@@ -1,6 +1,7 @@
 #include <CoreAudio/AudioServerPlugIn.h>
 #include <CoreAudio/CoreAudio.h>
 #include <CoreFoundation/CFPlugInCOM.h>
+#include <math.h>
 #include <mach/mach_time.h>
 #include <pthread.h>
 #include <stdbool.h>
@@ -10,6 +11,8 @@
 #define kSonicBloomDeviceObjectID 2
 #define kSonicBloomOutputStreamObjectID 3
 #define kSonicBloomInputStreamObjectID 4
+#define kSonicBloomVolumeControlObjectID 5
+#define kSonicBloomMuteControlObjectID 6
 #define kSonicBloomChannels 2
 #define kSonicBloomDefaultBufferFrames 64
 #define kSonicBloomMinBufferFrames 64
@@ -21,12 +24,15 @@
 #define kSonicBloomPropertySISO 'siso'
 #define kSonicBloomPropertyTaps 'taps'
 #define kSonicBloomPropertyAccesses 'accs'
+#define kSonicBloomVirtualMainVolumeProperty 'vmvc'
 
 static AudioServerPlugInHostRef gHost = NULL;
 static UInt32 gRefCount = 1;
 static UInt32 gIOClientCount = 0;
 static Float64 gSampleRate = 48000.0;
 static UInt32 gBufferFrameSize = kSonicBloomDefaultBufferFrames;
+static Float32 gOutputVolume = 1.0f;
+static UInt32 gOutputMuted = 0;
 static UInt64 gClockSeed = 1;
 static Float64 gSampleTime = 0.0;
 static UInt64 gAnchorHostTime = 0;
@@ -85,6 +91,14 @@ static void SonicBloomLogIO(const char* phase, UInt32 streamID, UInt32 operation
 #endif
 }
 
+#if SONICBLOOM_HAL_TRACE
+static void SonicBloomLogIOPeak(const char* phase, UInt32 streamID, UInt32 operationID, UInt32 frames, UInt32 ringFrames, float peak) {
+    char text[192];
+    snprintf(text, sizeof(text), "%s stream=%u op=%u frames=%u ring=%u peak=%.6f", phase, streamID, operationID, frames, ringFrames, peak);
+    SonicBloomLog(text);
+}
+#endif
+
 static void NotifyGlobalProperty(AudioObjectID objectID, AudioObjectPropertySelector selector) {
     if (!gHost || !gHost->PropertiesChanged) return;
     AudioObjectPropertyAddress address = {
@@ -101,6 +115,14 @@ static void NotifySampleRateChanged(void) {
     NotifyGlobalProperty(kSonicBloomOutputStreamObjectID, kAudioStreamPropertyPhysicalFormat);
     NotifyGlobalProperty(kSonicBloomInputStreamObjectID, kAudioStreamPropertyVirtualFormat);
     NotifyGlobalProperty(kSonicBloomInputStreamObjectID, kAudioStreamPropertyPhysicalFormat);
+}
+
+static void NotifyVolumeChanged(void) {
+    NotifyGlobalProperty(kSonicBloomDeviceObjectID, kAudioDevicePropertyVolumeScalar);
+    NotifyGlobalProperty(kSonicBloomDeviceObjectID, kAudioDevicePropertyVolumeDecibels);
+    NotifyGlobalProperty(kSonicBloomDeviceObjectID, kSonicBloomVirtualMainVolumeProperty);
+    NotifyGlobalProperty(kSonicBloomVolumeControlObjectID, kAudioLevelControlPropertyScalarValue);
+    NotifyGlobalProperty(kSonicBloomVolumeControlObjectID, kAudioLevelControlPropertyDecibelValue);
 }
 
 static AudioStreamBasicDescription SonicBloomFormat(void) {
@@ -129,6 +151,9 @@ static bool IsDevice(AudioObjectID objectID) { return objectID == kSonicBloomDev
 static bool IsOutputStream(AudioObjectID objectID) { return objectID == kSonicBloomOutputStreamObjectID; }
 static bool IsInputStream(AudioObjectID objectID) { return objectID == kSonicBloomInputStreamObjectID; }
 static bool IsStream(AudioObjectID objectID) { return IsOutputStream(objectID) || IsInputStream(objectID); }
+static bool IsVolumeControl(AudioObjectID objectID) { return objectID == kSonicBloomVolumeControlObjectID; }
+static bool IsMuteControl(AudioObjectID objectID) { return objectID == kSonicBloomMuteControlObjectID; }
+static bool IsControl(AudioObjectID objectID) { return IsVolumeControl(objectID) || IsMuteControl(objectID); }
 
 static void EnsureTimebaseInfo(void) {
     if (gTimebaseInfo.denom == 0) {
@@ -163,9 +188,30 @@ static OSStatus WriteFloat64(UInt32 inDataSize, UInt32* outDataSize, void* outDa
     return WriteData(inDataSize, outDataSize, outData, &value, sizeof(value));
 }
 
+static OSStatus WriteFloat32(UInt32 inDataSize, UInt32* outDataSize, void* outData, Float32 value) {
+    return WriteData(inDataSize, outDataSize, outData, &value, sizeof(value));
+}
+
 static OSStatus WriteString(UInt32 inDataSize, UInt32* outDataSize, void* outData, CFStringRef value) {
     CFStringRef retained = CFRetain(value);
     return WriteData(inDataSize, outDataSize, outData, &retained, sizeof(retained));
+}
+
+static Float32 ClampVolume(Float32 volume) {
+    if (volume < 0.0f) return 0.0f;
+    if (volume > 1.0f) return 1.0f;
+    return volume;
+}
+
+static Float32 VolumeScalarToDecibels(Float32 volume) {
+    const Float32 clamped = ClampVolume(volume);
+    return clamped <= 0.0f ? -96.0f : 20.0f * log10f(clamped);
+}
+
+static Float32 VolumeDecibelsToScalar(Float32 decibels) {
+    if (decibels <= -96.0f) return 0.0f;
+    if (decibels >= 0.0f) return 1.0f;
+    return ClampVolume(powf(10.0f, decibels / 20.0f));
 }
 
 static OSStatus WriteAudioBufferList(UInt32 inDataSize, UInt32* outDataSize, void* outData, UInt32 channels) {
@@ -275,8 +321,27 @@ static OSStatus SonicBloom_CreateDevice(AudioServerPlugInDriverRef inDriver, CFD
 }
 
 static OSStatus SonicBloom_DestroyDevice(AudioServerPlugInDriverRef inDriver, AudioObjectID inDeviceObjectID) { return kAudioHardwareNoError; }
-static OSStatus SonicBloom_AddDeviceClient(AudioServerPlugInDriverRef inDriver, AudioObjectID inDeviceObjectID, const AudioServerPlugInClientInfo* inClientInfo) { return kAudioHardwareNoError; }
-static OSStatus SonicBloom_RemoveDeviceClient(AudioServerPlugInDriverRef inDriver, AudioObjectID inDeviceObjectID, const AudioServerPlugInClientInfo* inClientInfo) { return kAudioHardwareNoError; }
+static OSStatus SonicBloom_AddDeviceClient(AudioServerPlugInDriverRef inDriver, AudioObjectID inDeviceObjectID, const AudioServerPlugInClientInfo* inClientInfo) {
+#if SONICBLOOM_HAL_TRACE
+    char bundle[128] = "";
+    if (inClientInfo && inClientInfo->mBundleID) {
+        CFStringGetCString(inClientInfo->mBundleID, bundle, sizeof(bundle), kCFStringEncodingUTF8);
+    }
+    char text[256];
+    snprintf(text, sizeof(text), "AddClient id=%u pid=%d bundle=%s", inClientInfo ? inClientInfo->mClientID : 0, inClientInfo ? inClientInfo->mProcessID : 0, bundle);
+    SonicBloomLog(text);
+#endif
+    return kAudioHardwareNoError;
+}
+
+static OSStatus SonicBloom_RemoveDeviceClient(AudioServerPlugInDriverRef inDriver, AudioObjectID inDeviceObjectID, const AudioServerPlugInClientInfo* inClientInfo) {
+#if SONICBLOOM_HAL_TRACE
+    char text[128];
+    snprintf(text, sizeof(text), "RemoveClient id=%u pid=%d", inClientInfo ? inClientInfo->mClientID : 0, inClientInfo ? inClientInfo->mProcessID : 0);
+    SonicBloomLog(text);
+#endif
+    return kAudioHardwareNoError;
+}
 static OSStatus SonicBloom_PerformDeviceConfigurationChange(AudioServerPlugInDriverRef inDriver, AudioObjectID inDeviceObjectID, UInt64 inChangeAction, void* inChangeInfo) { return kAudioHardwareNoError; }
 static OSStatus SonicBloom_AbortDeviceConfigurationChange(AudioServerPlugInDriverRef inDriver, AudioObjectID inDeviceObjectID, UInt64 inChangeAction, void* inChangeInfo) { return kAudioHardwareNoError; }
 
@@ -286,9 +351,23 @@ static Boolean SonicBloom_HasProperty(AudioServerPlugInDriverRef inDriver, Audio
 }
 
 static OSStatus SonicBloom_IsPropertySettable(AudioServerPlugInDriverRef inDriver, AudioObjectID inObjectID, pid_t inClientProcessID, const AudioObjectPropertyAddress* inAddress, Boolean* outIsSettable) {
-    *outIsSettable = IsDevice(inObjectID) && (
-        inAddress->mSelector == kAudioDevicePropertyNominalSampleRate ||
-        inAddress->mSelector == kAudioDevicePropertyBufferFrameSize
+    *outIsSettable = (
+        IsDevice(inObjectID) && (
+            inAddress->mSelector == kAudioDevicePropertyNominalSampleRate ||
+            inAddress->mSelector == kAudioDevicePropertyBufferFrameSize ||
+            inAddress->mSelector == kAudioDevicePropertyIOProcStreamUsage ||
+            inAddress->mSelector == kAudioDevicePropertyVolumeScalar ||
+            inAddress->mSelector == kAudioDevicePropertyVolumeDecibels ||
+            inAddress->mSelector == kSonicBloomVirtualMainVolumeProperty ||
+            inAddress->mSelector == kAudioDevicePropertyMute
+        )
+    ) || (
+        IsVolumeControl(inObjectID) && (
+            inAddress->mSelector == kAudioLevelControlPropertyScalarValue ||
+            inAddress->mSelector == kAudioLevelControlPropertyDecibelValue
+        )
+    ) || (
+        IsMuteControl(inObjectID) && inAddress->mSelector == kAudioBooleanControlPropertyValue
     );
     return SonicBloom_HasProperty(inDriver, inObjectID, inClientProcessID, inAddress) ? kAudioHardwareNoError : kAudioHardwareUnknownPropertyError;
 }
@@ -298,6 +377,10 @@ static OSStatus SonicBloom_GetPropertyDataSize(AudioServerPlugInDriverRef inDriv
     SonicBloomLogProperty("Size", inObjectID, selector);
     if (selector == kAudioObjectPropertyCustomPropertyInfoList || selector == kSonicBloomPropertyTaps || selector == kSonicBloomPropertyAccesses) {
         *outDataSize = 0;
+        return kAudioHardwareNoError;
+    }
+    if (IsDevice(inObjectID) && selector == kAudioDevicePropertyIOProcStreamUsage) {
+        *outDataSize = sizeof(AudioHardwareIOProcStreamUsage);
         return kAudioHardwareNoError;
     }
     if (selector == kAudioObjectPropertyClass || selector == kAudioObjectPropertyBaseClass || selector == kAudioObjectPropertyOwner ||
@@ -310,6 +393,27 @@ static OSStatus SonicBloom_GetPropertyDataSize(AudioServerPlugInDriverRef inDriv
         selector == kAudioStreamPropertyIsActive || selector == kAudioStreamPropertyDirection || selector == kAudioStreamPropertyTerminalType ||
         selector == kAudioStreamPropertyStartingChannel || selector == kAudioStreamPropertyLatency || selector == kAudioDevicePropertyZeroTimeStampPeriod) {
         *outDataSize = sizeof(UInt32);
+        return kAudioHardwareNoError;
+    }
+    if ((IsDevice(inObjectID) && selector == kAudioDevicePropertyMute) || (IsMuteControl(inObjectID) && selector == kAudioBooleanControlPropertyValue) ||
+        (IsControl(inObjectID) && selector == kAudioControlPropertyElement)) {
+        *outDataSize = sizeof(UInt32);
+        return kAudioHardwareNoError;
+    }
+    if ((IsDevice(inObjectID) && (selector == kAudioDevicePropertyVolumeScalar || selector == kAudioDevicePropertyVolumeDecibels || selector == kSonicBloomVirtualMainVolumeProperty ||
+                                  selector == kAudioDevicePropertyVolumeScalarToDecibels || selector == kAudioDevicePropertyVolumeDecibelsToScalar)) ||
+        (IsVolumeControl(inObjectID) && (selector == kAudioLevelControlPropertyScalarValue || selector == kAudioLevelControlPropertyDecibelValue ||
+                                         selector == kAudioLevelControlPropertyConvertScalarToDecibels || selector == kAudioLevelControlPropertyConvertDecibelsToScalar))) {
+        *outDataSize = sizeof(Float32);
+        return kAudioHardwareNoError;
+    }
+    if ((IsDevice(inObjectID) && selector == kAudioDevicePropertyVolumeRangeDecibels) ||
+        (IsVolumeControl(inObjectID) && selector == kAudioLevelControlPropertyDecibelRange)) {
+        *outDataSize = sizeof(AudioValueRange);
+        return kAudioHardwareNoError;
+    }
+    if (IsControl(inObjectID) && selector == kAudioControlPropertyScope) {
+        *outDataSize = sizeof(AudioObjectPropertyScope);
         return kAudioHardwareNoError;
     }
     if (selector == kAudioDevicePropertyNominalSampleRate) {
@@ -340,7 +444,7 @@ static OSStatus SonicBloom_GetPropertyDataSize(AudioServerPlugInDriverRef inDriv
             return kAudioHardwareNoError;
         }
         if (IsDevice(inObjectID)) {
-            *outDataSize = sizeof(AudioObjectID) * 2;
+            *outDataSize = sizeof(AudioObjectID) * 4;
             return kAudioHardwareNoError;
         }
     }
@@ -353,7 +457,7 @@ static OSStatus SonicBloom_GetPropertyDataSize(AudioServerPlugInDriverRef inDriv
         return kAudioHardwareNoError;
     }
     if (IsDevice(inObjectID) && selector == kAudioObjectPropertyControlList) {
-        *outDataSize = 0;
+        *outDataSize = sizeof(AudioObjectID) * 2;
         return kAudioHardwareNoError;
     }
     if (IsDevice(inObjectID) && selector == kAudioDevicePropertyRelatedDevices) {
@@ -390,21 +494,35 @@ static OSStatus SonicBloom_GetPropertyData(AudioServerPlugInDriverRef inDriver, 
         *outDataSize = 0;
         return kAudioHardwareNoError;
     }
+    if (IsDevice(inObjectID) && selector == kAudioDevicePropertyIOProcStreamUsage) {
+        if (inDataSize < sizeof(AudioHardwareIOProcStreamUsage)) {
+            return kAudioHardwareBadPropertySizeError;
+        }
+        AudioHardwareIOProcStreamUsage* usage = (AudioHardwareIOProcStreamUsage*)outData;
+        usage->mNumberStreams = 1;
+        usage->mStreamIsOn[0] = 1;
+        *outDataSize = sizeof(AudioHardwareIOProcStreamUsage);
+        return kAudioHardwareNoError;
+    }
     if (selector == kAudioObjectPropertyClass || selector == kAudioObjectPropertyBaseClass) {
         UInt32 classID = kAudioObjectClassID;
         if (inObjectID == kAudioObjectPlugInObject) classID = kAudioPlugInClassID;
         if (IsDevice(inObjectID)) classID = kAudioDeviceClassID;
         if (IsStream(inObjectID)) classID = kAudioStreamClassID;
+        if (IsVolumeControl(inObjectID)) classID = kAudioVolumeControlClassID;
+        if (IsMuteControl(inObjectID)) classID = kAudioMuteControlClassID;
         return WriteUInt32(inDataSize, outDataSize, outData, classID);
     }
     if (selector == kAudioObjectPropertyOwner) {
-        UInt32 owner = IsStream(inObjectID) ? kSonicBloomDeviceObjectID : kAudioObjectPlugInObject;
+        UInt32 owner = (IsStream(inObjectID) || IsControl(inObjectID)) ? kSonicBloomDeviceObjectID : kAudioObjectPlugInObject;
         return WriteUInt32(inDataSize, outDataSize, outData, owner);
     }
     if (selector == kAudioObjectPropertyName) {
         if (inObjectID == kAudioObjectPlugInObject) return WriteString(inDataSize, outDataSize, outData, CFSTR("SonicBloom HAL"));
         if (IsOutputStream(inObjectID)) return WriteString(inDataSize, outDataSize, outData, CFSTR("SonicBloom Output Stream"));
         if (IsInputStream(inObjectID)) return WriteString(inDataSize, outDataSize, outData, CFSTR("SonicBloom Input Stream"));
+        if (IsVolumeControl(inObjectID)) return WriteString(inDataSize, outDataSize, outData, CFSTR("SonicBloom Output Volume"));
+        if (IsMuteControl(inObjectID)) return WriteString(inDataSize, outDataSize, outData, CFSTR("SonicBloom Output Mute"));
         return WriteString(inDataSize, outDataSize, outData, CFSTR("SonicBloom Output"));
     }
     if (selector == kAudioObjectPropertyManufacturer) return WriteString(inDataSize, outDataSize, outData, CFSTR("SonicBloom"));
@@ -435,7 +553,7 @@ static OSStatus SonicBloom_GetPropertyData(AudioServerPlugInDriverRef inDriver, 
             return WriteData(inDataSize, outDataSize, outData, &object, sizeof(object));
         }
         if (IsDevice(inObjectID)) {
-            AudioObjectID objects[2] = { kSonicBloomOutputStreamObjectID, kSonicBloomInputStreamObjectID };
+            AudioObjectID objects[4] = { kSonicBloomOutputStreamObjectID, kSonicBloomInputStreamObjectID, kSonicBloomVolumeControlObjectID, kSonicBloomMuteControlObjectID };
             return WriteData(inDataSize, outDataSize, outData, objects, sizeof(objects));
         }
     }
@@ -452,8 +570,8 @@ static OSStatus SonicBloom_GetPropertyData(AudioServerPlugInDriverRef inDriver, 
         return WriteData(inDataSize, outDataSize, outData, streams, sizeof(streams));
     }
     if (IsDevice(inObjectID) && selector == kAudioObjectPropertyControlList) {
-        *outDataSize = 0;
-        return kAudioHardwareNoError;
+        AudioObjectID controls[2] = { kSonicBloomVolumeControlObjectID, kSonicBloomMuteControlObjectID };
+        return WriteData(inDataSize, outDataSize, outData, controls, sizeof(controls));
     }
     if (IsDevice(inObjectID) && selector == kAudioDevicePropertyStreamConfiguration) {
         const UInt32 channels = (inAddress->mScope == kAudioObjectPropertyScopeInput || inAddress->mScope == kAudioObjectPropertyScopeOutput) ? kSonicBloomChannels : kSonicBloomChannels * 2;
@@ -492,6 +610,28 @@ static OSStatus SonicBloom_GetPropertyData(AudioServerPlugInDriverRef inDriver, 
     if (IsStream(inObjectID) && selector == kAudioStreamPropertyDirection) return WriteUInt32(inDataSize, outDataSize, outData, IsInputStream(inObjectID) ? 1 : 0);
     if (IsStream(inObjectID) && selector == kAudioStreamPropertyTerminalType) return WriteUInt32(inDataSize, outDataSize, outData, IsInputStream(inObjectID) ? kAudioStreamTerminalTypeMicrophone : kAudioStreamTerminalTypeSpeaker);
     if (IsStream(inObjectID) && selector == kAudioStreamPropertyStartingChannel) return WriteUInt32(inDataSize, outDataSize, outData, 1);
+    if (IsControl(inObjectID) && selector == kAudioControlPropertyScope) {
+        AudioObjectPropertyScope scope = kAudioObjectPropertyScopeOutput;
+        return WriteData(inDataSize, outDataSize, outData, &scope, sizeof(scope));
+    }
+    if (IsControl(inObjectID) && selector == kAudioControlPropertyElement) return WriteUInt32(inDataSize, outDataSize, outData, kAudioObjectPropertyElementMain);
+    if ((IsDevice(inObjectID) && (selector == kAudioDevicePropertyVolumeScalar || selector == kSonicBloomVirtualMainVolumeProperty)) || (IsVolumeControl(inObjectID) && selector == kAudioLevelControlPropertyScalarValue)) return WriteFloat32(inDataSize, outDataSize, outData, gOutputVolume);
+    if ((IsDevice(inObjectID) && selector == kAudioDevicePropertyVolumeDecibels) || (IsVolumeControl(inObjectID) && selector == kAudioLevelControlPropertyDecibelValue)) return WriteFloat32(inDataSize, outDataSize, outData, VolumeScalarToDecibels(gOutputVolume));
+    if ((IsDevice(inObjectID) && selector == kAudioDevicePropertyVolumeRangeDecibels) || (IsVolumeControl(inObjectID) && selector == kAudioLevelControlPropertyDecibelRange)) {
+        AudioValueRange range = { -96.0, 0.0 };
+        return WriteData(inDataSize, outDataSize, outData, &range, sizeof(range));
+    }
+    if ((IsDevice(inObjectID) && selector == kAudioDevicePropertyVolumeScalarToDecibels) || (IsVolumeControl(inObjectID) && selector == kAudioLevelControlPropertyConvertScalarToDecibels)) {
+        if (inDataSize < sizeof(Float32) || outData == NULL) return kAudioHardwareBadPropertySizeError;
+        Float32 value = VolumeScalarToDecibels(*((Float32*)outData));
+        return WriteFloat32(inDataSize, outDataSize, outData, value);
+    }
+    if ((IsDevice(inObjectID) && selector == kAudioDevicePropertyVolumeDecibelsToScalar) || (IsVolumeControl(inObjectID) && selector == kAudioLevelControlPropertyConvertDecibelsToScalar)) {
+        if (inDataSize < sizeof(Float32) || outData == NULL) return kAudioHardwareBadPropertySizeError;
+        Float32 value = VolumeDecibelsToScalar(*((Float32*)outData));
+        return WriteFloat32(inDataSize, outDataSize, outData, value);
+    }
+    if ((IsDevice(inObjectID) && selector == kAudioDevicePropertyMute) || (IsMuteControl(inObjectID) && selector == kAudioBooleanControlPropertyValue)) return WriteUInt32(inDataSize, outDataSize, outData, gOutputMuted);
     if (IsStream(inObjectID) && (selector == kAudioStreamPropertyVirtualFormat || selector == kAudioStreamPropertyPhysicalFormat)) {
         AudioStreamBasicDescription format = SonicBloomFormat();
         return WriteData(inDataSize, outDataSize, outData, &format, sizeof(format));
@@ -519,6 +659,33 @@ static OSStatus SonicBloom_SetPropertyData(AudioServerPlugInDriverRef inDriver, 
         }
         return kAudioHardwareIllegalOperationError;
     }
+    if (IsDevice(inObjectID) && (inAddress->mSelector == kAudioDevicePropertyVolumeScalar || inAddress->mSelector == kAudioDevicePropertyVolumeDecibels || inAddress->mSelector == kSonicBloomVirtualMainVolumeProperty)) {
+        if (inDataSize != sizeof(Float32) || inData == NULL) {
+            return kAudioHardwareBadPropertySizeError;
+        }
+        const Float32 requested = *((const Float32*)inData);
+        gOutputVolume = inAddress->mSelector == kAudioDevicePropertyVolumeDecibels ? VolumeDecibelsToScalar(requested) : ClampVolume(requested);
+        NotifyVolumeChanged();
+        return kAudioHardwareNoError;
+    }
+    if (IsVolumeControl(inObjectID) && (inAddress->mSelector == kAudioLevelControlPropertyScalarValue || inAddress->mSelector == kAudioLevelControlPropertyDecibelValue)) {
+        if (inDataSize != sizeof(Float32) || inData == NULL) {
+            return kAudioHardwareBadPropertySizeError;
+        }
+        const Float32 requested = *((const Float32*)inData);
+        gOutputVolume = inAddress->mSelector == kAudioLevelControlPropertyScalarValue ? ClampVolume(requested) : VolumeDecibelsToScalar(requested);
+        NotifyVolumeChanged();
+        return kAudioHardwareNoError;
+    }
+    if ((IsDevice(inObjectID) && inAddress->mSelector == kAudioDevicePropertyMute) || (IsMuteControl(inObjectID) && inAddress->mSelector == kAudioBooleanControlPropertyValue)) {
+        if (inDataSize != sizeof(UInt32) || inData == NULL) {
+            return kAudioHardwareBadPropertySizeError;
+        }
+        gOutputMuted = *((const UInt32*)inData) ? 1 : 0;
+        NotifyGlobalProperty(kSonicBloomDeviceObjectID, kAudioDevicePropertyMute);
+        NotifyGlobalProperty(kSonicBloomMuteControlObjectID, kAudioBooleanControlPropertyValue);
+        return kAudioHardwareNoError;
+    }
     if (IsDevice(inObjectID) && inAddress->mSelector == kAudioDevicePropertyBufferFrameSize) {
         if (inDataSize != sizeof(UInt32) || inData == NULL) {
             return kAudioHardwareBadPropertySizeError;
@@ -532,6 +699,13 @@ static OSStatus SonicBloom_SetPropertyData(AudioServerPlugInDriverRef inDriver, 
             NotifyGlobalProperty(kSonicBloomDeviceObjectID, kAudioDevicePropertyBufferFrameSize);
         }
         return kAudioHardwareNoError;
+    }
+    if (IsDevice(inObjectID) && inAddress->mSelector == kAudioDevicePropertyIOProcStreamUsage) {
+        if (inDataSize < sizeof(AudioHardwareIOProcStreamUsage) || inData == NULL) {
+            return kAudioHardwareBadPropertySizeError;
+        }
+        const AudioHardwareIOProcStreamUsage* usage = (const AudioHardwareIOProcStreamUsage*)inData;
+        return usage->mNumberStreams >= 1 ? kAudioHardwareNoError : kAudioHardwareBadPropertySizeError;
     }
     return kAudioHardwareUnknownPropertyError;
 }
@@ -622,11 +796,12 @@ static UInt32 MaxLoopbackQueueFrames(UInt32 ioFrames) {
 
 static void CopyOutputToLoopback(const float* samples, UInt32 frames) {
     if (!samples) return;
+    const float gain = gOutputMuted ? 0.0f : gOutputVolume;
     pthread_mutex_lock(&gRingLock);
     for (UInt32 frame = 0; frame < frames; frame++) {
         PushLoopbackFrame(
-            samples[(frame * kSonicBloomChannels)],
-            samples[(frame * kSonicBloomChannels) + 1]
+            samples[(frame * kSonicBloomChannels)] * gain,
+            samples[(frame * kSonicBloomChannels) + 1] * gain
         );
     }
     TrimLoopbackQueue(MaxLoopbackQueueFrames(frames));
@@ -646,19 +821,36 @@ static void CopyLoopbackToInput(float* samples, UInt32 frames) {
     pthread_mutex_unlock(&gRingLock);
 }
 
+#if SONICBLOOM_HAL_TRACE
+static float PeakInterleaved(const float* samples, UInt32 frames) {
+    if (!samples) return 0.0f;
+    float peak = 0.0f;
+    for (UInt32 sample = 0; sample < frames * kSonicBloomChannels; sample++) {
+        const float value = fabsf(samples[sample]);
+        if (value > peak) peak = value;
+    }
+    return peak;
+}
+#endif
+
 static OSStatus SonicBloom_DoIOOperation(AudioServerPlugInDriverRef inDriver, AudioObjectID inDeviceObjectID, AudioObjectID inStreamObjectID, UInt32 inClientID, UInt32 inOperationID, UInt32 inIOBufferFrameSize, const AudioServerPlugInIOCycleInfo* inIOCycleInfo, void* ioMainBuffer, void* ioSecondaryBuffer) {
     if (!IsDevice(inDeviceObjectID) || !IsStream(inStreamObjectID)) return kAudioHardwareBadObjectError;
     if (inOperationID == kAudioServerPlugInIOOperationWriteMix && IsOutputStream(inStreamObjectID)) {
+#if SONICBLOOM_HAL_TRACE
+        const float peak = PeakInterleaved((const float*)ioMainBuffer, inIOBufferFrameSize);
+#endif
         CopyOutputToLoopback((const float*)ioMainBuffer, inIOBufferFrameSize);
 #if SONICBLOOM_HAL_TRACE
-        if ((++gTraceWriteMixCount % 100) == 1) SonicBloomLogIO("WriteMix", inStreamObjectID, inOperationID, inIOBufferFrameSize, gRingFrameCount);
+        gTraceWriteMixCount += 1;
+        if (gTraceWriteMixCount <= 20 || (gTraceWriteMixCount % 100) == 1) SonicBloomLogIOPeak("WriteMix", inStreamObjectID, inOperationID, inIOBufferFrameSize, gRingFrameCount, peak);
 #endif
         return kAudioHardwareNoError;
     }
     if (inOperationID == kAudioServerPlugInIOOperationReadInput && IsInputStream(inStreamObjectID)) {
         CopyLoopbackToInput((float*)ioMainBuffer, inIOBufferFrameSize);
 #if SONICBLOOM_HAL_TRACE
-        if ((++gTraceReadInputCount % 100) == 1) SonicBloomLogIO("ReadInput", inStreamObjectID, inOperationID, inIOBufferFrameSize, gRingFrameCount);
+        gTraceReadInputCount += 1;
+        if (gTraceReadInputCount <= 20 || (gTraceReadInputCount % 100) == 1) SonicBloomLogIOPeak("ReadInput", inStreamObjectID, inOperationID, inIOBufferFrameSize, gRingFrameCount, PeakInterleaved((const float*)ioMainBuffer, inIOBufferFrameSize));
 #endif
         return kAudioHardwareNoError;
     }

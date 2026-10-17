@@ -13,6 +13,7 @@ struct MetalWaveformSurface: NSViewRepresentable {
     var eqBandsDB: [Double]
     var isRunning: Bool
     var reduceMotion: Bool
+    var isDarkModeEnabled: Bool
 
     func makeCoordinator() -> Coordinator {
         Coordinator()
@@ -22,7 +23,7 @@ struct MetalWaveformSurface: NSViewRepresentable {
         let view = MTKView()
         view.device = MTLCreateSystemDefaultDevice()
         view.colorPixelFormat = .bgra8Unorm
-        view.clearColor = MTLClearColor(red: 0.948, green: 0.978, blue: 0.970, alpha: 1)
+        view.clearColor = Self.clearColor(isDarkModeEnabled: isDarkModeEnabled)
         view.framebufferOnly = true
         view.preferredFramesPerSecond = 60
         view.enableSetNeedsDisplay = false
@@ -44,6 +45,7 @@ struct MetalWaveformSurface: NSViewRepresentable {
     }
 
     func updateNSView(_ view: MTKView, context: Context) {
+        view.clearColor = Self.clearColor(isDarkModeEnabled: isDarkModeEnabled)
         context.coordinator.update(
             inputPeak: inputPeak,
             outputPeak: outputPeak,
@@ -63,6 +65,17 @@ struct MetalWaveformSurface: NSViewRepresentable {
         if !shouldAnimate {
             view.draw()
         }
+    }
+
+    static func dismantleNSView(_ view: MTKView, coordinator: Coordinator) {
+        view.isPaused = true
+        view.delegate = nil
+    }
+
+    private static func clearColor(isDarkModeEnabled: Bool) -> MTLClearColor {
+        isDarkModeEnabled
+            ? MTLClearColor(red: 0.015, green: 0.040, blue: 0.043, alpha: 1)
+            : MTLClearColor(red: 0.948, green: 0.978, blue: 0.970, alpha: 1)
     }
 
     final class Coordinator: NSObject, MTKViewDelegate {
@@ -149,20 +162,24 @@ struct MetalWaveformSurface: NSViewRepresentable {
             isRunning: Bool,
             reduceMotion: Bool
         ) {
-            let sanitizedBands = eqBandsDB.prefix(31).map { Float(min(max($0, -12), 12)) }
-            let sanitizedSpectrum = spectrumBands.prefix(31).map { min(max($0, 0), 1) }
             lock.lock()
-            snapshot = Snapshot(
-                inputPeak: min(max(inputPeak, 0.02), 1),
-                outputPeak: min(max(outputPeak, 0.02), 1),
-                lowEnergy: min(max(lowEnergy, 0), 1),
-                midEnergy: min(max(midEnergy, 0), 1),
-                highEnergy: min(max(highEnergy, 0), 1),
-                spectrumBands: sanitizedSpectrum.isEmpty ? Array(repeating: 0, count: 31) : sanitizedSpectrum,
-                eqBands: sanitizedBands.isEmpty ? Array(repeating: 0, count: 31) : sanitizedBands,
-                isRunning: isRunning,
-                reduceMotion: reduceMotion
-            )
+            if snapshot.spectrumBands.count != 31 {
+                snapshot.spectrumBands = Array(repeating: 0, count: 31)
+            }
+            if snapshot.eqBands.count != 31 {
+                snapshot.eqBands = Array(repeating: 0, count: 31)
+            }
+            snapshot.inputPeak = min(max(inputPeak, 0.02), 1)
+            snapshot.outputPeak = min(max(outputPeak, 0.02), 1)
+            snapshot.lowEnergy = min(max(lowEnergy, 0), 1)
+            snapshot.midEnergy = min(max(midEnergy, 0), 1)
+            snapshot.highEnergy = min(max(highEnergy, 0), 1)
+            snapshot.isRunning = isRunning
+            snapshot.reduceMotion = reduceMotion
+            for index in 0..<31 {
+                snapshot.spectrumBands[index] = index < spectrumBands.count ? min(max(spectrumBands[index], 0), 1) : 0
+                snapshot.eqBands[index] = index < eqBandsDB.count ? Float(min(max(eqBandsDB[index], -12), 12)) : 0
+            }
             lock.unlock()
         }
 
@@ -241,12 +258,13 @@ struct MetalWaveformSurface: NSViewRepresentable {
         private func buildGeometry(size: CGSize, snapshot: Snapshot, time: Float) {
             vertices.removeAll(keepingCapacity: true)
             drawRanges.removeAll(keepingCapacity: true)
+            let spectrumDisplayCeiling = max(snapshot.spectrumBands.max() ?? 0, 0.000_6)
 
             appendGrid()
-            appendFilledSpectrum(snapshot: snapshot, time: time)
+            appendFilledSpectrum(snapshot: snapshot, time: time, displayCeiling: spectrumDisplayCeiling)
             appendBandHighlights(snapshot: snapshot)
             appendHarmonicRibbons(snapshot: snapshot, time: time)
-            appendWaveLine(snapshot: snapshot, time: time)
+            appendWaveLine(snapshot: snapshot, time: time, displayCeiling: spectrumDisplayCeiling)
             appendResponseLine(snapshot: snapshot)
         }
 
@@ -265,13 +283,13 @@ struct MetalWaveformSurface: NSViewRepresentable {
             drawRanges.append(DrawRange(primitive: .line, start: start, count: vertices.count - start))
         }
 
-        private func appendFilledSpectrum(snapshot: Snapshot, time: Float) {
+        private func appendFilledSpectrum(snapshot: Snapshot, time: Float, displayCeiling: Float) {
             let start = vertices.count
             let samples = 320
             for index in 0...samples {
                 let t = Float(index) / Float(samples)
                 let x = -0.98 + t * 1.96
-                let energy = spectrumEnergy(at: t, snapshot: snapshot, time: time)
+                let energy = spectrumEnergy(at: t, snapshot: snapshot, time: time, displayCeiling: displayCeiling)
                 let y = spectrumY(energy)
                 let alpha = 0.09 + energy * 0.30
                 vertices.append(Vertex(position: SIMD4<Float>(x, -0.88, 0, 1), color: spectrumColor(t, alpha: 0.045)))
@@ -319,19 +337,19 @@ struct MetalWaveformSurface: NSViewRepresentable {
             }
         }
 
-        private func appendWaveLine(snapshot: Snapshot, time: Float) {
+        private func appendWaveLine(snapshot: Snapshot, time: Float, displayCeiling: Float) {
             let outputActivity = snapshot.isRunning ? max(snapshot.outputPeak, 0.04) : 0.02
             let inputActivity = snapshot.isRunning ? max(snapshot.inputPeak, 0.04) : 0.02
             appendPolyline(samples: 360, color: SIMD4<Float>(0.00, 0.50, 0.76, 0.88)) { t in
                 let x = -0.98 + t * 1.96
-                let energy = spectrumEnergy(at: t, snapshot: snapshot, time: time)
+                let energy = spectrumEnergy(at: t, snapshot: snapshot, time: time, displayCeiling: displayCeiling)
                 let wave = sin(t * 112 + time * 3.7) * 0.034 * outputActivity
                 let fine = sin(t * 287 + time * 6.2) * 0.010 * outputActivity
                 return SIMD2<Float>(x, spectrumY(energy * 0.92) + wave + fine)
             }
             appendPolyline(samples: 300, color: SIMD4<Float>(0.90, 0.48, 0.03, 0.46)) { t in
                 let x = -0.98 + t * 1.96
-                let energy = spectrumEnergy(at: t, snapshot: snapshot, time: time) * (0.74 + inputActivity * 0.35)
+                let energy = spectrumEnergy(at: t, snapshot: snapshot, time: time, displayCeiling: displayCeiling) * (0.74 + inputActivity * 0.35)
                 let wave = sin(t * 79 + time * 2.8) * 0.020 * inputActivity
                 return SIMD2<Float>(x, spectrumY(energy) - 0.06 + wave)
             }
@@ -371,14 +389,13 @@ struct MetalWaveformSurface: NSViewRepresentable {
             drawRanges.append(DrawRange(primitive: .lineStrip, start: start, count: vertices.count - start))
         }
 
-        private func spectrumEnergy(at t: Float, snapshot: Snapshot, time: Float) -> Float {
+        private func spectrumEnergy(at t: Float, snapshot: Snapshot, time: Float, displayCeiling: Float) -> Float {
             let bands = snapshot.spectrumBands.isEmpty ? Array(repeating: Float(0), count: 31) : snapshot.spectrumBands
             let rawIndex = t * Float(max(bands.count - 1, 1))
             let lower = min(max(Int(rawIndex), 0), bands.count - 1)
             let upper = min(lower + 1, bands.count - 1)
             let mix = rawIndex - Float(lower)
             let measured = bands[lower] + (bands[upper] - bands[lower]) * mix
-            let displayCeiling = max(bands.max() ?? 0, 0.000_6)
             let broadFallback = (
                 bandLevel(snapshot.lowEnergy) * exp(-pow((t - 0.18) * 5.2, 2.0)) +
                 bandLevel(snapshot.midEnergy) * exp(-pow((t - 0.52) * 3.0, 2.0)) +

@@ -42,6 +42,35 @@ float dynamicsGain(float envelope, float threshold, float ratio, float quietBoos
     return 1.0f + quiet * quietBoost;
 }
 
+float adaptiveBassDrive(float amount, float bassEnvelope) {
+    const float crowding = clamp((bassEnvelope - 0.12f) / 0.30f, 0.0f, 1.0f);
+    return amount * (1.0f - crowding * 0.88f);
+}
+
+float monoSafeSideGain(float mid, float side, float requestedGain, float amount) {
+    const float sideAbs = std::fabs(side);
+    if (sideAbs < 0.00001f) {
+        return requestedGain;
+    }
+    const float sideDominance = clamp((sideAbs - std::fabs(mid) * 1.25f) / sideAbs, 0.0f, 1.0f);
+    const float cappedGain = 1.0f + (requestedGain - 1.0f) * (1.0f - sideDominance);
+    return lerp(requestedGain, cappedGain, amount);
+}
+
+float softKneeLimit(float sample, float ceiling, float amount) {
+    if (amount <= 0.0f) {
+        return sample;
+    }
+    const float kneeStart = ceiling * lerp(0.98f, 0.82f, amount);
+    const float magnitude = std::fabs(sample);
+    if (magnitude <= kneeStart) {
+        return sample;
+    }
+    const float range = std::max(ceiling - kneeStart, 0.000001f);
+    const float shaped = kneeStart + range * std::tanh((magnitude - kneeStart) / range);
+    return std::copysign(std::min(shaped, ceiling), sample);
+}
+
 float onePoleAlpha(float frequency, float sampleRate) {
     return 1.0f - std::exp(-2.0f * pi * frequency / std::max(sampleRate, 1.0f));
 }
@@ -618,14 +647,18 @@ SonicBloomDSPMeter SonicBloomDSPProcess(
         const float bassSquaredR = handle->bassR * handle->bassR;
         handle->bassPowerL += bassPowerAlpha * (bassSquaredL - handle->bassPowerL);
         handle->bassPowerR += bassPowerAlpha * (bassSquaredR - handle->bassPowerR);
+        const float bassDrive = adaptiveBassDrive(
+            bassAmount,
+            std::sqrt(std::max(handle->bassPowerL, handle->bassPowerR))
+        );
         const float bassOddL = -handle->bassL * bassSquaredL;
         const float bassOddR = -handle->bassR * bassSquaredR;
-        left += handle->bassL * bassAmount * 0.30f
-            + (bassSquaredL - handle->bassPowerL) * bassAmount * 0.58f
-            + bassOddL * bassAmount * 5.5f;
-        right += handle->bassR * bassAmount * 0.30f
-            + (bassSquaredR - handle->bassPowerR) * bassAmount * 0.58f
-            + bassOddR * bassAmount * 5.5f;
+        left += handle->bassL * bassDrive * 0.30f
+            + (bassSquaredL - handle->bassPowerL) * bassDrive * 0.58f
+            + bassOddL * bassDrive * 5.5f;
+        right += handle->bassR * bassDrive * 0.30f
+            + (bassSquaredR - handle->bassPowerR) * bassDrive * 0.58f
+            + bassOddR * bassDrive * 5.5f;
 
         handle->crossfeedL += crossfeedAlpha * (left - handle->crossfeedL);
         handle->crossfeedR += crossfeedAlpha * (right - handle->crossfeedR);
@@ -649,7 +682,9 @@ SonicBloomDSPMeter SonicBloomDSPProcess(
 
         const float mid = (left + right) * 0.5f;
         const float side = (left - right) * 0.5f;
-        const float widenedSide = side * (1.0f + widthAmount * 0.75f + spatialAmount * 0.85f);
+        const float requestedSideGain = 1.0f + widthAmount * 0.75f + spatialAmount * 0.85f;
+        const float sideGain = monoSafeSideGain(mid, side, requestedSideGain, clamp(widthAmount + spatialAmount, 0.0f, 1.0f));
+        const float widenedSide = side * sideGain;
         const float spatialSide = delayedSide * spatialAmount * 0.28f;
         left = mid + widenedSide + spatialSide;
         right = mid - widenedSide - spatialSide;
@@ -795,6 +830,10 @@ SonicBloomDSPMeter SonicBloomDSPProcess(
 
         left *= outputGain;
         right *= outputGain;
+
+        const float softKneeAmount = clamp(loudnessAmount * 0.55f + masteringAmount * 0.35f + bassAmount * 0.20f, 0.0f, 1.0f);
+        left = softKneeLimit(left, limiterCeiling, softKneeAmount);
+        right = softKneeLimit(right, limiterCeiling, softKneeAmount);
 
         handle->lookaheadL[handle->lookaheadIndex] = left;
         handle->lookaheadR[handle->lookaheadIndex] = right;

@@ -652,6 +652,65 @@ public struct SonicBloomProfile: Codable, Equatable, Sendable {
     }
 }
 
+public enum VisualizerQuality: String, Codable, CaseIterable, Identifiable, Sendable {
+    case adaptive
+    case performance
+    case cinematic
+
+    public var id: String { rawValue }
+}
+
+public struct VisualizerSettings: Codable, Equatable, Sendable {
+    public var selectedPresetID: String
+    public var intensity: Double
+    public var quality: VisualizerQuality
+    public var autoCycleEnabled: Bool
+    public var cycleSeconds: Double
+    public var flashLimitEnabled: Bool
+    public var detailDensity: Double
+    public var bloomStrength: Double
+
+    public init(
+        selectedPresetID: String = "bloom-tunnel",
+        intensity: Double = 0.82,
+        quality: VisualizerQuality = .adaptive,
+        autoCycleEnabled: Bool = true,
+        cycleSeconds: Double = 28,
+        flashLimitEnabled: Bool = true,
+        detailDensity: Double = 0.62,
+        bloomStrength: Double = 0.56
+    ) {
+        self.selectedPresetID = selectedPresetID.isEmpty ? "bloom-tunnel" : selectedPresetID
+        self.intensity = min(max(intensity, 0), 1)
+        self.quality = quality
+        self.autoCycleEnabled = autoCycleEnabled
+        self.cycleSeconds = min(max(cycleSeconds, 8), 300)
+        self.flashLimitEnabled = flashLimitEnabled
+        self.detailDensity = min(max(detailDensity, 0), 1)
+        self.bloomStrength = min(max(bloomStrength, 0), 1)
+    }
+
+    public static let `default` = VisualizerSettings()
+
+    private enum CodingKeys: String, CodingKey {
+        case selectedPresetID, intensity, quality, autoCycleEnabled, cycleSeconds, flashLimitEnabled, detailDensity, bloomStrength
+    }
+
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            selectedPresetID: try values.decodeIfPresent(String.self, forKey: .selectedPresetID) ?? "bloom-tunnel",
+            intensity: try values.decodeIfPresent(Double.self, forKey: .intensity) ?? 0.82,
+            quality: try values.decodeIfPresent(VisualizerQuality.self, forKey: .quality) ?? .adaptive,
+            autoCycleEnabled: try values.decodeIfPresent(Bool.self, forKey: .autoCycleEnabled) ?? true,
+            cycleSeconds: try values.decodeIfPresent(Double.self, forKey: .cycleSeconds) ?? 28,
+            flashLimitEnabled: try values.decodeIfPresent(Bool.self, forKey: .flashLimitEnabled) ?? true,
+            detailDensity: try values.decodeIfPresent(Double.self, forKey: .detailDensity) ?? 0.62,
+            bloomStrength: try values.decodeIfPresent(Double.self, forKey: .bloomStrength) ?? 0.56
+        )
+    }
+}
+
 public struct SonicBloomSettings: Codable, Equatable, Sendable {
     public var autoEnhanceOnLaunch: Bool
     public var reduceMotion: Bool
@@ -661,6 +720,7 @@ public struct SonicBloomSettings: Codable, Equatable, Sendable {
     public var loudnessMatchedCompare: Bool
     public var smartPresetMatching: Bool
     public var applyAppProfilesAutomatically: Bool
+    public var visualizerSettings: VisualizerSettings
 
     public init(
         autoEnhanceOnLaunch: Bool = false,
@@ -670,7 +730,8 @@ public struct SonicBloomSettings: Codable, Equatable, Sendable {
         syncMode: AudioSyncMode = .auto,
         loudnessMatchedCompare: Bool = false,
         smartPresetMatching: Bool = true,
-        applyAppProfilesAutomatically: Bool = false
+        applyAppProfilesAutomatically: Bool = false,
+        visualizerSettings: VisualizerSettings = .default
     ) {
         self.autoEnhanceOnLaunch = autoEnhanceOnLaunch
         self.reduceMotion = reduceMotion
@@ -680,12 +741,13 @@ public struct SonicBloomSettings: Codable, Equatable, Sendable {
         self.loudnessMatchedCompare = loudnessMatchedCompare
         self.smartPresetMatching = smartPresetMatching
         self.applyAppProfilesAutomatically = applyAppProfilesAutomatically
+        self.visualizerSettings = visualizerSettings
     }
 
     public static let `default` = SonicBloomSettings(loudnessMatchedCompare: false)
 
     private enum CodingKeys: String, CodingKey {
-        case autoEnhanceOnLaunch, reduceMotion, waveformIntensity, showAdvancedControls, syncMode, loudnessMatchedCompare, smartPresetMatching, applyAppProfilesAutomatically
+        case autoEnhanceOnLaunch, reduceMotion, waveformIntensity, showAdvancedControls, syncMode, loudnessMatchedCompare, smartPresetMatching, applyAppProfilesAutomatically, visualizerSettings
     }
 
     public init(from decoder: Decoder) throws {
@@ -698,7 +760,8 @@ public struct SonicBloomSettings: Codable, Equatable, Sendable {
             syncMode: try values.decodeIfPresent(AudioSyncMode.self, forKey: .syncMode) ?? .music,
             loudnessMatchedCompare: try values.decodeIfPresent(Bool.self, forKey: .loudnessMatchedCompare) ?? false,
             smartPresetMatching: try values.decodeIfPresent(Bool.self, forKey: .smartPresetMatching) ?? false,
-            applyAppProfilesAutomatically: try values.decodeIfPresent(Bool.self, forKey: .applyAppProfilesAutomatically) ?? false
+            applyAppProfilesAutomatically: try values.decodeIfPresent(Bool.self, forKey: .applyAppProfilesAutomatically) ?? false,
+            visualizerSettings: try values.decodeIfPresent(VisualizerSettings.self, forKey: .visualizerSettings) ?? .default
         )
     }
 }
